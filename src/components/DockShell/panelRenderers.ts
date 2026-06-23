@@ -30,14 +30,13 @@ export interface PanelRenderers {
 export const DEFAULT_EDITOR_PANEL_IDS: readonly string[] = [
   'hierarchy', 'assets', 'inspector', 'history',
   'capabilities', 'material', 'timeline', 'matgraph', 'launcher',
-  'asset-inspector',
 ];
 
 export const DEFAULT_EDITOR_PANEL_TITLES: Record<string, string> = {
   hierarchy: 'Hierarchy', assets: 'Assets', inspector: 'Inspector',
   history: 'History', capabilities: 'Capabilities',
   material: 'Material', timeline: 'Timeline', matgraph: 'Mat Graph',
-  launcher: 'Launcher', 'asset-inspector': 'Asset Inspector',
+  launcher: 'Launcher',
 };
 
 export const DEFAULT_PANEL_RENDERERS: PanelRenderers = {

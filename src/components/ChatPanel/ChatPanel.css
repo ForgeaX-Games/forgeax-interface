@@ -941,50 +941,6 @@ button.cp-agent-bar-id.is-empty:focus-visible .cp-agent-bar-id-arrow {
 }
 .kc-chev { color: rgba(255,255,255,0.5); }
 
-/* Live work-state word in the agent bubble header (top-right). `.kc-name`
-   (flex:1) shoves it to the right edge, so it sits just left of the provider/
-   status/chevron cluster. Reads the same 9-bucket emotion state that drives
-   the avatar webm, so face + text stay in sync; only mounted while the turn
-   is running/waiting (ForgeCard guards it).
-
-   Two nested spans give "隐现 + 呼吸感":
-     - outer .kc-statusword  : continuous slow opacity breathe (always alive).
-     - inner .kc-statusword-in: replays a fade+rise entrance on every text swap
-       (keyed remount). Nesting means the two opacity animations multiply
-       instead of fighting over the same property. */
-.kc-statusword {
-  flex: 0 0 auto;
-  font-size: 11px;
-  line-height: 1;
-  color: #39ff14;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  user-select: none;
-  pointer-events: none;
-  /* 半透明荧光绿圆角矩形底 */
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(57, 255, 20, 0.12);
-  border: 1px solid rgba(57, 255, 20, 0.28);
-  animation: kc-status-breathe 2.6s ease-in-out infinite;
-}
-.kc-statusword-in {
-  display: inline-block;
-  animation: kc-status-in 380ms ease-out both;
-}
-@keyframes kc-status-breathe {
-  0%, 100% { opacity: 0.32; }
-  50%      { opacity: 1; }
-}
-@keyframes kc-status-in {
-  from { opacity: 0; transform: translateY(2px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .kc-statusword { animation: none; opacity: 0.85; }
-  .kc-statusword-in { animation: none; transform: none; }
-}
-
 .status-done { color: var(--accent-green); }
 .status-running { color: var(--accent-orange); animation: spin 1s linear infinite; }
 .status-waiting { color: var(--accent-cyan); }
@@ -1688,19 +1644,6 @@ button.cp-agent-bar-id.is-empty:focus-visible .cp-agent-bar-id-arrow {
 .sac-emoji { font-size: 12px; }
 .sac-name { font-weight: 600; }
 .sac-role { color: var(--text-muted, rgba(255,255,255,0.4)); font-size: 10px; }
-/* Handoff "拍一拍" header: initiator avatar replaces the emoji, the pat
-   sentence replaces the name. The avatar is a small circle aligned to the
-   row; the text takes the remaining space and ellipsizes so the status /
-   tools meta on the right stays visible. */
-.sac-pat-avatar { flex: 0 0 auto; border-radius: 50%; }
-.sac-pat-text {
-  font-weight: 600;
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .sac-provider {
   font-size: 9px;
   padding: 0 5px;

@@ -328,62 +328,6 @@
   opacity: 1;
 }
 
-/* ── "拍了拍你" 气泡 —— agent 回复完成后, 紧贴胶囊下方冒出, 维持 5s 后消失 ──
- *
- * wrap 是 width:max-content (= 胶囊宽), left:0/right:0 的容器就等于胶囊宽; 内部气泡
- * width:fit-content 随文字伸缩, max-width:100% 把上限钉在胶囊宽 (满了就换行). */
-.cas-pat-bubble {
-  position: absolute;
-  top: calc(100% + 7px);
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: flex-start;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.26s ease, transform 0.26s ease;
-}
-.cas-pat-bubble.is-show {
-  opacity: 1;
-  transform: translateY(0);
-}
-.cas-pat-text {
-  position: relative;
-  box-sizing: border-box;
-  width: fit-content;
-  max-width: 100%;
-  padding: 6px 12px;
-  font-size: 12px;
-  line-height: 1.4;
-  text-align: center;
-  color: var(--color-text-secondary);
-  background: color-mix(in srgb, var(--color-background-base) 90%, transparent);
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(6px);
-  word-break: break-word;
-}
-/* 朝上的小尖角, 指向胶囊第一个头像 (--pat-tail-x 由 JS 测量后注入, 相对气泡左边缘). */
-.cas-pat-text::before {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: var(--pat-tail-x, 24px);
-  width: 8px;
-  height: 8px;
-  transform: translateX(-50%) rotate(45deg);
-  background: inherit;
-  border-left: 1px solid var(--color-border-default);
-  border-top: 1px solid var(--color-border-default);
-}
-@media (prefers-reduced-motion: reduce) {
-  .cas-pat-bubble { transition: opacity 0.26s ease; transform: none; }
-  .cas-pat-bubble.is-show { transform: none; }
-}
-
 .cas-page-dot {
   width: 5px;
   height: 5px;

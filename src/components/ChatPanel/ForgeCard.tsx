@@ -14,7 +14,6 @@ import { buildInterleavedSegments, partitionToolCalls } from './message-parts/in
 import { groupTodoFlow } from './message-parts/groupTodoFlow';
 import { TodoFlow } from './message-parts/TodoFlow';
 import { SubAgentCard } from './SubAgentCard';
-import { AgentStatusChip } from './AgentStatusChip';
 
 interface ForgeCardProps {
   status: 'done' | 'running' | 'waiting';
@@ -156,10 +155,6 @@ export function ForgeCard({
           fallback={<img className="kc-logo" src={logoSrc} alt={displayName} />}
         />
         <span className="kc-name">{displayName}</span>
-        {/* 右上角实时工作状态趣味文案 —— 跟头像同源, 只在 turn 进行中显示. */}
-        {(status === 'running' || status === 'waiting') && (
-          <AgentStatusChip agentId={agentId ?? null} />
-        )}
         {providerId && (
           <ProviderBadgePill
             providerId={providerId}
@@ -237,7 +232,7 @@ export function ForgeCard({
               const run = subAgents?.[subagentId];
               if (!run) return null;
               renderedSubAgentIds.add(subagentId);
-              return <SubAgentCard key={`sub-${subagentId}`} run={run} parentAgentId={agentId ?? null} />;
+              return <SubAgentCard key={`sub-${subagentId}`} run={run} />;
             };
             // Render a tool chip; if it has a subagentId that resolves, the
             // SubAgentCard renders inline right after (chip + card always
@@ -338,7 +333,7 @@ export function ForgeCard({
                 {orphanSubAgents.length > 0 && (
                   <div className="kc-orphan-subs">
                     {orphanSubAgents.map((sa) => (
-                      <SubAgentCard key={`orphan-${sa.emitterId}`} run={sa} parentAgentId={agentId ?? null} />
+                      <SubAgentCard key={`orphan-${sa.emitterId}`} run={sa} />
                     ))}
                   </div>
                 )}
