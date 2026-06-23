@@ -1,4 +1,4 @@
-import React, { createElement, useEffect, useRef, useState } from 'react';
+import React, { createElement, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Eye, Pencil, Save, FileCode, FileText, FileJson, File, Columns2, Paintbrush, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -850,6 +850,37 @@ export function AgentsMainArea() {
     void openFile(path);
   };
 
+  // ── Masonry via JS-distributed flex columns (replaces CSS `columns` multicol) ──
+  // Why not CSS multicol anymore: WebKit (WKWebView/.app) mispaints the
+  // composited <video> avatars inside a multicol fragmentation context — on
+  // hover repaint a card's video gets drawn at a wrong page coordinate
+  // (duplicate avatar near the window bottom / black flash). CSS multicol was
+  // the trigger; no in-flow/clip/compositing tweak fixed it while the cards
+  // lived in a fragmented column flow. We keep the masonry *look* (balanced
+  // columns, no row-height gaps) by measuring the container width and splitting
+  // the folded items into N plain flex columns ourselves — a non-fragmented
+  // layout WebKit composites correctly.
+  const COL_TARGET = 280; // px, mirrors the old `columns: 280px`
+  const COL_GAP = 12;
+  const [colCount, setColCount] = useState(1);
+  const roRef = useRef<ResizeObserver | null>(null);
+  const gridRefCb = useCallback((node: HTMLDivElement | null) => {
+    if (roRef.current) {
+      roRef.current.disconnect();
+      roRef.current = null;
+    }
+    if (!node) return;
+    const recompute = () => {
+      const w = node.clientWidth;
+      const n = Math.max(1, Math.floor((w + COL_GAP) / (COL_TARGET + COL_GAP)));
+      setColCount((prev) => (prev === n ? prev : n));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(node);
+    roRef.current = ro;
+  }, []);
+
   if (err) {
     return (
       <div className="wm-agents-main">
@@ -877,49 +908,78 @@ export function AgentsMainArea() {
           <span>{t('workbench.agentsEmpty')}</span>
         </div>
       ) : (
-        <div className="wm-agents-grid">
-          {foldAgents(agents, { activeId: activeAgentId }).map((item) => {
+        (() => {
+          const renderItem = (
+            item: ReturnType<typeof foldAgents>[number],
+          ): { key: string; node: ReactNode } => {
             if (item.kind === 'flat') {
-              return (
-                <AgentCard
-                  key={item.agent.id}
-                  a={item.agent}
-                  variant="flat"
-                  uninstalledAgentIds={uninstalledAgentIds}
-                  handleFileClick={handleFileClick}
-                  t={t}
-                />
-              );
+              return {
+                key: item.agent.id,
+                node: (
+                  <AgentCard
+                    a={item.agent}
+                    variant="flat"
+                    uninstalledAgentIds={uninstalledAgentIds}
+                    handleFileClick={handleFileClick}
+                    t={t}
+                  />
+                ),
+              };
             }
             if (item.kind === 'subagent-family') {
-              return (
-                <SubagentFamilyGroupCard
-                  key={item.group.id}
+              return {
+                key: item.group.id,
+                node: (
+                  <SubagentFamilyGroupCard
+                    group={item.group}
+                    lead={item.lead}
+                    subs={item.subs}
+                    uninstalledAgentIds={uninstalledAgentIds}
+                    handleFileClick={handleFileClick}
+                    t={t}
+                  />
+                ),
+              };
+            }
+            // skin-group
+            return {
+              key: item.group.id,
+              node: (
+                <SkinGroupCard
                   group={item.group}
-                  lead={item.lead}
-                  subs={item.subs}
+                  members={item.members}
+                  providers={item.providers}
+                  head={item.head}
+                  activeAgentId={activeAgentId}
                   uninstalledAgentIds={uninstalledAgentIds}
                   handleFileClick={handleFileClick}
                   t={t}
                 />
-              );
-            }
-            // skin-group
-            return (
-              <SkinGroupCard
-                key={item.group.id}
-                group={item.group}
-                members={item.members}
-                providers={item.providers}
-                head={item.head}
-                activeAgentId={activeAgentId}
-                uninstalledAgentIds={uninstalledAgentIds}
-                handleFileClick={handleFileClick}
-                t={t}
-              />
-            );
-          })}
-        </div>
+              ),
+            };
+          };
+          // Round-robin distribute folded items into colCount columns. Keeps a
+          // natural row-major reading order (item 0,1,2 across the top row) and
+          // spreads the few tall group cards (iro/reia/skin) across columns for
+          // rough height balance — good enough without measuring card heights.
+          const items = foldAgents(agents, { activeId: activeAgentId });
+          const columns: Array<Array<{ key: string; node: ReactNode }>> =
+            Array.from({ length: colCount }, () => []);
+          items.forEach((item, i) => {
+            columns[i % colCount].push(renderItem(item));
+          });
+          return (
+            <div className="wm-agents-grid" ref={gridRefCb}>
+              {columns.map((col, ci) => (
+                <div className="wm-agents-col" key={ci}>
+                  {col.map((c) => (
+                    <React.Fragment key={c.key}>{c.node}</React.Fragment>
+                  ))}
+                </div>
+              ))}
+            </div>
+          );
+        })()
       )}
     </div>
   );

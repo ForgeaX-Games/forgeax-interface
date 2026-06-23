@@ -1854,37 +1854,34 @@
   text-align: center;
 }
 .wm-agents-err { color: var(--color-status-error); }
-/* CSS columns "masonry" layout (2026-06-22).
+/* Masonry via JS-distributed flex columns (2026-06-23, replaces CSS multicol).
  *
- * Why: the catalog mixes single-height flat cards with much taller
- * group cards (subagent-family with 5 nested subs, skin group with 5
- * chips + 4 provider mini-cards). In a regular CSS grid all cells in
- * a row share the tallest card's height, leaving a big visual hole
- * under the short neighbors — see screenshot 2026-06-22.
+ * History: this used to be `columns: 280px` (CSS multicol) to get masonry
+ * without the row-height gaps a plain CSS grid leaves under short cards. But
+ * WebKit (WKWebView / desktop .app) mispaints the composited <video> avatars
+ * inside a multicol fragmentation context — hovering a card re-composited its
+ * <video> at a wrong page coordinate (a duplicate avatar near the window
+ * bottom + black flash). No in-flow/clip-path/compositing tweak fixed it while
+ * the cards lived in a fragmented column flow. Chrome (Dawn) rendered it fine.
  *
- * `columns: 280px` lets the browser fit as many ~280px-wide columns
- * as the container allows (~3 on a typical Workbench main area), then
- * flows children top-to-bottom column-by-column. Tall family cards
- * just take more vertical space in their column instead of inflating
- * neighbours. `break-inside: avoid` keeps each card / group wrapper
- * intact across column boundaries — without it a card mid-page could
- * split between two columns, which looks broken. `column-gap` covers
- * horizontal spacing; `margin-bottom` on children covers vertical
- * (CSS columns ignores `gap` on the vertical axis).
- *
- * Order trade-off: reading order becomes "down column 1, then column 2",
- * not natural "left-to-right per row". Acceptable for a browse-style
- * catalog where users scan visually rather than read linearly.
+ * Fix: AgentsMainArea now measures the container width, computes the column
+ * count (~280px target), and splits the folded items into N plain flex columns
+ * itself (see gridRefCb / round-robin distribution there). Each column is a
+ * normal flex stack — NOT a fragmentation context — so WebKit composites the
+ * avatars correctly. We keep the masonry look (balanced columns, no row-height
+ * gaps) without the multicol bug. Reading order becomes natural row-major.
  */
 .wm-agents-grid {
-  columns: 280px;
-  column-gap: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 }
-.wm-agents-grid > * {
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
-  page-break-inside: avoid;
-  margin-bottom: 12px;
+.wm-agents-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .wm-agent-card {
   background: var(--color-background-elevated);
