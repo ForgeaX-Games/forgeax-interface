@@ -14,7 +14,6 @@ import { buildInterleavedSegments, partitionToolCalls } from './message-parts/in
 import { groupTodoFlow } from './message-parts/groupTodoFlow';
 import { TodoFlow } from './message-parts/TodoFlow';
 import { SubAgentCard } from './SubAgentCard';
-import { AgentStatusChip } from './AgentStatusChip';
 
 interface ForgeCardProps {
   status: 'done' | 'running' | 'waiting';
@@ -156,10 +155,6 @@ export function ForgeCard({
           fallback={<img className="kc-logo" src={logoSrc} alt={displayName} />}
         />
         <span className="kc-name">{displayName}</span>
-        {/* 右上角实时工作状态趣味文案 —— 跟头像同源, 只在 turn 进行中显示. */}
-        {(status === 'running' || status === 'waiting') && (
-          <AgentStatusChip agentId={agentId ?? null} />
-        )}
         {providerId && (
           <ProviderBadgePill
             providerId={providerId}

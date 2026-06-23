@@ -58,7 +58,7 @@ export interface SkinGroup {
   memberIds: string[];
   /**
    * Provider-default coders bound to specific CLI drivers (e.g. cc-coder
-   * for Claude Code, codex-default for Codex). They share the "coder"
+   * for the claude-code driver, codex-default for Codex). They share the "coder"
    * capability with the skins above but differ by DRIVER instead of by
    * persona. Folded into the same group card so the catalog reads as
    * "one coder family with N tone variants and M driver variants".

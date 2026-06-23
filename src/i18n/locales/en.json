@@ -843,7 +843,9 @@
     "selectBeforeSubmit": "↑ Pick an option before submitting",
     "submit": "Submit",
     "deny": "Deny",
-    "allow": "Allow"
+    "allow": "Allow",
+    "capabilityLabel": "Capability: {{capability}}",
+    "rememberSession": "Remember for this session"
   },
   "dockShell": {
     "popoutToWindow": "Pop out to a separate OS window",
@@ -884,7 +886,7 @@
       "kotone": "Narrative Designer",
       "iro": "Artist",
       "tsumugi": "Engineer",
-      "ccCoder": "Claude Code Engineer",
+      "ccCoder": "the reference agent CLI Engineer",
       "fallback": "sub-agent"
     }
   },

@@ -14,7 +14,6 @@ import { AgentAvatarVideo } from '../AgentAvatarVideo/AgentAvatarVideo';
 import { useTranslation } from '@/i18n';
 import {
   foldAgents,
-  type CatalogItem,
   type SkinGroup,
   type SubagentFamilyGroup,
 } from '../../data/agent-groups';
@@ -911,7 +910,7 @@ export function AgentsMainArea() {
       ) : (
         (() => {
           const renderItem = (
-            item: CatalogItem<AgentRec>,
+            item: ReturnType<typeof foldAgents>[number],
           ): { key: string; node: ReactNode } => {
             if (item.kind === 'flat') {
               return {

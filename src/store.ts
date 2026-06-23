@@ -145,6 +145,9 @@ export interface QueuedMessage {
  *  queueing it behind the current turn. */
 export interface SendMessageOpts {
   handoff?: 'steer';
+  /** 多模态附件(图片)。每项 `{ kind:'image', mediaType, data(base64 或 dataUrl) }`。
+   *  透传进 /api/sessions/:sid/messages 的 payload → 内核 facade 组 image block(forgeax-core)。 */
+  attachments?: Array<Record<string, unknown>>;
 }
 
 export interface ChatMessage {
@@ -490,7 +493,7 @@ interface AppState {
    * events go to `.forgeax/runs/<runId>.jsonl` (AG-UI format), NOT to the
    * forgeax-cli `team/sessions/` ledger that `loadSession` reads.
    *
-   * Without this, refreshing the studio while talking to Claude Code wipes the
+   * Without this, refreshing the studio while talking to the claude-code provider wipes the
    * conversation from the UI even though the run continues on the server
    * (visible in Dashboard).  See `forgeax-dev-diary/2026-05-17/` for the
    * root-cause report.
@@ -2028,17 +2031,23 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
       // here instead. Only the replay path does this; live builds its own
       // segments via session-stream, and claude-code's live accumulator is a
       // different call site — neither is touched.
+      // 来源 badge 的 **per-turn** 还原:内核路径账本在 hook:turnStart / assistantMessage
+      //   payload 带 providerId(见 transcribe-turn.ts);原生 forgeax 路径不写 → 默认 'forgeax'。
+      //   curPid 在 feed 循环里按「轮边界重置 + 轮内捕获」更新,onMessage 同步触发时读取,
+      //   这样**每条 assistant 气泡拿自己那一轮的来源**(修复:全局取最后一个 → 1/2 都变 claude-code)。
+      let curPid: string | undefined;
       const acc = new TurnAccumulator({
         ...mainCbs,
         onMessage: (msg) => {
           mainCbs.onMessage?.(msg);
           const ts = msg.timestamp ?? Date.now();
           if (msg.kind === 'assistant_complete') {
+            const pid = curPid ?? 'forgeax'; // 未标记 = 原生 forgeax(与 live store.ts 默认一致)
             replayEffects.applyMain((m) => {
               let segs = m.segments ?? [];
               if (msg.thinking?.trim()) segs = appendChatSegment(segs, { kind: 'thinking', ts, text: msg.thinking });
               if (msg.text?.trim()) segs = appendChatSegment(segs, { kind: 'text', ts, text: msg.text });
-              return { ...m, segments: segs };
+              return { ...m, segments: segs, providerId: m.providerId ?? pid };
             });
           } else if (msg.kind === 'tool_call') {
             const tc = rendererToolCallToLegacy(msg as ToolCallMessage);
@@ -2071,7 +2080,17 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
       // 3. ts 升序喂入。ledger 本身就是 append 顺序，但 compact_boundary 边界
       //    + 多 shard merge 可能不严格 ts-monotonic，稳妥起见 sort 一次。
       const sorted = [...events].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
-      for (const ev of sorted) acc.feed(ev);
+      for (const ev of sorted) {
+        // per-turn providerId 跟踪(供 onMessage 同步读取):
+        //   轮边界(user_input / hook:turnStart)重置为「该轮自己的 providerId」
+        //   (内核路径写在 turnStart payload;原生路径无 → undefined → 默认 forgeax);
+        //   轮内任意带 providerId 的事件(如 hook:assistantMessage)继续刷新。
+        const p = (ev as { type?: string; payload?: { providerId?: unknown } }).payload;
+        const pid = p && typeof p.providerId === 'string' && p.providerId ? p.providerId : undefined;
+        if (ev.type === 'user_input' || ev.type === 'hook:turnStart') curPid = pid;
+        else if (pid) curPid = pid;
+        acc.feed(ev);
+      }
       acc.flush();
 
       // 4. 历史读没有 live stream 终结点，把所有 streaming 状态翻 done。
@@ -3156,7 +3175,7 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
         markEmittedClientMsg(clientMsgId);
         const r = await emitForgeaXMessage(startSid, expandPills(trimmed), {
           to: candidate,
-          payload: { agentId, clientMsgId },
+          payload: { agentId, clientMsgId, ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}) },
           handoff: 'steer',
         });
         if (!r.ok) throw new Error(r.error ?? 'emit failed');
@@ -3291,7 +3310,7 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
         markEmittedClientMsg(clientMsgId);
         const r = await emitForgeaXMessage(startSid, expandPills(trimmed), {
           to: targetAgent,
-          payload: { agentId, clientMsgId },
+          payload: { agentId, clientMsgId, ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}) },
         });
         if (!r.ok) throw new Error(r.error ?? 'emit failed');
         // checkpoint:server 注入并回传 msgId —— 补到预 push 的 user 气泡,并

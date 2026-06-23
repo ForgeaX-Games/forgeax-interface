@@ -22,6 +22,7 @@ import { subscribeSessionStream } from './lib/session-stream';
 import { subscribeNarrativeCopilot } from './lib/narrative-copilot';
 import { subscribeFileActivityStream } from './lib/file-activity-stream';
 import { subscribePermissionStream } from './lib/permission-stream';
+import { subscribePerceptionStream } from './lib/perception-stream';
 import { syncBrowserPrefsFromServer, startBrowserPrefsSync } from './lib/browser-prefs-sync';
 import { useAppStore } from './store';
 import { decodeSurfaceFromLocation, getWindowManager, isTauri, surfaceKey } from './lib/platform';
@@ -113,6 +114,7 @@ function bootStore() {
   subscribeNarrativeCopilot();
   subscribeFileActivityStream();
   subscribePermissionStream();
+  subscribePerceptionStream();
   void useAppStore.getState().initSessions();
 }
 
