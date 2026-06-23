@@ -113,12 +113,14 @@ export function ModelPicker(props: ModelPickerProps) {
   }, [models, query, showHidden]);
 
   const grouped = useMemo(() => {
+    // custom (.env FORGEAX_CUSTOM_*) 单独成组, 列在最前 —— 用户显式声明的自定义模型.
+    const custom = filtered.filter((m) => m.source === 'custom');
     const disk = filtered.filter((m) => (m.source ?? 'disk') === 'disk');
     const live = filtered.filter((m) => m.source === 'live');
-    return { disk, live };
+    return { custom, disk, live };
   }, [filtered]);
 
-  const flat = useMemo(() => [...grouped.disk, ...grouped.live], [grouped]);
+  const flat = useMemo(() => [...grouped.custom, ...grouped.disk, ...grouped.live], [grouped]);
 
   // Outside-click / Esc / open-focus are owned by Radix Popover now (button &
   // pill variants). We only reset transient menu state when it closes.
@@ -229,8 +231,9 @@ export function ModelPicker(props: ModelPickerProps) {
             <input type="checkbox" checked={isCurrent} readOnly tabIndex={-1} />
           </span>
         )}
-        <span className={`mp-id${m.hidden ? ' is-hidden-model' : ''}`}>{m.id}</span>
+        <span className={`mp-id${m.hidden ? ' is-hidden-model' : ''}`}>{m.displayName || m.id}</span>
         <ModelRowBadges m={m} />
+        {m.source === 'custom' && <span className="mp-live" title=".env FORGEAX_CUSTOM_* 自定义模型">custom</span>}
         {m.source === 'live' && <span className="mp-live" title="from LiteLLM /v1/models (no local metadata)">live</span>}
         {m.hidden && <span className="mp-hidden-tag" title="hidden from Composer picker">hidden</span>}
         <span className="mp-tail">
@@ -285,16 +288,22 @@ export function ModelPicker(props: ModelPickerProps) {
       {models && flat.length === 0 && (
         <div className="mp-empty">{query ? `no matches for "${query}"` : 'catalog empty'}</div>
       )}
+      {grouped.custom.length > 0 && (
+        <>
+          <div className="mp-group" aria-hidden="true">custom · {grouped.custom.length}</div>
+          {grouped.custom.map((m, i) => renderRow(m, i))}
+        </>
+      )}
       {grouped.disk.length > 0 && (
         <>
           <div className="mp-group" aria-hidden="true">disk · {grouped.disk.length}</div>
-          {grouped.disk.map((m, i) => renderRow(m, i))}
+          {grouped.disk.map((m, i) => renderRow(m, grouped.custom.length + i))}
         </>
       )}
       {grouped.live.length > 0 && (
         <>
           <div className="mp-group" aria-hidden="true">live · {grouped.live.length}</div>
-          {grouped.live.map((m, i) => renderRow(m, grouped.disk.length + i))}
+          {grouped.live.map((m, i) => renderRow(m, grouped.custom.length + grouped.disk.length + i))}
         </>
       )}
       <div className="mp-foot">

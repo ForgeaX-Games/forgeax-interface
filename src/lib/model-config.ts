@@ -16,8 +16,14 @@ export interface ModelCatalogEntry {
   /** loadModelsCatalog 兜底字段（盘上条目不规整时附原 raw） */
   spec?: unknown;
   /** 'disk' = ~/.forgeax/key/models.json 命中;
-   *  'live' = LiteLLM /v1/models 才有, UI 可加 badge 提示用户没本地元数据 */
-  source?: 'disk' | 'live';
+   *  'live' = LiteLLM /v1/models 才有, UI 可加 badge 提示用户没本地元数据;
+   *  'custom' = .env 的 FORGEAX_CUSTOM_* 声明的自定义模型 (列在最前, 独立分组) */
+  source?: 'disk' | 'live' | 'custom';
+  /** custom 模型的 UI 显示名 (FORGEAX_CUSTOM_NAME, 缺省用 id)。 */
+  displayName?: string;
+  /** custom 模型声明的 adapter / 端点 (apiKey 不下发前端, server 出口已过滤)。 */
+  api?: string;
+  baseUrl?: string;
   /** 用户在 Settings → Models 里隐藏的模型不会出现在 Composer 单选下拉里。
    *  inline (Settings) + multi (ModelLab) 仍展示全量,通过眼睛 icon 切换。 */
   hidden?: boolean;

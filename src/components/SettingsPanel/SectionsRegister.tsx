@@ -287,6 +287,15 @@ export function SettingsSectionsRegister() {
           <EnvField label="GEMINI_API_KEY"     masked={envOf('GEMINI_API_KEY')}     placeholder="AIza..."                 onSave={(v) => void patchEnv({ GEMINI_API_KEY: v })} busy={busy} />
         </Section>
 
+        <Section icon={<Key size={14} />} title="Custom Model" hint="在 .env 一处声明自定义模型 (模型名 + 端点 + key), 会出现在模型选择器顶部 custom 分组。仅 MODEL 必填; 上下文窗口缺省 1M。">
+          <EnvField label="FORGEAX_CUSTOM_MODEL"      masked={envOf('FORGEAX_CUSTOM_MODEL')}      placeholder="glm-5.2"                                  onSave={(v) => void patchEnv({ FORGEAX_CUSTOM_MODEL: v })} busy={busy} visible />
+          <EnvField label="FORGEAX_CUSTOM_BASE_URL"   masked={envOf('FORGEAX_CUSTOM_BASE_URL')}   placeholder="https://open.bigmodel.cn/api/anthropic"   onSave={(v) => void patchEnv({ FORGEAX_CUSTOM_BASE_URL: v })} busy={busy} visible />
+          <EnvField label="FORGEAX_CUSTOM_API_KEY"    masked={envOf('FORGEAX_CUSTOM_API_KEY')}    placeholder="token"                                    onSave={(v) => void patchEnv({ FORGEAX_CUSTOM_API_KEY: v })} busy={busy} />
+          <EnvField label="FORGEAX_CUSTOM_API"        masked={envOf('FORGEAX_CUSTOM_API')}        placeholder="anthropic-messages | openai-compat | openai-responses" onSave={(v) => void patchEnv({ FORGEAX_CUSTOM_API: v })} busy={busy} visible />
+          <EnvField label="FORGEAX_CUSTOM_NAME"       masked={envOf('FORGEAX_CUSTOM_NAME')}       placeholder="GLM 5.2 (智谱)"                            onSave={(v) => void patchEnv({ FORGEAX_CUSTOM_NAME: v })} busy={busy} visible />
+          <EnvField label="FORGEAX_CUSTOM_CONTEXT_WINDOW" masked={envOf('FORGEAX_CUSTOM_CONTEXT_WINDOW')} placeholder="1000000 (缺省 1M)"                    onSave={(v) => void patchEnv({ FORGEAX_CUSTOM_CONTEXT_WINDOW: v })} busy={busy} visible />
+        </Section>
+
         <Section icon={<Key size={14} />} title={t('settings.apiKeys.multimodalTitle')} hint={t('settings.apiKeys.multimodalHint')}>
           {MULTIMODAL_KEYS.map((k) => (
             <EnvField
