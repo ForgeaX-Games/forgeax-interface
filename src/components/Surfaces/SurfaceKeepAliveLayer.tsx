@@ -69,12 +69,29 @@ export function SurfaceKeepAliveLayer(): ReactNode {
       const anchor = kind === activeKind ? getAnchor(kind) : null;
       if (!anchor) {
         // Inactive, or active-but-no-anchor (workbench mode / panel closed / popped
-        // to an OS window). display:none → IntersectionObserver pauses the engine.
-        if (el.style.display !== 'none') el.style.display = 'none';
+        // to an OS window). DO NOT use display:none — on WKWebView (the desktop
+        // Studio app) display:none on a WebGPU <canvas> DROPS the GPU device, so
+        // flipping back finds a dead context and the re-create wedges WKWebView's
+        // GPU process (the "来回切换就死掉" Play↔Edit freeze). Instead park the
+        // surface OFF-SCREEN + visibility:hidden: the GPU context stays alive, the
+        // surface is invisible + click-through, and being outside the viewport still
+        // trips the surface's IntersectionObserver so its render loop pauses (no
+        // double-render). Switch-back just moves it back onto the anchor — no
+        // context re-create, so no wedge. Keep a real (non-zero) size so the
+        // swap-chain stays valid while parked.
+        el.style.display = 'flex';
+        el.style.visibility = 'hidden';
+        el.style.pointerEvents = 'none';
+        el.style.top = '0px';
+        el.style.left = '-100000px';
+        if (!el.style.width || el.style.width === '0px') el.style.width = '1280px';
+        if (!el.style.height || el.style.height === '0px') el.style.height = '720px';
         continue;
       }
       const r = anchor.getBoundingClientRect();
       el.style.display = 'flex';
+      el.style.visibility = 'visible';
+      el.style.pointerEvents = '';
       el.style.top = `${r.top}px`;
       el.style.left = `${r.left}px`;
       el.style.width = `${r.width}px`;
