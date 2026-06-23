@@ -843,7 +843,9 @@
     "selectBeforeSubmit": "↑ 先选一个选项再提交",
     "submit": "提交",
     "deny": "拒绝",
-    "allow": "允许"
+    "allow": "允许",
+    "capabilityLabel": "能力:{{capability}}",
+    "rememberSession": "记住本会话"
   },
   "dockShell": {
     "popoutToWindow": "弹出为独立 OS 窗口",
@@ -884,7 +886,7 @@
       "kotone": "剧情师",
       "iro": "美术师",
       "tsumugi": "工程师",
-      "ccCoder": "Claude Code 工程师",
+      "ccCoder": "the reference agent CLI 工程师",
       "fallback": "sub-agent"
     }
   },

@@ -16,6 +16,14 @@ import './ChatPanel.css';
 // "pop out" button inside an already-popped-out window).
 const IS_DETACHED_WINDOW = decodeSurfaceFromLocation() !== null;
 
+// 消息编辑草稿(**仅内存**):点自己消息进编辑态后,若用户改了内容却未发送就失焦/
+// 取消,把草稿按 sid:msgId 暂存;下次重新编辑同一条时回填用户上次改到一半的内容。
+// 故意用模块级 Map(非 store / 非 ref):跨组件重挂(切 tab、弹出窗口)仍在,但页面
+// 刷新即随模块重建而清空 —— 正是「只记内存,刷新就没了」。未改动(草稿==原文)或清空
+// 则删除该键,保证下次回到原文。
+const editDrafts = new Map<string, string>();
+const editDraftKey = (sid: string, msgId: string) => `${sid}::${msgId}`;
+
 // memleak case-02 (MEMLEAK_CASE02_RENDER_WINDOW) — chat-history scroll-up paging.
 // messagesByAgent[agentId] is never capped (store.ts), and we used to render
 // `messages.map(...)` over the FULL thread, so every turn mounted ~22 more DOM
@@ -479,10 +487,16 @@ export function ChatPanel() {
                   <BubbleEditInline
                     sid={activeSid}
                     msgId={m.msgId!}
-                    initialText={m.text}
+                    initialText={editDrafts.get(editDraftKey(activeSid, m.msgId!)) ?? m.text}
                     hasCode={checkpointMsgIds?.[m.msgId!] === true}
                     isStreaming={chatStreaming}
-                    onCancel={() => setEditingMsgId(null)}
+                    onCancel={(draft) => {
+                      // 非发送退出:改过(且非空)→ 暂存草稿;未改 / 清空 → 删键回原文。
+                      const k = editDraftKey(activeSid, m.msgId!);
+                      if (draft.trim() && draft !== m.text) editDrafts.set(k, draft);
+                      else editDrafts.delete(k);
+                      setEditingMsgId(null);
+                    }}
                   />
                 </div>
               </Fragment>

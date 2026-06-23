@@ -621,9 +621,13 @@ function AgentsBody() {
   // `foldAgents` is the same helper that drives the workbench catalog so
   // both surfaces stay in sync — if we add a new family group there it
   // shows up here automatically too.
-  const mainAgent = effectiveMainId ? agents.find((a) => a.id === effectiveMainId) ?? null : null;
+  // Fold the FULL list (main included) so the main agent (forge) renders as the
+  // HEAD of its family group (producer-family: forge → arin / forgeax-default),
+  // matching the art family (iro → ...) treatment instead of being pinned out on
+  // its own. The main is marked with ★ + no checkbox wherever it lands in the
+  // fold (flat row or subagent-family lead) via the `isMain` flags below.
   const rest = agents.filter((a) => a.id !== effectiveMainId);
-  const grouped = foldAgents(rest);
+  const grouped = foldAgents(agents);
   const installedCount = rest.filter((a) => !uninstalledIds.includes(a.id)).length;
   const subCount = rest.length;
 
@@ -652,28 +656,21 @@ function AgentsBody() {
         </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {/* main agent always pinned at top with ★ + no checkbox */}
-        {mainAgent ? (
-          <AgentRegisterRow
-            a={mainAgent}
-            isMain
-            installed
-            toggle={toggle}
-            indent={0}
-            t={t}
-          />
-        ) : null}
-        {/* grouped rest: family / skin groups get a section divider with the
-            group label, members render indented underneath; flat agents
-            render with no indent inline with the natural fold order. */}
+        {/* The main agent is no longer pinned separately — it folds into its
+            family group (producer-family) as the lead and is flagged ★ via
+            `isMain` below, exactly like any other family head. */}
+        {/* grouped: family / skin groups get a section divider with the group
+            label, members render indented underneath; flat agents render with
+            no indent inline with the natural fold order. */}
         {grouped.map((item) => {
           if (item.kind === 'flat') {
+            const flatIsMain = item.agent.id === effectiveMainId;
             return (
               <AgentRegisterRow
                 key={item.agent.id}
                 a={item.agent}
-                isMain={false}
-                installed={!uninstalledIds.includes(item.agent.id)}
+                isMain={flatIsMain}
+                installed={flatIsMain || !uninstalledIds.includes(item.agent.id)}
                 toggle={toggle}
                 indent={0}
                 t={t}
@@ -688,13 +685,14 @@ function AgentsBody() {
             // — without the deeper sub indent every row looks like a sibling.
             const total = 1 + item.subs.length;
             const label = `${item.lead.name} · ${t('settings.agents.familyLabel')}`;
+            const leadIsMain = item.lead.id === effectiveMainId;
             return (
               <div key={`fam-${item.group.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 6 }}>
                 <AgentGroupDivider label={label} count={total} sublabel={item.lead.role} />
                 <AgentRegisterRow
                   a={item.lead}
-                  isMain={false}
-                  installed={!uninstalledIds.includes(item.lead.id)}
+                  isMain={leadIsMain}
+                  installed={leadIsMain || !uninstalledIds.includes(item.lead.id)}
                   toggle={toggle}
                   indent={1}
                   t={t}
