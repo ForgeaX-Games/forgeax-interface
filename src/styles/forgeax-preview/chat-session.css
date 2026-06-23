@@ -425,6 +425,49 @@
   height: 100% !important;
 }
 
+/* Capsule-only avatar framing — the small capsule circle showed faces a bit
+ * too low, so lift + zoom the WEBM layer just here. Scoped to .cas-avatar-wrap
+ * and given higher specificity than the global per-agent rules in
+ * agent-avatar-video.css (the extra [data-agent-id] bumps the weight) so this
+ * wins inside the capsule WITHOUT touching the same component anywhere else
+ * (sidebar / chat / workbench / settings keep their own framing). The circular
+ * frame stays 32/44px; only the image inside is scaled/shifted. */
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id] .aav-layer {
+  transform: scale(1.32) translate3d(0, -16%, 0);
+  transform-origin: center top;
+}
+/* Capsule per-agent tweaks (override the uniform rule above; same specificity,
+ * later in source so they win). Still scoped to .cas-avatar-wrap only. */
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id="cc-coder"] .aav-layer {
+  transform: scale(1.52) translate3d(0, -48%, 0);
+}
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id="lock"] .aav-layer {
+  transform: scale(1.32) translate3d(0, -28%, 0);
+}
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id="iro"] .aav-layer {
+  transform: scale(1.32) translate3d(0, -20%, 0);
+}
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id="suzu"] .aav-layer {
+  transform: scale(1.38) translate3d(0, -26%, 0);
+}
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id="arin"] .aav-layer {
+  transform: scale(1.16) translate3d(0, -24%, 0);
+}
+.cas-avatar-wrap > .agent-avatar-video[data-agent-id="iori"] .aav-layer {
+  transform: scale(1.24) translate3d(0, -9%, 0);
+}
+
+/* Nudge ONLY the capsule's outer pill/border down a few px while keeping the
+ * avatars where they are: move the whole pill down N, then pull the avatar
+ * wrap back up N so its net position is unchanged. (Name label is hover-only,
+ * a few px shift there is invisible.) */
+.chat-agent-capsule {
+  transform: translateY(3px);
+}
+.cas-avatar-wrap {
+  transform: translateY(-3px);
+}
+
 /* ADR-0019 — 选中态绿色环. 原来靠 .cas-avatar 改 background 提示选中, 现在 WEBM
  * 盖住了背景, 改用 box-shadow ring (不占布局, 不会跟 cas-spinner 的 inset:-3px 撞). */
 .cas-btn.is-selected .cas-avatar-wrap {
