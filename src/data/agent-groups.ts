@@ -93,6 +93,21 @@ export type AgentGroup = SkinGroup | SubagentFamilyGroup;
  */
 export const AGENT_GROUPS: AgentGroup[] = [
   {
+    // Producer family — the orchestration tier. `forge` (主线制作人, the
+    // manifest main / runtime orchestrator alias) leads, with the two other
+    // 制作人/planner-tier agents folded under it. Same visual treatment as the
+    // art family (iro → ...), per 2026-06-23 user decision.
+    //
+    // ⚠️ `forge` is a runtime alias that only appears in
+    // `/api/workbench/agents` — it is NOT a real plugin, so it is absent from
+    // `/api/bus/plugins?kind=agent` which feeds the wb-agent-persona iframe.
+    // There the group degrades to lead=`arin` (see that file's GROUP_REGISTRY).
+    id: 'producer-family',
+    kind: 'subagent-family',
+    leadId: 'forge',
+    memberIds: ['arin', 'forgeax-default'],
+  },
+  {
     id: 'coder-skins',
     kind: 'skin',
     label: '程序员',
