@@ -715,6 +715,125 @@ button.cp-agent-bar-id.is-empty:focus-visible .cp-agent-bar-id-arrow {
 }
 .sys-meta-from { opacity: 0.78; }
 .sys-meta-to { opacity: 0.92; }
+
+/* 拍一拍 inter-agent header: emitter avatar replaces the emoji, pat phrase
+ * replaces the source label. (尺寸在 .sys-pat-cap .sys-pat-avatar 里定义) */
+.sys-pat-avatar {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.sys-pat-text {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.sys-line.is-incoming .sys-pat-text { color: #9ddcfd; }
+.sys-line.is-outgoing .sys-pat-text { color: #cfb6ff; }
+
+/* ── 拍一拍卡片 · 胶囊徽章 (方案 C) ──
+ * 拍一拍文案做圆角胶囊(方向色半透明底),发起者头像嵌在胶囊左端;
+ * 摘要+产出在下方缩进、共用一条左竖线,产出通过右下角「展开」按钮收放。 */
+.sys-line[data-pat] {
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+}
+.sys-pat-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+}
+/* 胶囊:头像 + 拍一拍文案,方向色底色,头像被框在胶囊内 */
+.sys-pat-cap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 12px 2px 3px;
+  border-radius: 999px;
+}
+.sys-line[data-pat].is-outgoing .sys-pat-cap { background: rgba(150, 110, 255, 0.20); }
+.sys-line[data-pat].is-incoming .sys-pat-cap { background: rgba(90, 180, 255, 0.20); }
+.sys-pat-cap .sys-pat-avatar {
+  width: 22px;
+  height: 22px;
+  margin-top: -2px;
+}
+.sys-pat-cap .sys-pat-text {
+  flex: 0 1 auto;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 胶囊下方的文字内容:缩进 + 一条左竖线(摘要与产出共用,连续) */
+.sys-pat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(255, 255, 255, 0.16);
+}
+.sys-line[data-pat].is-outgoing .sys-pat-content { border-left-color: rgba(150, 110, 255, 0.5); }
+.sys-line[data-pat].is-incoming .sys-pat-content { border-left-color: rgba(90, 180, 255, 0.5); }
+.sys-line[data-pat] .sys-text {
+  font-size: 11px;
+  opacity: 0.72;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* 产出 —— 折叠进「展开」的 agent 实际输出 */
+.sys-pat-output {
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.82;
+}
+/* 展开按钮 —— 卡片右下角 */
+.sys-pat-foot {
+  align-self: flex-end;
+  margin-top: 1px;
+}
+
+/* 展开/收起按钮 —— 明确的圆角胶囊按钮 + 旋转 chevron,hover 提示「点击查看产出」 */
+.sys-pat-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 1px 8px 1px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.sys-pat-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.sys-line[data-pat].is-outgoing .sys-pat-toggle:hover { border-color: var(--color-role-orchestrator); }
+.sys-line[data-pat].is-incoming .sys-pat-toggle:hover { border-color: var(--prim-color-sky-300); }
+.sys-pat-toggle .spt-chev {
+  transition: transform 0.16s ease;
+}
+.sys-pat-toggle .spt-chev.open { transform: rotate(180deg); }
 .sys-toggle {
   appearance: none;
   -webkit-appearance: none;
