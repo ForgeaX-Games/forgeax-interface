@@ -14,14 +14,14 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b tsconfig.lint.json && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "bun test src/lib src/components",
     "test:e2e": "node test/e2e/smoke.mjs",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit -p tsconfig.lint.json",
     "lint:agnostic": "! grep -rEn \"(from|import\\()\\s*['\\\"]@forgeax/editor\" src --include='*.ts' --include='*.tsx'"
   },
   "dependencies": {
