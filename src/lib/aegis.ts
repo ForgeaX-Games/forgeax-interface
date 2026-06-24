@@ -107,7 +107,7 @@ export function initAegis(): void {
       // safe. Override via VITE_AEGIS_TRACE_URLS (comma-separated regex source).
       const traceUrlsEnv = import.meta.env.VITE_AEGIS_TRACE_URLS;
       const injectTraceUrls = traceUrlsEnv
-        ? traceUrlsEnv.split(',').map((s) => new RegExp(s.trim()))
+        ? traceUrlsEnv.split(',').map((s: string) => new RegExp(s.trim()))
         : [/\/api\//, /\/ws/];
 
       instance = new Aegis({
@@ -197,7 +197,7 @@ function installConsoleBridge(aegis: AegisInstance): void {
   if (cfg === 'off' || cfg === '') return;
   consoleBridged = true;
 
-  const wanted = new Set(cfg.split(',').map((s) => s.trim()).filter(Boolean));
+  const wanted = new Set(cfg.split(',').map((s: string) => s.trim()).filter(Boolean));
   const methods = ['log', 'info', 'warn', 'error', 'debug'] as const;
   const c = console as unknown as Record<string, (...args: unknown[]) => void>;
   let reentrant = false; // Aegis may itself console.* on send failure — don't loop
