@@ -90,6 +90,45 @@ export interface NetworkEntry {
   ts: number;
 }
 
+// ── Observability (trace + log) telemetry ───────────────────────────────────
+// Wire shapes MIRROR `@forgeax/types`'s observability schema (SpanData /
+// LogRecord / TelemetryRecord). interface has no dep on @forgeax/types, so the
+// line shape is re-declared locally as plain TS (Schema-as-Contract lives in
+// packages/types; this is the consumer-side view). Both信道 feed the SAME slice:
+//   - node→server→WS  `{ type:'telemetry',     records }`  (handleDaemonWs)
+//   - iframe→shell     `{ type:'VAG_TELEMETRY', records }`  (healthBridge)
+// 见 .claude/docs/架构设计/forgeax-os/可观测性-trace-log-v3-B档-并行执行计划-2026-06-24.md §B。
+export interface TelemetrySpan {
+  kind: 'span';
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  name: string;
+  startTs: number;
+  /** 缺失 = provisional(onStart 临时态),渲染成「进行中」。 */
+  endTs?: number;
+  provisional?: boolean;
+  attrs?: Record<string, unknown>;
+  events?: Array<{ name: string; ts: number; attrs?: Record<string, unknown> }>;
+  status?: { code: 'ok' | 'error'; message?: string };
+  sid?: string;
+  agentId?: string;
+}
+
+export interface TelemetryLog {
+  kind: 'log';
+  ts: number;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  msg: string;
+  fields?: Record<string, unknown>;
+  traceId?: string;
+  spanId?: string;
+  sid?: string;
+  agentId?: string;
+}
+
+export type TelemetryRecord = TelemetrySpan | TelemetryLog;
+
 export interface SubAgentRun {
   emitterId: string;
   text: string;
@@ -515,6 +554,15 @@ interface AppState {
   networkLog: NetworkEntry[];
   pushNetwork: (entry: NetworkEntry) => void;
   clearNetwork: () => void;
+
+  // ── Telemetry buffer (trace spans + structured logs) ──
+  //  Fed by two信道 into ONE slice: node telemetry over WS
+  //  (`{type:'telemetry'}`, handleDaemonWs) and iframe telemetry over
+  //  postMessage (`{type:'VAG_TELEMETRY'}`, healthBridge). Span + log records
+  //  live together (split by `kind` in the viewer). Capped at 500 (S4).
+  telemetry: TelemetryRecord[];
+  pushTelemetry: (records: TelemetryRecord[]) => void;
+  clearTelemetry: () => void;
 
   // ── Chat thread (real, no fake) ──
   messages: ChatMessage[];
@@ -1388,9 +1436,18 @@ const _initialMirror = {
 // P-UNIFY.4 — daemon WS handler. Hoisted out of the store factory so it
 // captures set/get via closure after they're available. Routes daemon-tick-*
 // events to the right tab by threadId, with bubble keyed by tickId.
-function handleDaemonWs(msg: unknown): void {
+export function handleDaemonWs(msg: unknown): void {
   if (!msg || typeof msg !== 'object') return;
-  const m = msg as { type?: string; threadId?: string; tickId?: string; daemonId?: string; event?: unknown; promptPreview?: string; bytes?: number };
+  const m = msg as { type?: string; threadId?: string; tickId?: string; daemonId?: string; event?: unknown; promptPreview?: string; bytes?: number; records?: unknown };
+  // Telemetry (trace+log) main信道: node sidecar → server → WS
+  // `{ type:'telemetry', records: Array<SpanData|LogRecord> }`. No threadId, so
+  // it must be dispatched before the threadId guard below (same as
+  // workspace-changed). Feeds the unified telemetry slice (500-cap, S4).
+  if (m.type === 'telemetry') {
+    const records = Array.isArray(m.records) ? (m.records as TelemetryRecord[]) : [];
+    if (records.length) useAppStore.getState().pushTelemetry(records);
+    return;
+  }
   // Workspace hot-switch: the server re-pointed FORGEAX_PROJECT_ROOT at a new
   // dir. In-process and in-tab state scoped to the old root isn't re-scoped, so
   // every open tab must do a full reload (all per-request endpoints then re-read
@@ -2344,6 +2401,17 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
     }));
   },
   clearNetwork: () => set({ networkLog: [] }),
+
+  telemetry: [],
+  pushTelemetry: (records) => {
+    if (!records.length) return;
+    set((s) => {
+      const next = [...s.telemetry, ...records];
+      // Cap at 500 records (S4); drop oldest.
+      return { telemetry: next.length > 500 ? next.slice(next.length - 500) : next };
+    });
+  },
+  clearTelemetry: () => set({ telemetry: [] }),
 
   liveAgents: {},
   agentFileActivity: {},
