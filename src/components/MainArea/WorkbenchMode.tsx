@@ -7,7 +7,7 @@ import { useLocalSize } from '../Resize/ResizeHandle';
 import { listBusPlugins, pickLang, type BusPluginInfo } from '../../lib/bus-api';
 import { iconForWorkbenchModule } from '../../lib/workbench-module-icons';
 import { WorkbenchPluginHost, pluginRendersInMainArea } from './WorkbenchPluginHost';
-import { WB_PLUGIN_AUTHOR_ID } from '../../../../marketplace/plugins/wb-plugin-author/src/panel';
+import { usePanelRenderers } from '../DockShell/panelRenderers';
 import { openAgentDetail } from '../../lib/open-agent-detail';
 import { useFileActivityVersion, useFileLocks } from '../../lib/file-activity-stream';
 import { AgentAvatarVideo } from '../AgentAvatarVideo/AgentAvatarVideo';
@@ -83,6 +83,7 @@ function placeholderText(t: (k: string) => string): string {
 export function WorkbenchMode() {
   const workbenchTab = useAppStore((s) => s.workbenchTab);
   const expandedPluginId = useAppStore((s) => s.workbenchExpandedPluginId);
+  const { workbenchPanels } = usePanelRenderers();
 
   if (workbenchTab === 'agents') return <AgentsMainArea />;
 
@@ -90,9 +91,10 @@ export function WorkbenchMode() {
 
   // wb:* tools tab. Standalone-iframe plugins are owned by the always-mounted
   // keep-alive CenterPluginLayer (overlay in MainArea) — render nothing here so
-  // their iframe survives tab/mode switches instead of cold-restarting. The
-  // inline wb-plugin-author panel (no standalone build) still renders here.
-  if (expandedPluginId === WB_PLUGIN_AUTHOR_ID) return <WorkbenchPluginHost />;
+  // their iframe survives tab/mode switches instead of cold-restarting. A plugin
+  // with an injected inline panel (host-registered, e.g. wb-plugin-author) still
+  // renders here via WorkbenchPluginHost.
+  if (expandedPluginId && workbenchPanels?.[expandedPluginId]) return <WorkbenchPluginHost />;
   if (expandedPluginId) return null;
   return (
     <div className="workbench-mode">

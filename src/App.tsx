@@ -92,6 +92,38 @@ export function App({ hideChatAndForge, panelRenderers }: AppProps = {}) {
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, []);
+
+  // ── ✎ Content Browser → Chat: batch asset/folder refs (M5) ────────────────
+  useEffect(() => {
+    const onBatchRef = (ev: MessageEvent) => {
+      if (!isTrustedMessageOrigin(ev.origin)) return;
+      const data = ev.data as { type?: unknown; refs?: unknown } | null;
+      if (!data || data.type !== 'FORGEAX_ADD_ASSET_TO_CHAT' || !Array.isArray(data.refs)) return;
+      const insert = useAppStore.getState().requestComposerInsert;
+      for (const ref of data.refs as Array<Record<string, unknown>>) {
+        if (ref.type === 'asset' && typeof ref.guid === 'string') {
+          insert(buildAssetPill({
+            guid: ref.guid,
+            name: typeof ref.name === 'string' ? ref.name : undefined,
+            assetKind: typeof ref.kind === 'string' ? ref.kind : undefined,
+            packPath: typeof ref.path === 'string' ? ref.path : undefined,
+            payload: ref.payload as Record<string, unknown> | undefined,
+          }));
+        } else if (ref.type === 'folder' && typeof ref.path === 'string') {
+          insert(buildAssetPill({
+            guid: `folder:${ref.path}`,
+            name: typeof ref.name === 'string' ? `📁 ${ref.name}` : '📁 Folder',
+            assetKind: 'folder',
+            packPath: typeof ref.path === 'string' ? ref.path : undefined,
+            payload: ref.summary as Record<string, unknown> | undefined,
+          }));
+        }
+      }
+    };
+    window.addEventListener('message', onBatchRef);
+    return () => window.removeEventListener('message', onBatchRef);
+  }, []);
+
   // WAL replay trigger lives in ChatPanel — it watches activeTab.agentId
   // and re-fires loadSession on every change. No mount hook here so the
   // trigger has a single owner.
