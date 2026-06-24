@@ -11,7 +11,8 @@
  *        kaede / kumo).
  *     2. **Sub-agent family** — a lead delegates to specialized sub-agents
  *        that share the lead's portrait but have distinct capabilities
- *        (today: iro → 5 art sub-roles; reia → 3 reel sub-roles).
+ *        (today: iro → 4 art sub-roles; reia → 3 reel sub-roles;
+ *         director → sino + mira scene-asset pipeline).
  *     3. **Provider-default coders** — neutral coders bound to a specific CLI
  *        provider (cc-coder / claude-code-default / codex-default /
  *        cursor-default). Their differentiator is the *driver*, not persona
@@ -121,7 +122,6 @@ export const AGENT_GROUPS: AgentGroup[] = [
     kind: 'subagent-family',
     leadId: 'iro',
     memberIds: [
-      'mira',
       'animator-2d',
       'character-designer-2d',
       'vfx-artist-3d',
@@ -133,6 +133,19 @@ export const AGENT_GROUPS: AgentGroup[] = [
     kind: 'subagent-family',
     leadId: 'reia',
     memberIds: ['reel-storyboard', 'reel-video', 'reel-visual'],
+  },
+  {
+    // Scene-asset pipeline family — `director` (场景总监, role=orchestrator)
+    // drives the scene-asset pipeline, delegating to `sino` (场景构图师) for
+    // layout and `mira` (织绘师) for 2D asset generation. Same lead+indented-
+    // subs treatment as the art / reel families, per 2026-06-24 user decision.
+    // `mira` was moved here out of `art-family`. `director` is a real agent
+    // plugin (agent-director), so unlike `producer-family` it does NOT degrade
+    // in the wb-agent-persona iframe.
+    id: 'scene-pipeline-family',
+    kind: 'subagent-family',
+    leadId: 'director',
+    memberIds: ['sino', 'mira'],
   },
 ];
 
