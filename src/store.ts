@@ -3268,9 +3268,13 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
         const candidate = typeof agentId === 'string' && agentId.trim() ? agentId.trim() : undefined;
         const clientMsgId = `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         markEmittedClientMsg(clientMsgId);
+        // 全链路 trace:浏览器起 ui.send root,把 ui.request 的 traceparent 随 payload 下行
+        //   (键 = activeAgent = 气泡所属 slot = session-stream 的 emitter,供回传流事件续 span)。
+        const { beginChatTurn } = await import('./lib/trace');
+        const { traceparent } = beginChatTurn(activeAgent, startSid, useAppStore.getState().providerOverride ?? undefined);
         const r = await emitForgeaXMessage(startSid, expandPills(trimmed), {
           to: candidate,
-          payload: { agentId, clientMsgId, ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}) },
+          payload: { agentId, clientMsgId, traceparent, ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}) },
           handoff: 'steer',
         });
         if (!r.ok) throw new Error(r.error ?? 'emit failed');
@@ -3403,9 +3407,13 @@ export const useAppStore = create<AppState>(capStoreMiddleware((set, get) => ({
         const targetAgent = candidate;
         const clientMsgId = `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         markEmittedClientMsg(clientMsgId);
+        // 全链路 trace:浏览器起 ui.send root + ui.request,traceparent 随 payload 下行,
+        //   键 = activeAgent(= 气泡 slot = session-stream emitter)。
+        const { beginChatTurn } = await import('./lib/trace');
+        const { traceparent } = beginChatTurn(activeAgent, startSid, useAppStore.getState().providerOverride ?? undefined);
         const r = await emitForgeaXMessage(startSid, expandPills(trimmed), {
           to: targetAgent,
-          payload: { agentId, clientMsgId, ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}) },
+          payload: { agentId, clientMsgId, traceparent, ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}) },
         });
         if (!r.ok) throw new Error(r.error ?? 'emit failed');
         // checkpoint:server 注入并回传 msgId —— 补到预 push 的 user 气泡,并
