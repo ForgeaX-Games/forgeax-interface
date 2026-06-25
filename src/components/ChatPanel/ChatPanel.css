@@ -1537,6 +1537,15 @@ button.cp-agent-bar-id.is-empty:focus-visible .cp-agent-bar-id-arrow {
 /* Composer */
 .composer {
   flex-shrink: 0;
+  transition: outline 0.15s;
+}
+.composer--asset-drop {
+  outline: 2px dashed var(--accent, #4c9eff);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+.composer--asset-drop .composer-card {
+  background: rgba(76, 158, 255, 0.06);
 }
 .composer-input {
   width: 100%;

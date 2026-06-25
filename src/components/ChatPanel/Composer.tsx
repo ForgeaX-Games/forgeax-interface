@@ -5,8 +5,10 @@ import { AtSign, SquareChartGantt, Upload, ChevronDown, ArrowUp, Unplug, Square,
 import { useTranslation } from '@/i18n';
 import { useAppStore } from '../../store';
 import { useModelLabel } from '../../lib/model';
+import { resolveNaming } from '../../lib/agent-name';
 import { listBusPlugins, pickLang, type BusPluginInfo } from '../../lib/bus-api';
 import { RichInput, type RichInputHandle } from '../Composer/RichInput';
+import { buildAssetPill } from '../Composer/referenceRegistry';
 import {
   getAgentModel,
   type AgentModelState,
@@ -54,6 +56,7 @@ interface BusSkillRow {
 interface AgentMentionRow {
   id: string;
   name: string;
+  naming?: { title: string; sub: string };
   role: string;
   avatar: string;
   isMain: boolean;
@@ -323,8 +326,8 @@ export function Composer() {
       const res = await fetch('/api/workbench/agents');
       if (!res.ok) throw new Error(`GET /api/workbench/agents → ${res.status}`);
       const data = (await res.json()) as {
-        agents?: Array<{ id: string; name: string; role: string; avatar: string; isMain: boolean }>;
-        agents_from_bus?: Array<{ id: string; name: string; role: string; avatar: string; pluginId?: string }>;
+        agents?: Array<{ id: string; name: string; naming?: { title: string; sub: string }; role: string; avatar: string; isMain: boolean }>;
+        agents_from_bus?: Array<{ id: string; name: string; naming?: { title: string; sub: string }; role: string; avatar: string; pluginId?: string }>;
       };
       const busPluginIds = new Map<string, string>();
       for (const a of data.agents_from_bus ?? []) {
@@ -336,6 +339,7 @@ export function Composer() {
         rows.push({
           id: a.id,
           name: a.name,
+          naming: a.naming,
           role: a.role,
           avatar: a.avatar,
           isMain: !!a.isMain,
@@ -349,6 +353,7 @@ export function Composer() {
         rows.push({
           id: a.id,
           name: a.name,
+          naming: a.naming,
           role: a.role,
           avatar: a.avatar,
           isMain: false,
@@ -794,8 +799,60 @@ export function Composer() {
     void onSubmit();
   };
 
+  // ── Asset drag-drop: accept assets dragged from Content Browser (iframe) ──
+  // Cross-iframe dataTransfer is blocked by browser security, so the iframe
+  // sends the asset ref via postMessage and we cache it for the drop event.
+  const pendingDragAsset = useRef<{
+    type: string; guid: string; kind?: string; name?: string;
+    path?: string; payload?: Record<string, unknown>;
+  } | null>(null);
+  const [assetDragOver, setAssetDragOver] = useState(false);
+
+  useEffect(() => {
+    const onMsg = (ev: MessageEvent) => {
+      const d = ev.data as { type?: string; ref?: unknown } | null;
+      if (d?.type === 'FORGEAX_DRAG_ASSET_START' && d.ref) {
+        pendingDragAsset.current = d.ref as typeof pendingDragAsset.current;
+      } else if (d?.type === 'FORGEAX_DRAG_ASSET_END') {
+        pendingDragAsset.current = null;
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const handleComposerDragOver = (e: React.DragEvent) => {
+    if (pendingDragAsset.current) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setAssetDragOver(true);
+    }
+  };
+  const handleComposerDragLeave = () => setAssetDragOver(false);
+  const handleComposerDrop = (e: React.DragEvent) => {
+    setAssetDragOver(false);
+    const ref = pendingDragAsset.current;
+    if (!ref) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pendingDragAsset.current = null;
+    const insert = useAppStore.getState().requestComposerInsert;
+    insert(buildAssetPill({
+      guid: ref.guid,
+      name: ref.name,
+      assetKind: ref.kind,
+      packPath: ref.path,
+      payload: ref.payload,
+    }));
+  };
+
   return (
-    <div className="composer">
+    <div
+      className={`composer${assetDragOver ? ' composer--asset-drop' : ''}`}
+      onDragOver={handleComposerDragOver}
+      onDragLeave={handleComposerDragLeave}
+      onDrop={handleComposerDrop}
+    >
       <div className="composer-card">
         {queued.length > 0 && (
           <div className="composer-queue" role="list" aria-label="Queued messages">
@@ -937,8 +994,8 @@ export function Composer() {
                   >
                     <span className={`cb-at-avatar cb-at-role-${a.role}`} aria-hidden="true">{a.avatar}</span>
                     <span className="cb-at-id">@{a.id}</span>
-                    <span className="cb-at-name">{a.name}</span>
-                    <span className="cb-at-role">{a.role}</span>
+                    <span className="cb-at-name">{resolveNaming(a).title}</span>
+                    <span className="cb-at-role">{resolveNaming(a).sub || a.role}</span>
                     {a.inBus && <span className="cb-at-bus-pill" aria-label="bus host">bus</span>}
                     {a.inBus && a.busPluginId && (
                       <span
