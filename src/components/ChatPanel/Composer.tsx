@@ -91,6 +91,19 @@ const PROVIDER_DISPLAY_FALLBACK: Record<string, string> = {
   'cursor-agent': 'Cursor',
 };
 
+// Concise one-line description per provider/kernel id → i18n key. Every dropdown
+// row shows a short description (the verbose bus-manifest `description.zh` is too
+// long for a picker). forgeax/forgeax-core share one (they are the same thing —
+// the standalone 'forgeax-core' kernel row is hidden, see fetchProviders filter).
+const PROVIDER_DESC_I18N: Record<string, string> = {
+  'forgeax': 'composer.cliDescForgeax',
+  'forgeax-core': 'composer.cliDescForgeax',
+  'claude-code': 'composer.cliDescClaudeCode',
+  'codex': 'composer.cliDescCodex',
+  'cursor-agent': 'composer.cliDescCursor',
+  'codebuddy': 'composer.cliDescCodebuddy',
+};
+
 // iter-107: enumerate the placeholder-button hint ids. Centralizes the
 // strings so typos become compile errors instead of silently breaking the
 // `hintFor === 'at'` checks, and makes "where can a future button slot in"
@@ -226,7 +239,10 @@ export function Composer() {
   const fetchProviders = async () => {
     try {
       const { fetchCliProviders } = await import('../../lib/cli-providers');
-      const { providers: list } = await fetchCliProviders();
+      const { providers: raw } = await fetchCliProviders();
+      // forgeax === forgeax-core: hide the standalone 'forgeax-core' kernel row;
+      // the special 'forgeax' default row (below) already represents it.
+      const list = raw.filter((p) => p.id !== 'forgeax-core');
       setProviders(list);
       // Self-heal a stale persisted override: if localStorage points at a
       // provider that the server no longer registers (provider removed,
@@ -1145,21 +1161,27 @@ export function Composer() {
                   className={`cb-cli-item ${!providerOverride ? 'is-current' : ''} ${cliFocused === 0 ? 'is-focused' : ''}`}
                   onClick={() => { setProviderOverride(null); setCliOpen(false); }}
                   onMouseEnter={() => setCliFocused(0)}
+                  title={t('composer.cliDescForgeax')}
                 >
-                  <span className="cb-cli-id">forgeax</span>
-                  <span className="cb-cli-hint">
-                    {t('composer.cliForgeaxHint')}
-                    {activeAgent && <span style={{ opacity: 0.6 }}> ({activeAgent})</span>}
+                  <span className="cb-cli-row">
+                    <span className="cb-cli-id">forgeax</span>
+                    {activeAgent && <span className="cb-cli-name" style={{ opacity: 0.6 }}>({activeAgent})</span>}
+                    <span className="cb-cli-pill ok">✓</span>
                   </span>
+                  <span className="cb-cli-desc">{t('composer.cliDescForgeax')}</span>
                 </button>
                 {providers.map((p, idx) => {
                   const busEntry = busCliMap.get(p.id);
+                  // Concise per-provider description (every row gets one); fall back
+                  // to the bus-manifest description only if no curated one exists.
+                  const descKey = PROVIDER_DESC_I18N[p.id];
+                  const desc = descKey ? t(descKey) : (busEntry?.descZh ?? '');
                   return (
                   <button
                     key={p.id}
                     type="button"
                     role="menuitem"
-                    className={`cb-cli-item ${providerOverride === p.id ? 'is-current' : ''} ${!p.health.ok ? 'is-down' : ''} ${cliFocused === idx + 1 ? 'is-focused' : ''} ${busEntry ? 'has-bus-desc' : ''}`}
+                    className={`cb-cli-item ${providerOverride === p.id ? 'is-current' : ''} ${!p.health.ok ? 'is-down' : ''} ${cliFocused === idx + 1 ? 'is-focused' : ''}`}
                     onClick={() => {
                       setProviderOverride(p.id);
                       setCliOpen(false);
@@ -1204,12 +1226,9 @@ export function Composer() {
                         {p.health.ok ? '✓' : 'DOWN'}
                       </span>
                     </span>
-                    {busEntry && busEntry.descZh && (
-                      <span
-                        className="cb-cli-desc"
-                        title={`description.zh from bus manifest: ${busEntry.descZh}`}
-                      >
-                        {busEntry.descZh}
+                    {desc && (
+                      <span className="cb-cli-desc" title={desc}>
+                        {desc}
                       </span>
                     )}
                   </button>
