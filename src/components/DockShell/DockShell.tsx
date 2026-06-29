@@ -219,12 +219,20 @@ export function DockShell({ hideChatAndForge }: DockShellProps = {}) {
   const hideChatRef = useRef<boolean>(!!hideChatAndForge);
   useEffect(() => { hideChatRef.current = !!hideChatAndForge; }, [hideChatAndForge]);
   // Active bus workbench plugins — used to populate the "插件面板" layout section.
+  // The plugin bus is owned by `cli` (后L2 Agent engine, /api/bus → getEventBus),
+  // NOT by platform-io (后L1). The standalone editor ships no agent engine, which
+  // is exactly what `hideChatAndForge` signals — so there is never a bus to probe.
+  // Skip the fetch entirely in that mode: firing it would guarantee a 404 (red in
+  // the console) for a capability standalone intentionally doesn't have. (bus-api
+  // still degrades gracefully if it IS hit; this just avoids the pointless wire
+  // request — §4 前L2 不连后L2.)
   const [busPlugins, setBusPlugins] = useState<BusPluginInfo[]>([]);
   useEffect(() => {
+    if (hideChatAndForge) return; // no agent engine → no plugin bus
     let cancelled = false;
     void listBusPlugins('workbench').then((res) => { if (!cancelled) setBusPlugins(res.items ?? []); });
     return () => { cancelled = true; };
-  }, []);
+  }, [hideChatAndForge]);
 
   // Dynamic components map: extends the static map with wb:<pluginId> renderers
   // so each plugin panel renders its own WbPluginDockPanel.
