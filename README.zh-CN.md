@@ -56,7 +56,7 @@ bun dev            # Web UI 在 http://localhost:18920
 bun tauri:dev      # 指向同一 UI 的原生桌面窗口
 ```
 
-正常使用下,studio 的 `start.sh` 会替你启动它(由 server 拉起)。注:同级的
+正常使用下,studio 的 `bun fx start` 会替你启动它(由 server 拉起)。注:同级的
 [`@forgeax/studio`](https://github.com/ForgeaX-Games/forgeax-studio) 包是把本 interface 组装成
 完整 studio(在 `:18920` 提供服务)的产品外壳。
 
