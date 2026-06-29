@@ -95,8 +95,9 @@ function buildDefault(api: DockviewApi, workspaceId: string = 'edit'): void {
   api.addPanel({ id: 'ep:hierarchy', component: 'ep:hierarchy', title: PANEL_TITLE['ep:hierarchy'] ?? 'Hierarchy' });
   api.addPanel({ id: 'edit', component: 'edit', title: 'Edit', position: { referencePanel: 'ep:hierarchy', direction: 'right' } });
   api.addPanel({ id: 'ep:inspector', component: 'ep:inspector', title: PANEL_TITLE['ep:inspector'] ?? 'Inspector', position: { referencePanel: 'edit', direction: 'right' } });
-  // Top-right tab group: Inspector + Material (Inspector active).
+  // Top-right tab group: Inspector + Material + Mesh (Inspector active).
   api.addPanel({ id: 'ep:material', component: 'ep:material', title: PANEL_TITLE['ep:material'] ?? 'Material', position: { referencePanel: 'ep:inspector', direction: 'within' } });
+  api.addPanel({ id: 'ep:mesh', component: 'ep:mesh', title: PANEL_TITLE['ep:mesh'] ?? 'Mesh', position: { referencePanel: 'ep:material', direction: 'within' } });
   // Split each column downward now that all three columns are established.
   api.addPanel({ id: 'ep:assets', component: 'ep:assets', title: PANEL_TITLE['ep:assets'] ?? 'Assets', position: { referencePanel: 'ep:hierarchy', direction: 'below' } });
   api.addPanel({ id: 'ep:history', component: 'ep:history', title: PANEL_TITLE['ep:history'] ?? 'History', position: { referencePanel: 'edit', direction: 'below' } });

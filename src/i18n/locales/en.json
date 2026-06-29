@@ -779,6 +779,7 @@
       "history": "History",
       "capabilities": "Components",
       "material": "Material",
+      "mesh": "Mesh",
       "timeline": "Timeline",
       "matgraph": "Material Graph",
       "launcher": "Launcher"
