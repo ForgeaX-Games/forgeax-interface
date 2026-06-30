@@ -18,6 +18,7 @@ import { useGlobalShortcuts } from './lib/global-shortcuts';
 import { useAppStore } from './store';
 import { buildEntityPill, buildAssetPill, buildComponentPill } from './components/Composer/referenceRegistry';
 import { isTrustedMessageOrigin } from './lib/trustedOrigins';
+import { APP_EVENTS } from './lib/storageKeys';
 import './App.css';
 
 export interface AppProps {
@@ -121,6 +122,22 @@ export function App({ hideChatAndForge, panelRenderers }: AppProps = {}) {
     };
     window.addEventListener('message', onBatchRef);
     return () => window.removeEventListener('message', onBatchRef);
+  }, []);
+
+  // ── ✎ Edit → focus a dock panel (e.g. double-click a mesh → Mesh tab) ───────
+  // The editor iframe posts FORGEAX_FOCUS_PANEL { panel } to bring a panel to
+  // front. Relayed as the focus-only APP_EVENTS.focusPanel CustomEvent so the
+  // DockShell activates the tab WITHOUT reopening a closed one (no force-insert).
+  // Design: docs/design/editor-mesh-panel-ue58-parity.md §7.1.
+  useEffect(() => {
+    const onFocusPanel = (ev: MessageEvent) => {
+      if (!isTrustedMessageOrigin(ev.origin)) return; // foreign-origin guard
+      const data = ev.data as { type?: unknown; panel?: unknown } | null;
+      if (!data || data.type !== 'FORGEAX_FOCUS_PANEL' || typeof data.panel !== 'string') return;
+      window.dispatchEvent(new CustomEvent(APP_EVENTS.focusPanel, { detail: { id: `ep:${data.panel}` } }));
+    };
+    window.addEventListener('message', onFocusPanel);
+    return () => window.removeEventListener('message', onFocusPanel);
   }, []);
 
   // WAL replay trigger lives in ChatPanel — it watches activeTab.agentId

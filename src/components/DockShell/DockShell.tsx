@@ -431,6 +431,20 @@ export function DockShell({ hideChatAndForge }: DockShellProps = {}) {
     return () => { window.removeEventListener(APP_EVENTS.openPanel, onOpen); };
   }, []);
 
+  // Focus-only: bring a panel to front IF it already exists in the layout. Unlike
+  // openPanel this never reopens / force-inserts a closed tab — used by the editor
+  // "double-click a mesh → Mesh tab" flow so a user who closed the Mesh panel
+  // keeps their layout. Design: docs/design/editor-mesh-panel-ue58-parity.md §7.1.
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const id = (e as CustomEvent).detail?.id as string | undefined;
+      if (!id) return;
+      try { apiRef.current?.getPanel(id)?.api.setActive(); } catch { /* noop */ }
+    };
+    window.addEventListener(APP_EVENTS.focusPanel, onFocus);
+    return () => { window.removeEventListener(APP_EVENTS.focusPanel, onFocus); };
+  }, []);
+
   // On mount: load workspace layouts from server into localStorage (only when
   // localStorage is empty for a given workspace — e.g. after clearing browser
   // storage or on a fresh machine). Then apply the active workspace's layout if
