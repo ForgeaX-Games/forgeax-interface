@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Command, Cpu, FlaskConical, GitFork, Globe, History, Info, Key, Network, Plug, RefreshCw, ShieldCheck, Sparkles, Trash2, User, Users } from 'lucide-react';
+import { Activity, Brain, Command, Cpu, FlaskConical, GitFork, Globe, History, Info, Key, Network, Plug, RefreshCw, ShieldCheck, Sparkles, Trash2, User, Users } from 'lucide-react';
 import { buildShortcuts, prettyCombo, type ShortcutDef } from '../../lib/global-shortcuts';
 import { confirmDialog } from '../../lib/dialog';
 import { resolveNaming } from '../../lib/agent-name';
@@ -27,6 +27,7 @@ import { Section, EnvField } from '../TopBar/SettingsDrawer';
 import { BusAdminPanel } from '../Bus/BusAdminPanel';
 import { useSettingsSection } from './store';
 import { BootSplashSection } from '../../boot/SettingsSection';
+import { MemorySettingsSection } from './MemorySettingsSection';
 import { LanguageSection } from '../../i18n/LanguageSettingsSection';
 import { ModelPicker } from '../ModelPicker';
 import { TrustPanel } from './TrustPanel';
@@ -483,6 +484,7 @@ export function SettingsSectionsRegister() {
   useSettingsSection({ id: 'usage',         label: t('settings.usage.title'),          priority: 67, group: 'config',  icon: Activity, node: usageNode });
   useSettingsSection({ id: 'language',      label: 'Language',      priority: 66, group: 'system',  icon: Globe,   node: <LanguageSection /> });
   useSettingsSection({ id: 'boot-splash',   label: 'Boot Splash',   priority: 65, group: 'system',  icon: Sparkles, node: <BootSplashSection /> });
+  useSettingsSection({ id: 'memory',        label: '记忆 Memory',   priority: 64, group: 'system',  icon: Brain,   node: <MemorySettingsSection /> });
   useSettingsSection({ id: 'shortcuts',     label: 'Shortcuts',     priority: 62, group: 'system',  icon: Command, node: shortcutsNode });
   useSettingsSection({ id: 'workspace',     label: 'Workspace',     priority: 60, group: 'system',  icon: Trash2,  node: workspaceNode });
   useSettingsSection({ id: 'account',       label: 'Account',       priority: 50, group: 'account', icon: User,    node: accountNode });
