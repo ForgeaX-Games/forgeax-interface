@@ -747,7 +747,21 @@
       "progressClose": "Close",
       "jobSuccess": "Package succeeded",
       "jobFailed": "Package failed",
-      "cachedShell": "Used cached launcher"
+      "cachedShell": "Used cached launcher",
+      "clean": "Clean Local Cache",
+      "cleanTitle": "Clean local packaging environment",
+      "cleanBody": "This will delete the following local packaging environment (irreversible; it is rebuilt automatically on the next packaging run):",
+      "cleanItemToolchain": "Isolated Rust toolchain ~/.forgeax/toolchains (rustup + cargo + wasm-pack)",
+      "cleanItemShell": "Launcher shell cache ~/.forgeax/cache/player-shell",
+      "cleanItemTmp": "Leftover temp export dirs .forgeax-export",
+      "cleanKeepHint": "Export products and packaging history are NOT deleted.",
+      "cleanConfirm": "Delete all",
+      "cleanDone": "Cleanup complete",
+      "cleanPartial": "Partially cleaned (some items failed to delete)",
+      "cleanFailed": "Cleanup failed",
+      "cleanFreed": "Freed about {{size}}",
+      "cleaning": "Cleaning local cache…",
+      "cleaningHint": "Removing the isolated toolchain and caches, please wait (may take a few to a dozen seconds for large dirs)."
     },
     "layout": {
       "tooltip": "Layout · reopen / reset / presets"

@@ -747,7 +747,21 @@
       "progressClose": "关闭",
       "jobSuccess": "打包成功",
       "jobFailed": "打包失败",
-      "cachedShell": "使用了缓存的启动器"
+      "cachedShell": "使用了缓存的启动器",
+      "clean": "清理本地缓存",
+      "cleanTitle": "清理本地打包环境",
+      "cleanBody": "将删除以下本地打包环境（不可恢复，下次打包会自动重建）：",
+      "cleanItemToolchain": "隔离 Rust 工具链 ~/.forgeax/toolchains（rustup + cargo + wasm-pack）",
+      "cleanItemShell": "启动器外壳缓存 ~/.forgeax/cache/player-shell",
+      "cleanItemTmp": "残留临时导出目录 .forgeax-export",
+      "cleanKeepHint": "不会删除已生成的打包产物与打包历史。",
+      "cleanConfirm": "全部删除",
+      "cleanDone": "已清理完成",
+      "cleanPartial": "部分清理完成（有项目删除失败）",
+      "cleanFailed": "清理失败",
+      "cleanFreed": "已释放约 {{size}}",
+      "cleaning": "正在清理本地缓存…",
+      "cleaningHint": "正在删除隔离工具链与缓存，请稍候（体积较大时可能需要几秒到十几秒）。"
     },
     "layout": {
       "tooltip": "布局 · 重开 / 重置 / 预设"
