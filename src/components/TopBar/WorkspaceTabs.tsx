@@ -14,10 +14,9 @@ import {
   deleteWorkspace,
   CORE_WORKSPACE_IDS,
 } from '../../lib/workspaces';
-import { useAppStore } from '../../store';
 import { useTranslation } from '@/i18n';
 import { FloatingMenu } from '../ui/FloatingMenu';
-import { buildWorkspacePill, REFERENCE_LABEL } from '../Composer/referenceRegistry';
+import { buildWorkspacePill, REFERENCE_LABEL, requestComposerInsert } from '../../lib/composer-bridge';
 
 export function modeForWorkspace(id: string): 'preview' | 'workbench' | 'edit' {
   if (id === 'preview') return 'preview';
@@ -94,7 +93,6 @@ export function WorkspaceTabs({ setMode }: { setMode: (m: 'preview' | 'workbench
     if (ws) { switchTo(ws.id); requestAnimationFrame(() => tabRefs.current[next!]?.focus()); }
   };
 
-  const requestComposerInsert = useAppStore((s) => s.requestComposerInsert);
   const ctxWs = ctxMenu ? list.find((w) => w.id === ctxMenu.wsId) : null;
   const ctxIsCore = ctxMenu ? CORE_WORKSPACE_IDS.has(ctxMenu.wsId) : false;
 

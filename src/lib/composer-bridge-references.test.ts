@@ -5,7 +5,7 @@
  * produces the expected pill kind/icon/detail. If someone removes a selector or
  * forgets a data attribute, this fails loudly.
  *
- * Run: `bun test src/components/Composer/referenceRegistry.test.ts`
+ * Run: `bun test src/lib/composer-bridge-references.test.ts`
  */
 import { describe, it, expect } from 'bun:test';
 import {
@@ -16,7 +16,7 @@ import {
   buildComponentPill,
   REFERENCE_LABEL,
   REFERENCE_REGISTRY,
-} from './referenceRegistry';
+} from './composer-bridge';
 
 function el(html: string): HTMLElement {
   const host = document.createElement('div');

@@ -3,7 +3,7 @@
  * that carries structured references through the otherwise-plaintext message.
  */
 import { describe, it, expect } from 'bun:test';
-import { encodePill, decodePill, parseSegments, expandPills, type PillPayload } from './pill';
+import { encodePill, decodePill, parseSegments, expandPills, type PillPayload } from './composer-bridge';
 
 const sample: PillPayload = {
   kind: 'file',

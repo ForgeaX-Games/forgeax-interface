@@ -56,7 +56,7 @@ export function AgentsPanel(): ReactNode {
   const liveAgents = useAppStore((s) => s.liveAgents[s.activeSid ?? ''] ?? EMPTY_AGENTS);
   const fileActivity = useAppStore((s) => s.agentFileActivity[s.activeSid ?? ''] ?? EMPTY_FILE_ACTIVITY);
   const streamingByAgent = useAppStore(
-    (s) => s.tabs.find((t) => t.sid === s.activeSid)?.streamingByAgent ?? EMPTY_STREAMING,
+    (s) => s.busyByAgentBySid[s.activeSid ?? ''] ?? EMPTY_STREAMING,
   );
   const [highlight, setHighlight] = useState<string>('');
   // Distinguishes "haven't gotten a successful list_agents yet" (→ 加载中) from

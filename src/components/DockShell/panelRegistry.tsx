@@ -14,7 +14,6 @@ import { Sidebar } from '../Sidebar/Sidebar';
 import { MainArea } from '../MainArea/MainArea';
 import { PreviewPanel } from '../MainArea/SurfacePanels';
 import { EditPanel } from '../MainArea/SurfacePanels';
-import { ChatPanel } from '../ChatPanel/ChatPanel';
 import { AgentsPanel } from '../Sidebar/AgentsPanel';
 import { FilesPanel } from '../Sidebar/FilesPanel';
 import { ConsolePanel } from '../MainArea/ConsolePanel';
@@ -26,7 +25,21 @@ import { RecoveryBoundary } from '../ErrorBoundary';
 // so interface stays editor-agnostic (no `@forgeax/editor*` import). The
 // DEFAULT_* list here is the neutral fallback for interface-alone; studio
 // overrides it with the editor-shared SSOT through the context provider.
-import { DEFAULT_EDITOR_PANEL_IDS, DEFAULT_EDITOR_PANEL_TITLES } from './panelRenderers';
+import { DEFAULT_EDITOR_PANEL_IDS, DEFAULT_EDITOR_PANEL_TITLES, usePanelRenderers } from './panelRenderers';
+
+// Chat panel body comes from the injected `renderChat` slot (R4: chat is a
+// 前L2 @forgeax/chat app, NOT an interface import). studio injects it; when
+// absent (interface-alone / standalone editor) we render a neutral placeholder
+// so the dock slot stays valid. Mirrors the renderEdit/renderPreview seam.
+function ChatPanelSlot(): ReactNode {
+  const { renderChat } = usePanelRenderers();
+  if (renderChat) return renderChat();
+  return (
+    <div className="surface-placeholder">
+      <div className="surface-placeholder-title">No chat app configured</div>
+    </div>
+  );
+}
 
 export interface PanelDef {
   /** dockview panel id + component key (must be unique). */
@@ -53,7 +66,7 @@ export const CORE_PANELS: PanelDef[] = [
   // In flat-architecture mode 'edit' is a VIEWPORT-only panel (engine canvas +
   // gizmo); the editor's React sub-panels live as ep:* panels.
   { id: 'edit', title: 'Edit', group: 'core', canPopOut: true, render: () => <EditPanel viewportOnly /> },
-  { id: 'chat', title: 'ForgeaX CLI', group: 'core', canPopOut: true, render: () => <ChatPanel /> },
+  { id: 'chat', title: 'ForgeaX CLI', group: 'core', canPopOut: true, render: () => <ChatPanelSlot /> },
 ];
 
 export const OPTIONAL_PANELS: PanelDef[] = [

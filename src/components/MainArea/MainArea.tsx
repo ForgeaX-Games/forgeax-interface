@@ -1,7 +1,7 @@
 import { useAppStore } from '../../store';
 import { PreviewPanel, EditPanel } from './SurfacePanels';
-import { WorkbenchMode } from './WorkbenchMode';
 import { CenterPluginLayer } from './CenterPluginLayer';
+import { usePanelRenderers } from '../DockShell/panelRenderers';
 import './MainArea.css';
 
 // 2026-05-17 — Bus mode tab + BusAdminPanel render here removed.
@@ -10,10 +10,13 @@ import './MainArea.css';
 // with persisted store state — falls through to no render here.
 export function MainArea() {
   const mode = useAppStore((s) => s.mode);
+  // Workbench main-area body is a 前L2 @forgeax/workbench app injected via the
+  // renderWorkbench slot (R4); interface holds no @forgeax/workbench import.
+  const { renderWorkbench } = usePanelRenderers();
   return (
     <main className="main-area">
       {mode === 'preview' && <PreviewPanel />}
-      {mode === 'workbench' && <WorkbenchMode />}
+      {mode === 'workbench' && renderWorkbench?.('full')}
       {mode === 'edit' && <EditPanel />}
       {/* Always-mounted keep-alive overlay for standalone center plugins. Lives
           here (above the mode/tab conditionals) so plugin iframes survive
