@@ -3,6 +3,7 @@ import { WorkspaceTabs } from './WorkspaceTabs';
 import { SessionSwitcher } from './SessionSwitcher';
 import { ProjectSwitcher } from './ProjectSwitcher';
 import { GameSwitcher } from './GameSwitcher';
+import { AndroidPackageDialog, type AndroidPackageConfig } from './AndroidPackageDialog';
 import { STORAGE_KEYS, APP_EVENTS } from '../../lib/storageKeys';
 import { CircleGauge, LayoutGrid, Rocket, Settings, ShieldAlert, Check, X, Globe, Monitor, Smartphone, Apple, ChevronDown, History, RefreshCw, Trash2, Loader2, Wrench, Eraser } from 'lucide-react';
 import {
@@ -330,6 +331,7 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
   const [progressPhase, setProgressPhase] = useState('');
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
   const [cleaning, setCleaning] = useState(false);
+  const [androidDialog, setAndroidDialog] = useState<{ slug: string; defaultAppName: string } | null>(null);
   const { pendingConfirms, ack, deny } = useConfirmToast();
 
   type TargetPlatform = 'web' | 'windows' | 'android' | 'ios';
@@ -353,8 +355,8 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
     return () => { cancelled = true; };
   }, []);
 
-  const onPackageGame = async (platform: TargetPlatform) => {
-    if (packaging) return;
+  // Resolve the game slug to package: the pinned one, else the active game.
+  const resolvePackageSlug = async (): Promise<string | null> => {
     let slug = pinnedSlug;
     if (!slug) {
       try {
@@ -362,6 +364,24 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
         slug = ((await r.json()) as { activeSlug?: string | null }).activeSlug ?? null;
       } catch { /* fall through */ }
     }
+    return slug ?? null;
+  };
+
+  // Android needs user config (applicationId / name / icon / orientation) before
+  // packaging, so it opens a dialog first and calls onPackageGame from onConfirm.
+  const openAndroidDialog = async () => {
+    if (packaging) return;
+    const slug = await resolvePackageSlug();
+    if (!slug) {
+      await alertDialog({ title: t('topbar.package.title'), body: t('topbar.package.noGame') });
+      return;
+    }
+    setAndroidDialog({ slug, defaultAppName: slug });
+  };
+
+  const onPackageGame = async (platform: TargetPlatform, androidCfg?: AndroidPackageConfig) => {
+    if (packaging) return;
+    const slug = await resolvePackageSlug();
     if (!slug) {
       await alertDialog({ title: t('topbar.package.title'), body: t('topbar.package.noGame') });
       return;
@@ -372,7 +392,13 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
       const r = await fetch(`/api/workbench/games/${slug}/package`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetPlatform: platform, rebuildEngine, forceRebuild: false, engineRoot: selectedEngineRoot }),
+        body: JSON.stringify({
+          targetPlatform: platform,
+          rebuildEngine,
+          forceRebuild: false,
+          engineRoot: selectedEngineRoot,
+          ...(androidCfg ?? {}),
+        }),
       });
       const j = (await r.json()) as Record<string, unknown>;
 
@@ -698,7 +724,7 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
               {t('topbar.package.platformWindows')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>
+            <DropdownMenuItem disabled={packaging} onClick={() => { void openAndroidDialog(); }}>
               <Smartphone size={14} />
               {t('topbar.package.platformAndroid')}
             </DropdownMenuItem>
@@ -772,6 +798,15 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
     )}
     {showProgress && <PackageProgressOverlay phase={progressPhase} logs={progressLogs} onClose={() => { setShowProgress(false); }} t={t} />}
     {showHistory && <PackageHistoryDialog onClose={() => setShowHistory(false)} onRetry={onRetryPackage} t={t} />}
+    {androidDialog && (
+      <AndroidPackageDialog
+        slug={androidDialog.slug}
+        defaultAppName={androidDialog.defaultAppName}
+        t={t}
+        onCancel={() => setAndroidDialog(null)}
+        onConfirm={(cfg) => { setAndroidDialog(null); void onPackageGame('android', cfg); }}
+      />
+    )}
     </>
   );
 }
