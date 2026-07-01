@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode, type KeyboardEvent, type CSSProperties } from 'react';
 import { FileCode2, FileJson, FileText, FileImage, FileAudio, File as FileIcon } from 'lucide-react';
 import { useAppStore, type LiveAgent, type AgentFileTouch } from '../../store';
+import { publish } from '../../lib/bus';
 import { openAgentDetail } from '../../lib/open-agent-detail';
 import { AgentAvatarVideo } from '../AgentAvatarVideo/AgentAvatarVideo';
 import { useTranslation } from '@/i18n';
@@ -65,7 +66,8 @@ export function AgentsPanel(): ReactNode {
   // with an empty roster (root not scaffolded yet) sat on 加载中... forever.
   const [loaded, setLoaded] = useState(false);
   const rowButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const openFile = useAppStore((s) => s.openFile);
+  // ③ 打开文件走 bus 命令（owner = workbench）—— L1 壳零 import workbench。
+  const openFile = (path: string) => { publish('workbench:open-file', { path } as never); };
 
   // Self-contained list_agents poll. `liveAgents` was previously fed ONLY by
   // AgentSwitcher (chat panel), whose poll is gated by an IntersectionObserver

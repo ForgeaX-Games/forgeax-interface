@@ -18,6 +18,7 @@ import { initAegis } from './lib/aegis';
 import { BrandProvider } from './brand';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { bootStageEntry } from './boot/driver';
+import { bootBroadcast } from './boot/broadcast';
 import { isTrustedMessageOrigin } from './lib/trustedOrigins';
 import { subscribeNarrativeCopilot } from './lib/narrative-copilot';
 import { subscribeFileActivityStream } from './lib/file-activity-stream';
@@ -116,6 +117,7 @@ function bootStore() {
   // (Play/Edit/plugin) into the status bar. Must run before any iframe mounts so
   // early createApp failures are caught. Idempotent.
   installHealthBridge();
+  bootBroadcast(); // R5/P1 唯一公共广播 socket（telemetry / workspace-changed）
   subscribeNarrativeCopilot();
   subscribeFileActivityStream();
   subscribePermissionStream();

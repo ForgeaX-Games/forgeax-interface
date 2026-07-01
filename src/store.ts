@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { t } from '@/i18n';
+import { peek } from './lib/bus';
 import { recordLog } from './lib/logSink';
 import { alertDialog } from './lib/dialog';
 import { getWindowManager, surfaceKey, type SurfaceDescriptor } from './lib/platform';
@@ -10,16 +11,7 @@ import { bootAppMode } from './lib/workspaces';
 // 2026-06-30: 'preview'/'play' removed; 'edit' retained as the 2x2 viewport workspace (OOS-5).
 export type AppMode = 'edit' | 'workbench' | 'bus';
 
-// Shared file descriptor used by the multi-tab workbench editor.
-export interface PreviewFile {
-  path: string;
-  kind: 'text' | 'image' | 'audio' | 'video' | 'model' | 'binary';
-  mime: string;
-  bytes: number;
-  content?: string;
-  dirty?: boolean;
-  error?: string;
-}
+// ③ PreviewFile 已移到 @forgeax/workbench/file-preview（L1 不再持有文件预览态）。
 
 export interface ToolCall {
   callId: string;
@@ -76,7 +68,7 @@ export interface NetworkEntry {
 // LogRecord / TelemetryRecord). interface has no dep on @forgeax/types, so the
 // line shape is re-declared locally as plain TS (Schema-as-Contract lives in
 // packages/types; this is the consumer-side view). Both信道 feed the SAME slice:
-//   - node→server→WS  `{ type:'telemetry',     records }`  (handleDaemonWs)
+//   - node→server→WS  `{ type:'telemetry',     records }`  (bootBroadcast, R5/P1)
 //   - iframe→shell     `{ type:'VAG_TELEMETRY', records }`  (healthBridge)
 // 见 .claude/docs/架构设计/forgeax-os/可观测性-trace-log-v3-B档-并行执行计划-2026-06-24.md §B。
 export interface TelemetrySpan {
@@ -313,70 +305,12 @@ interface AppState {
    *  the user closes a detached window — redocks without re-closing the window. */
   markSurfaceDocked: (key: string) => void;
 
-  // P2.7f — cross-component deep link from a Sidebar wb-* placeholder's "在
-  // Bus 详情查看 →" button into the BusAdminPanel: set the plugin id here +
-  // setMode('bus'), and BusAdminPanel reads/clears this on mount or whenever
-  // it changes, auto-expanding that row and scrolling it into view. Null when
-  // no pending request.
-  pendingBusExpandId: string | null;
-  setPendingBusExpandId: (id: string | null) => void;
-
-  // Composer 的 "右键 → 在对话中引用" 跨组件插入桥已迁出到 lib/composer-bridge.ts
-  // (requestComposerInsert / useComposerPendingInsert),不再寄居在 useAppStore。
-  // checkpoint 回退 / WAL replay / chat 消息流都已迁到 chat app 的 session store。
-
-  // P3.33 — reverse deep-link target from BusAdminPanel agent detail row's
-  // "← 在 Sidebar 高亮" button into the Sidebar AgentsPanel. We store the bus
-  // pluginId (the same key BusAdminPanel rows use) rather than the AgentRec.id,
-  // because the AgentsPanel already knows the pluginId ⇄ agent id mapping via
-  // agents_from_bus[].pluginId. AgentsPanel reads/clears this on flip,
-  // scrolling the matching card into view and flashing it for ~1.5s. Null when
-  // no pending request. Symmetric mate to pendingBusExpandId (P2.7f) — together
-  // they wire Sidebar ⇄ Bus admin two-way navigation.
-  pendingSidebarFocusPluginId: string | null;
-  setPendingSidebarFocusPluginId: (id: string | null) => void;
-
-  // P3.37 — deep-link target from Sidebar BUS KINDS footer 6-chip into the
-  // BusAdminPanel kind filter. setMode('bus') + setPendingBusKindFilter('agent')
-  // → BusAdminPanel reads this on mount/change and solos that kind (sets its
-  // local enabledKinds = new Set([kind])), then clears the slot. Symmetric to
-  // pendingBusExpandId (P2.7f, row expand) — both gate BusAdminPanel initial
-  // view from a remote surface, but operate on different axes (kind filter vs
-  // single row expand). Null when no pending request.
-  pendingBusKindFilter: string | null;
-  setPendingBusKindFilter: (kind: string | null) => void;
-
-  // P3.38 — reverse mate to pendingBusKindFilter (P3.37). When the player
-  // clicks a kind chip inside BusAdminPanel's filter row, we set this slot to
-  // that kind; the Sidebar BUS KINDS footer reads it once, flashes the matching
-  // .ss-kind-chip for ~1.5s (pulse + glow), then clears it. Confirms in the
-  // peripheral surface "this kind is where you just acted" — same loop as
-  // P3.33 (pendingSidebarFocusPluginId) but on the kind axis instead of agent
-  // pluginId axis.
-  pendingSidebarKindFlash: string | null;
-  setPendingSidebarKindFlash: (kind: string | null) => void;
-
-  // P3.40 — sibling to pendingSidebarKindFlash, but the receiving surface is
-  // the ChatPanel TabStrip's .ts-bus-chip (the bus host count chip on the
-  // right side of the screen). Triggered every time the player toggles a
-  // plugin row in BusAdminPanel — we set this to the row's pluginId, TabStrip
-  // pulses its bus-chip for ~0.8s (green peripheral confirmation), then clears.
-  // 9th deep-link surface; first time a single-instance chip (not a per-kind
-  // chip) takes a reverse flash signal, so we use a tick-bound string slot
-  // instead of a kind selector. Value is informational only (TabStrip doesn't
-  // read it for branching, just trigger detection).
-  pendingChatPanelBusFlash: string | null;
-  setPendingChatPanelBusFlash: (id: string | null) => void;
-
-  // P3.70 — deep-link target from Analytics 7-day Run trend bars into the
-  // Dashboard Runs sub-page. Bar click sets this to the day's UTC-local start
-  // ms + label (e.g. {dayStartMs, dayLabel:"5-16"}); RunsList consumes it once
-  // on mount/change, copies into a local dateFilter state, then clears the
-  // slot. Filters the runs table to that single calendar day. 14th
-  // expand-pipeline surface — first time a non-bus deep-link target lands
-  // (target is sibling Dashboard sub-page, not BusAdminPanel).
-  pendingRunsDateFilter: { dayStartMs: number; dayLabel: string } | null;
-  setPendingRunsDateFilter: (f: { dayStartMs: number; dayLabel: string } | null) => void;
+  // R5/P2 — 跨-surface 深链槽（原 ~7 个 pending*）已全部移出 store，改走 L1 bus
+  // （lib/deep-link-bus.ts：emitDeepLink / useDeepLink，retain 快照语义）。producer
+  // `emitDeepLink('bus:expand-plugin'|'bus:filter-kind'|'sidebar:focus-plugin'|
+  // 'sidebar:flash-kind'|'chat:flash-bus-chip', ...)`；consumer `useDeepLink(topic)`。
+  // 彻底死掉的 pendingRunsDateFilter（无 producer/consumer）直接删除。
+  // Composer 的 "右键 → 在对话中引用" 桥在 lib/composer-bridge.ts；chat 消息流在 chat app。
 
   activeSession: string;
   setActiveSession: (s: string) => void;
@@ -399,27 +333,9 @@ interface AppState {
   /** Read cache w/ guarded null fallback. */
   getCachedAgentForSid: (sid: string | null) => string | null;
 
-  // ── Workbench file preview (multi-tab) ──
-  // `kind` drives the renderer in WorkbenchMode:
-  //   text  → textarea (editable, savable)
-  //   image → <img src=/api/files/raw?path=...>
-  //   audio → <audio controls>
-  //   video → <video controls>
-  //   model → <model-viewer> (lazy)
-  //   binary → unsupported notice + size
-  // `content` is only present for kind==='text' (server skips decode for
-  // binary kinds since 2026-05-17 — was producing PNG-as-mojibake before).
-  openFiles: PreviewFile[];
-  activeFilePath: string | null;
-  openFile: (path: string) => Promise<void>;
-  /** Inject a file descriptor directly without hitting /api/files (devtools / tests). */
-  openFileDirect: (file: PreviewFile) => void;
-  /** Switch focus to an already-open tab. No-op if path not in openFiles. */
-  activateFile: (path: string) => void;
-  /** Close a specific tab by path, or the active tab if path is omitted. */
-  closeFile: (path?: string) => void;
-  updatePreviewContent: (content: string) => void;
-  savePreviewFile: () => Promise<{ ok: boolean; error?: string }>;
+  // ── Workbench file preview（③ 已抽到 @forgeax/workbench/file-preview，走 bus 'workbench:files'）──
+  // openFiles/activeFilePath/openFile/activateFile/closeFile/updatePreviewContent/savePreviewFile
+  // 不再进 L1 store。壳侧打开文件走 bus 命令 'workbench:open-file'（见 workbench/file-preview.ts）。
 
   // ── Pinned active game (user's explicit selection; null = auto-detect) ──
   pinnedSlug: string | null;
@@ -449,7 +365,7 @@ interface AppState {
 
   // ── Telemetry buffer (trace spans + structured logs) ──
   //  Fed by two信道 into ONE slice: node telemetry over WS
-  //  (`{type:'telemetry'}`, handleDaemonWs) and iframe telemetry over
+  //  (`{type:'telemetry'}`, bootBroadcast R5/P1) and iframe telemetry over
   //  postMessage (`{type:'VAG_TELEMETRY'}`, healthBridge). Span + log records
   //  live together (split by `kind` in the viewer). Capped at 500 (S4).
   telemetry: TelemetryRecord[];
@@ -464,24 +380,8 @@ interface AppState {
   providerOverride: string | null;
   setProviderOverride: (id: string | null) => void;
 
-  // ── Agent install/uninstall preferences ──
-  /** Ids of agents the user has explicitly «卸载» from Settings → Agents.
-   *  Default empty (= every agent listed by /api/workbench/agents is
-   *  considered installed). ChatAgentStrip subtracts this set; main-agent
-   *  delegate tool surface (server side) reads the parallel prefs file. */
-  uninstalledAgentIds: string[];
-  /** Toggle membership for a single agent id. Persists to localStorage and
-   *  best-effort POSTs to `/api/prefs/uninstalled-agents` so server tools
-   *  see the same view (see prefs router). */
-  toggleAgentInstalled: (id: string) => void;
-  /** Set membership explicitly. Same persistence as toggle. */
-  setAgentInstalled: (id: string, installed: boolean) => void;
-  /** Agent id to bootstrap when the user creates a new session. null = use
-   *  server default (currently 'root'). When set to a marketplace persona id
-   *  (mochi/iori/suzu/rin/…), server resolves persona and scaffolds with
-   *  personaFile pre-filled (same auto-scaffold logic as POST /messages). */
-  defaultBootstrapAgent: string | null;
-  setDefaultBootstrapAgent: (id: string | null) => void;
+  // ── Agent install prefs（① 已抽到 @forgeax/settings/agent-prefs，走 bus 'prefs:agents'）──
+  // defaultBootstrapAgent / uninstalledAgentIds 不再进 L1 store —— 见 settings/agent-prefs.ts。
 
   // ── Live agent state (driven by WS events + list_agents poll) ──
   liveAgents: Record<string, LiveAgent[]>;
@@ -532,24 +432,20 @@ interface AppState {
    *  immediate UI change beyond a status indication. */
   setActiveEmitter: (emitterId: string) => Promise<void>;
 
-  // ── Dashboard overlay ──
-  dashboardOpen: boolean;
-  setDashboardOpen: (open: boolean) => void;
-
-  /** Settings panel overlay (replaces the old TopBar Bus mode tab + the
-   *  right-slide SettingsDrawer).  Sections live in a registry filled by
-   *  any number of `useSettingsSection({...})` callers (Plugins/Keys/
-   *  Models/CliProviders/Workspace/Account/About …).  `settingsSection`
-   *  is the currently-selected nav id; null lets the panel default to
-   *  the highest-priority section on open. */
-  settingsOpen: boolean;
-  settingsSection: string | null;
-  setSettingsOpen: (open: boolean) => void;
-  setSettingsSection: (id: string | null) => void;
-  /** Convenience — open the panel AND jump to a specific section in one
-   *  call.  Every former `setMode('bus')` deep-link uses
-   *  `openSettings('plugins')` (with optional pendingBus* slot prep). */
-  openSettings: (section?: string) => void;
+  // ── Overlay（通用壳级 overlay 槽 · R5/P5 去名化）──
+  //  L1 壳只有一个通用 overlay 槽，不 hardcode app 名：
+  //   - `activeOverlay` = 当前打开的 overlay id（调用方传 'settings' / 'dashboard' / …；
+  //      store 不认识这些具体值，只当字符串存）。null = 无 overlay。
+  //   - `overlayParam` = 该 overlay 的可选参数（如 settings 的 section nav id）。
+  //  取代原按 app 命名的 `dashboardOpen` / `settingsOpen` / `settingsSection`。
+  //  section 的持久化（关掉再开回到上次 tab）保留在壳级 pref 里。
+  activeOverlay: string | null;
+  overlayParam: string | null;
+  /** 打开一个 overlay（可带参数；param 省略时沿用上次，主要给 settings section 用）。 */
+  openOverlay: (id: string, param?: string) => void;
+  /** 改当前 overlay 的参数（如 settings 面板里切换 nav section）。 */
+  setOverlayParam: (param: string | null) => void;
+  closeOverlay: () => void;
 
   // ── Fullscreen ("immersive" mode) ──
   //
@@ -617,22 +513,9 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// 用户「卸载」掉的 agent id 列表 —— 首次启动 (INITIALIZED_KEY 缺) 由
-// `seedUninstalledIfFirstRun` 把所有 agent 减去 DEFAULT_INSTALLED_AGENT_IDS
-// 写进来，之后用户在 Settings → Agents 里勾掉/勾上 都更新这个 list 跟服务端
-// 镜像 ~/.forgeax/prefs/uninstalled-agents.json 同步。ChatAgentStrip 渲染时
-// 用这个集合做减法过滤；server 端 delegate-tool 同样读这份。
-//
-// 默认安装五个：forge (main, 不可卸载) + mochi + iori + suzu + rin
-//   —— 覆盖 orchestrator + 4 个最常用 sub-persona，剩下的 plugin agent 全部
-//   默认卸载，保持 ChatAgentStrip 简洁。用户想要更多，去 Settings → Agents 勾。
-//   想换默认 5 个，改这个常量即可（已用过 INITIALIZED_KEY 的老用户不受影响 ——
-//   他们的偏好是已生效的本地状态，不会被新默认覆盖）。
-export const DEFAULT_INSTALLED_AGENT_IDS = ['forge', 'mochi', 'iori', 'suzu', 'rin'];
+// agent 安装偏好（DEFAULT_INSTALLED_AGENT_IDS / uninstalled / bootstrap / seed）已
+// 整体抽到 @forgeax/settings/agent-prefs（① · 走 bus 'prefs:agents'）—— L1 不再持有。
 
-const UNINSTALLED_AGENTS_KEY = 'forgeax.uninstalledAgents';
-const UNINSTALLED_AGENTS_INITIALIZED_KEY = 'forgeax.uninstalledAgents.initialized';
-const DEFAULT_BOOTSTRAP_AGENT_KEY = 'forgeax.defaultBootstrapAgent';
 const SETTINGS_SECTION_KEY = 'forgeax.settingsSection';
 
 function loadSettingsSection(): string | null {
@@ -648,113 +531,11 @@ function saveSettingsSection(id: string | null): void {
   } catch { /* ignore */ }
 }
 
-function loadDefaultBootstrapAgent(): string | null {
-  try {
-    const v = localStorage.getItem(DEFAULT_BOOTSTRAP_AGENT_KEY);
-    return v && v.trim() ? v : null;
-  } catch { return null; }
-}
-function saveDefaultBootstrapAgent(id: string | null): void {
-  try {
-    if (id) localStorage.setItem(DEFAULT_BOOTSTRAP_AGENT_KEY, id);
-    else localStorage.removeItem(DEFAULT_BOOTSTRAP_AGENT_KEY);
-  } catch { /* ignore */ }
-}
-function loadUninstalledAgentIds(): string[] {
-  try {
-    const raw = localStorage.getItem(UNINSTALLED_AGENTS_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as unknown;
-    if (!Array.isArray(arr)) return [];
-    return arr.filter((v): v is string => typeof v === 'string' && v.length > 0);
-  } catch {
-    return [];
-  }
-}
-function saveUninstalledAgentIds(ids: string[]): void {
-  try {
-    if (ids.length === 0) localStorage.removeItem(UNINSTALLED_AGENTS_KEY);
-    else localStorage.setItem(UNINSTALLED_AGENTS_KEY, JSON.stringify(ids));
-  } catch { /* ignore */ }
-}
-async function pushUninstalledAgentsToServer(ids: string[]): Promise<void> {
-  try {
-    await fetch('/api/prefs/uninstalled-agents', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    });
-  } catch { /* server prefs are advisory — mirror, never SSOT */ }
-}
-
-/** First-run seed: when INITIALIZED_KEY is absent, treat the prefs file as
- *  fresh. Call with the full agent id list (from /api/workbench/agents) ——
- *  uninstall everything that's not in DEFAULT_INSTALLED_AGENT_IDS. Idempotent:
- *  subsequent calls hit the localStorage flag and short-circuit. Skips main
- *  agent (`isMain`) since it's never uninstallable anyway.
- *
- *  Both ChatAgentStrip and AgentsBody fetch /api/workbench/agents; whichever
- *  fires first runs the seed. Setting flag *before* save() prevents a second
- *  caller racing in mid-write.
- */
-export function seedUninstalledIfFirstRun(allIds: string[], mainId?: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (localStorage.getItem(UNINSTALLED_AGENTS_INITIALIZED_KEY)) return;
-  } catch { return; }
-  const installable = new Set(DEFAULT_INSTALLED_AGENT_IDS);
-  if (mainId) installable.add(mainId);
-  const uninstalled = allIds
-    .filter((id) => !installable.has(id))
-    .sort();
-  try { localStorage.setItem(UNINSTALLED_AGENTS_INITIALIZED_KEY, '1'); } catch { /* ignore */ }
-  saveUninstalledAgentIds(uninstalled);
-  void pushUninstalledAgentsToServer(uninstalled);
-  useAppStore.setState({ uninstalledAgentIds: uninstalled });
-}
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key !== UNINSTALLED_AGENTS_KEY) return;
-    const next = loadUninstalledAgentIds();
-    const cur = useAppStore.getState().uninstalledAgentIds;
-    if (cur.length !== next.length || cur.some((id, i) => id !== next[i])) {
-      useAppStore.setState({ uninstalledAgentIds: next });
-    }
-  });
-}
-
-
-// Single global WS connection for daemon tick stream. Mounted lazily on first
-// store creation. Reconnects with exponential backoff.
-let _wsForDaemons: WebSocket | null = null;
-let _wsRetryMs = 1000;
-function connectDaemonWs(onMessage: (msg: unknown) => void): void {
-  if (typeof window === 'undefined') return;
-  if (_wsForDaemons && _wsForDaemons.readyState !== WebSocket.CLOSED) return;
-  try {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${proto}//${window.location.host}/ws`);
-    _wsForDaemons = ws;
-    ws.onopen = () => {
-      _wsRetryMs = 1000;
-    };
-    ws.onmessage = (e) => {
-      try {
-        onMessage(JSON.parse(typeof e.data === 'string' ? e.data : ''));
-      } catch { /* ignore */ }
-    };
-    ws.onclose = () => {
-      _wsForDaemons = null;
-      setTimeout(() => connectDaemonWs(onMessage), _wsRetryMs);
-      _wsRetryMs = Math.min(_wsRetryMs * 2, 30000);
-    };
-    ws.onerror = () => {
-      try { ws.close(); } catch { /* ignore */ }
-    };
-  } catch {
-    setTimeout(() => connectDaemonWs(onMessage), _wsRetryMs);
-  }
-}
+// R5/P1 — the broadcast `/ws` daemon socket moved OUT of the store's module-load
+// side-effect into the shared `lib/broadcast-stream` primitive, wired at boot by
+// `boot/broadcast.ts` (`bootBroadcast()`). Importing the store no longer opens a
+// socket. telemetry / workspace-changed handling lives in bootBroadcast; daemon-tick
+// is chat's (subscribeDaemonTick). See docs 17b §7.2.
 
 // ── Sessions persistence ───────────────────────────────────────────────────
 // 2026-05-20 重做：不再持久化 tabs 数组本身（tabs = GET /api/sessions 派生）。
@@ -888,62 +669,11 @@ const _initialMirror = {
   activeSid: _initialActiveSid,
   currentSessionId: _initialActiveSid,
   providerOverride: loadProviderOverride(),
-  uninstalledAgentIds: loadUninstalledAgentIds(),
-  defaultBootstrapAgent: loadDefaultBootstrapAgent(),
 };
 
-// P-UNIFY.4 — daemon WS handler. Hoisted out of the store factory so it
-// captures set/get via closure after they're available. Routes daemon-tick-*
-// events to the right tab by threadId, with bubble keyed by tickId.
-export function handleDaemonWs(msg: unknown): void {
-  if (!msg || typeof msg !== 'object') return;
-  const m = msg as { type?: string; threadId?: string; tickId?: string; daemonId?: string; event?: unknown; promptPreview?: string; bytes?: number; records?: unknown };
-  // Telemetry (trace+log) main信道: node sidecar → server → WS
-  // `{ type:'telemetry', records: Array<SpanData|LogRecord> }`. No threadId, so
-  // it must be dispatched before the threadId guard below (same as
-  // workspace-changed). Feeds the unified telemetry slice (500-cap, S4).
-  if (m.type === 'telemetry') {
-    const records = Array.isArray(m.records) ? (m.records as TelemetryRecord[]) : [];
-    if (records.length) useAppStore.getState().pushTelemetry(records);
-    return;
-  }
-  // Workspace hot-switch: the server re-pointed FORGEAX_PROJECT_ROOT at a new
-  // dir. In-process and in-tab state scoped to the old root isn't re-scoped, so
-  // every open tab must do a full reload (all per-request endpoints then re-read
-  // the new root). This broadcast carries no threadId, so it must be handled
-  // before the threadId guard below. Guard against reload loops: only reload
-  // when the broadcast actually names a different active root than this tab's.
-  if (m.type === 'workspace-changed') {
-    try {
-      const next = (m as { absPath?: string }).absPath ?? '';
-      const prev = sessionStorage.getItem('forgeax.activeRoot') ?? '';
-      if (next && next === prev) return;
-      if (next) sessionStorage.setItem('forgeax.activeRoot', next);
-      window.location.reload();
-    } catch { /* non-browser ctx */ }
-    return;
-  }
-  // daemon-tick-* events are chat-message concerns and are handled by the chat
-  // app's own daemon-tick subscriber (packages/chat). L1 only routes the
-  // app-agnostic telemetry + workspace-changed broadcasts above.
-}
-
-// Connect WS on module load. HMR-safe via globalThis flag so re-evaluated
-// modules don't skip the connect or spawn duplicates.
-const _DAEMON_WS_FLAG = '__FORGEAX_DAEMON_WS_BOUND__';
-type WithFlag = { [_DAEMON_WS_FLAG]?: { handler: typeof handleDaemonWs } };
-const _gt = globalThis as unknown as WithFlag;
-if (typeof window !== 'undefined') {
-  if (_gt[_DAEMON_WS_FLAG]) {
-    // Update the live handler so HMR-refreshed code runs without
-    // dropping the open socket connection.
-    _gt[_DAEMON_WS_FLAG].handler = handleDaemonWs;
-  } else {
-    _gt[_DAEMON_WS_FLAG] = { handler: handleDaemonWs };
-    connectDaemonWs((msg) => _gt[_DAEMON_WS_FLAG]!.handler(msg));
-  }
-}
-
+// R5/P1 — daemon-tick/telemetry/workspace-changed WS handling moved off the store
+// module-load side-effect. telemetry + workspace-changed now wired via
+// `boot/broadcast.ts` (bootBroadcast); daemon-tick is chat's (subscribeDaemonTick).
 
 export const useAppStore = create<AppState>((set, get) => ({
   // 启动 mode 跟随持久化的活动工作区（Play/Edit/AI），避免刷新后 tab 高亮与主区域
@@ -996,20 +726,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       delete next[key];
       return { floatingSurfaces: next };
     }),
-  pendingBusExpandId: null,
-  setPendingBusExpandId: (id) => set({ pendingBusExpandId: id }),
-
-
-  pendingSidebarFocusPluginId: null,
-  setPendingSidebarFocusPluginId: (id) => set({ pendingSidebarFocusPluginId: id }),
-  pendingBusKindFilter: null,
-  setPendingBusKindFilter: (kind) => set({ pendingBusKindFilter: kind }),
-  pendingSidebarKindFlash: null,
-  setPendingSidebarKindFlash: (kind) => set({ pendingSidebarKindFlash: kind }),
-  pendingChatPanelBusFlash: null,
-  setPendingChatPanelBusFlash: (id) => set({ pendingChatPanelBusFlash: id }),
-  pendingRunsDateFilter: null,
-  setPendingRunsDateFilter: (f) => set({ pendingRunsDateFilter: f }),
+  // R5/P2 — deep-link slots moved to L1 bus (lib/deep-link-bus.ts); removed from store.
   activeSession: 'main-design',
   setActiveSession: (s) => set({ activeSession: s }),
   setTabAgent: (sid, agentId) => {
@@ -1039,39 +756,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { providerOverride: id, ...patchTabField(s, s.activeSid, { providerOverride: id }) };
     });
   },
-  // Agent install/uninstall —— localStorage 是 SSOT，server 端 prefs 是 mirror。
-  // 写本地立刻生效（ChatAgentStrip 重渲染），同时尽力 POST 到 /api/prefs，让
-  // 主 agent 的 delegate 工具下一轮拉到的列表也是过滤后的。POST 失败不回滚 ——
-  // 服务端 fallback 是「全量可见」，最差也只是工具看到一些用户不想要的 agent。
-  toggleAgentInstalled: (id) => {
-    if (!id) return;
-    set((s) => {
-      const cur = s.uninstalledAgentIds;
-      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].sort();
-      saveUninstalledAgentIds(next);
-      void pushUninstalledAgentsToServer(next);
-      return { uninstalledAgentIds: next };
-    });
-  },
-  setAgentInstalled: (id, installed) => {
-    if (!id) return;
-    set((s) => {
-      const cur = s.uninstalledAgentIds;
-      const has = cur.includes(id);
-      if (installed && !has) return {};
-      if (!installed && has) return {};
-      const next = installed
-        ? cur.filter((x) => x !== id)
-        : [...cur, id].sort();
-      saveUninstalledAgentIds(next);
-      void pushUninstalledAgentsToServer(next);
-      return { uninstalledAgentIds: next };
-    });
-  },
-  setDefaultBootstrapAgent: (id) => {
-    saveDefaultBootstrapAgent(id);
-    set({ defaultBootstrapAgent: id });
-  },
+  // ① agent 安装偏好的写操作已移到 @forgeax/settings/agent-prefs（toggleAgentInstalled /
+  // setAgentInstalled / setDefaultBootstrapAgent），走 bus 'prefs:agents'。L1 不再持有。
   // currentSessionId 在重做后等价 activeSid（一一对应），setter 保留只是为了不
   // 破已有 import surface —— 但实际真正切 session 应该走 switchToSession()。这里
   // 只 mirror top-level 字段、不动 activeSid（防止误用导致状态机错乱）。
@@ -1165,128 +851,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pinnedSlug: s });
   },
 
-  openFiles: [],
-  activeFilePath: null,
-
-  openFile: async (path) => {
-    // If already open, just activate it.
-    if (get().openFiles.find((f) => f.path === path)) {
-      set({ activeFilePath: path, mode: 'workbench', workbenchTab: 'files', workbenchExpandedPluginId: null });
-      return;
-    }
-    const addFile = (file: PreviewFile) =>
-      set((s) => ({
-        openFiles: [...s.openFiles.filter((f) => f.path !== path), file],
-        activeFilePath: path,
-        mode: 'workbench',
-        workbenchTab: 'files',
-        workbenchExpandedPluginId: null,
-      }));
-    try {
-      const r = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
-      if (!r.ok) {
-        // Friendly, explanatory message instead of a raw "[error] 400 Bad Request".
-        // The AGENTS file-activity ledger lists every file an agent *touched*,
-        // including engine / library source it only READ — those live outside the
-        // editable workspace (only .forgeax/games/** and packages/** are served),
-        // so they 400. A 404 means the path no longer exists (moved/renamed/never
-        // there — e.g. opening `index.ts` in a game whose entry is `main.ts`).
-        let serverMsg = '';
-        try { serverMsg = ((await r.json()) as { error?: string }).error ?? ''; } catch { /* non-JSON */ }
-        const friendly = r.status === 400
-          ? t('store.openFile.notInWorkspace', { path }) + (serverMsg ? t('store.openFile.serverDetail', { serverMsg }) : '')
-          : r.status === 404
-            ? t('store.openFile.notFound', { path })
-            : t('store.openFile.failed', { path, status: r.status, statusText: r.statusText }) + (serverMsg ? ` — ${serverMsg}` : '');
-        addFile({ path, kind: 'text', mime: 'text/plain', bytes: 0,
-          content: friendly,
-          error: serverMsg || `${r.status} ${r.statusText}` });
-        return;
-      }
-      const j = (await r.json()) as {
-        kind?: 'text' | 'image' | 'audio' | 'video' | 'model' | 'binary';
-        mime?: string;
-        size?: number;
-        content?: string;
-      };
-      addFile({
-        path,
-        kind: j.kind ?? 'text',
-        mime: j.mime ?? 'application/octet-stream',
-        bytes: j.size ?? 0,
-        content: j.kind === 'text' || !j.kind ? (j.content ?? '') : undefined,
-      });
-    } catch (e) {
-      addFile({ path, kind: 'text', mime: 'text/plain', bytes: 0,
-        content: `[error] ${(e as Error).message}`,
-        error: (e as Error).message });
-    }
-  },
-
-  openFileDirect: (file) => {
-    set((s) => ({
-      openFiles: [...s.openFiles.filter((f) => f.path !== file.path), file],
-      activeFilePath: file.path,
-      mode: 'workbench',
-      workbenchTab: 'files',
-      workbenchExpandedPluginId: null,
-    }));
-  },
-
-  activateFile: (path) => {
-    if (!get().openFiles.find((f) => f.path === path)) return;
-    set({ activeFilePath: path });
-  },
-
-  closeFile: (path) => {
-    set((s) => {
-      const target = path ?? s.activeFilePath;
-      if (!target) return {};
-      const remaining = s.openFiles.filter((f) => f.path !== target);
-      let nextActive = s.activeFilePath;
-      if (s.activeFilePath === target) {
-        // Pick the tab to the left, or the first remaining tab.
-        const idx = s.openFiles.findIndex((f) => f.path === target);
-        nextActive = remaining[Math.max(0, idx - 1)]?.path ?? remaining[0]?.path ?? null;
-      }
-      return { openFiles: remaining, activeFilePath: nextActive };
-    });
-  },
-
-  updatePreviewContent: (content) => set((s) => {
-    if (!s.activeFilePath) return {};
-    const file = s.openFiles.find((f) => f.path === s.activeFilePath);
-    if (!file || file.kind !== 'text') return {};
-    return {
-      openFiles: s.openFiles.map((f) =>
-        f.path === s.activeFilePath ? { ...f, content, dirty: true } : f,
-      ),
-    };
-  }),
-
-  savePreviewFile: async () => {
-    const { openFiles, activeFilePath } = get();
-    const file = openFiles.find((f) => f.path === activeFilePath);
-    if (!file) return { ok: false, error: 'no file open' };
-    if (file.kind !== 'text') return { ok: false, error: 'binary files are read-only' };
-    try {
-      const r = await fetch('/api/files', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path: file.path, content: file.content ?? '' }),
-      });
-      const j = (await r.json()) as { bytes?: number; error?: string };
-      if (!r.ok) return { ok: false, error: j.error ?? `HTTP ${r.status}` };
-      set((s) => ({
-        openFiles: s.openFiles.map((f) =>
-          f.path === file.path ? { ...f, dirty: false, bytes: j.bytes ?? f.bytes } : f,
-        ),
-      }));
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: (e as Error).message };
-    }
-  },
+  // ③ 文件预览态实现整体移到 @forgeax/workbench/file-preview（走 bus 'workbench:files'）。
 
   // ── Tab-aware messages/streaming state (P6 step 1) ──
   // The data lives in `tabs[active].messages` etc.; these top-level fields
@@ -1426,7 +991,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   createNewSession: async (opts) => {
     const { createSession, connectForgeaXWs } = await import('./lib/forgeax-bridge');
     try {
-      const bootstrap = get().defaultBootstrapAgent;
+      // ① defaultBootstrapAgent 来自 settings/agent-prefs 的 bus 快照（L1 不再持有）。
+      const bootstrap = (peek('prefs:agents') as { defaultBootstrapAgent?: string | null } | undefined)
+        ?.defaultBootstrapAgent ?? null;
       const { sid } = await createSession({
         // 用户主动在 UI 里建 session（点 + 新建），可以传一个语义化的 displayName。
         // 不传时让 server 端落 undefined（UI 自己用 tabLabel 占位反映"无名"）。
@@ -1569,22 +1136,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     // 只是 UI 临时改名，刷新会 revert 到 server 真值。
   },
 
-  dashboardOpen: false,
-  setDashboardOpen: (open) => set({ dashboardOpen: open }),
-  settingsOpen: false,
-  // 持久化在 localStorage —— 关掉 settings 面板再打开时回到上次的 tab；
-  // 显式 openSettings(section) 仍能强制覆盖（深链/快捷打开特定页）。
-  settingsSection: loadSettingsSection(),
-  setSettingsOpen: (open) => set({ settingsOpen: open }),
-  setSettingsSection: (id) => {
-    saveSettingsSection(id);
-    set({ settingsSection: id });
+  activeOverlay: null,
+  // overlayParam 初值取持久化的 settings section（关掉再开回到上次 tab）。
+  overlayParam: loadSettingsSection(),
+  openOverlay: (id, param) => {
+    const p = param ?? get().overlayParam ?? null;
+    saveSettingsSection(p); // 仅 settings 用到；其它 overlay 无 param，幂等无害
+    set({ activeOverlay: id, overlayParam: p });
   },
-  openSettings: (section) => {
-    const id = section ?? get().settingsSection ?? null;
-    saveSettingsSection(id);
-    set({ settingsOpen: true, settingsSection: id });
+  setOverlayParam: (param) => {
+    saveSettingsSection(param);
+    set({ overlayParam: param });
   },
+  closeOverlay: () => set({ activeOverlay: null }),
 
   fullscreen: false,
   setFullscreen: (v) => set({ fullscreen: v }),
