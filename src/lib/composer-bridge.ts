@@ -55,7 +55,7 @@ import { t } from '@/i18n';
 // `⟦` U+27E6 and `⟧` U+27E7 are extremely rare in normal user text, so this is
 // effectively a private band the rest of the pipeline can pass through.
 
-export type PillKind = 'file' | 'dir' | 'agent' | 'tool' | 'game' | 'log' | 'entity';
+export type PillKind = 'file' | 'dir' | 'agent' | 'tool' | 'game' | 'log' | 'entity' | 'paste';
 
 export interface PillPayload {
   kind: PillKind;
