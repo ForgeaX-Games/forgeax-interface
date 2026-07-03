@@ -64,6 +64,17 @@ export function EditorPanelFrame({ panelId }: Props) {
   const src = `/editor/?panel=${encodeURIComponent(panelId)}${sceneParam}${gameRootParam}&chromeless=1`;
 
   useEffect(() => {
+    if (panelId === 'assets') {
+      console.info('[CB:import]', 'EditorPanelFrame.assets', {
+        src,
+        slug,
+        gameRootParam,
+        hostHref: typeof location !== 'undefined' ? location.href : undefined,
+      });
+    }
+  }, [panelId, src, slug, gameRootParam]);
+
+  useEffect(() => {
     let cancelled = false;
     setAvailable(null);
     fetch(src, { method: 'GET' })
