@@ -29,6 +29,17 @@ export interface PanelRenderers {
   /** Renders the play/preview surface. Omitted → placeholder. */
   renderPreview?: () => ReactNode;
   /**
+   * Renders a single editor panel (ep:*) by its id. Injected by the host
+   * (standalone / studio) so interface never statically imports editor
+   * panel components (DIP zero-cycle paradigm, same as renderEdit/renderChat).
+   * Omitted (interface-alone) -> the ep:* panel shows a neutral placeholder.
+   *
+   * plan-strategy section 2 D4 (M2 injection slot); interface holds NO editor/
+   * engine import -- the slot's id is a plain string, matching the existing
+   * `editorPanelIds: readonly string[]` convention.
+   */
+  renderEditorPanel?: (id: string) => ReactNode;
+  /**
    * Renders the chat surface (the Forge conversation UI). Injected by studio
    * from `@forgeax/chat` (R4 — chat is a 前L2 app composed into the shell, not
    * an interface import). Omitted (interface-alone / standalone editor) → the

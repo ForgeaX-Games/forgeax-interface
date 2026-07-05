@@ -18,7 +18,6 @@ import { FilesPanel } from '../Sidebar/FilesPanel';
 import { ConsolePanel } from '../MainArea/ConsolePanel';
 import { TelemetryViewer } from '../MainArea/TelemetryViewer';
 import { InfoPanel } from '../StatusBar/InfoPanel';
-import { EditorPanelFrame, type EditorPanelId } from './EditorPanelFrame';
 import { RecoveryBoundary } from '../ErrorBoundary';
 // Editor panel ids (ep:*) are injected at runtime via PanelRenderers context
 // so interface stays editor-agnostic (no `@forgeax/editor*` import). The
@@ -83,12 +82,13 @@ export const OPTIONAL_PANELS: PanelDef[] = [
 ];
 
 // ── editor panel family (ep:*) ───────────────────────────────────────────────
-// Each renders an iframe to /editor/?panel=<id> connected via BroadcastChannel.
-// The default id list lives in ./panelRenderers (a plain string list, NOT an
-// editor-package import) so interface is self-contained; studio injects the
-// real editor-shared SSOT through PanelRenderers context. These module-level
-// exports are the interface-alone fallback used by buildDefault.
-export const EDITOR_PANEL_IDS: EditorPanelId[] = [...DEFAULT_EDITOR_PANEL_IDS] as EditorPanelId[];
+// Each panel renders as an in-process React component via the injected
+// renderEditorPanel slot (single-realm M2). The default id list lives in
+// ./panelRenderers (a plain string list, NOT an editor-package import) so
+// interface is self-contained; studio injects the real editor SSOT through
+// PanelRenderers context. These module-level exports are the interface-alone
+// fallback used by buildDefault.
+export const EDITOR_PANEL_IDS: string[] = [...DEFAULT_EDITOR_PANEL_IDS] as string[];
 export const EDITOR_PANEL_TITLE: Record<string, string> = DEFAULT_EDITOR_PANEL_TITLES;
 
 // ── derived lookup maps (DockShell consumes these; never edit by hand) ────────
@@ -102,11 +102,31 @@ function withBoundary(scope: string, render: () => ReactNode): () => ReactNode {
   return () => <RecoveryBoundary scope={scope} fullscreen={false}>{render()}</RecoveryBoundary>;
 }
 
+/** Editor panel body — resolved from the injected renderEditorPanel slot
+ *  (single-realm M2: the host injects EDITOR_PANEL_COMPONENTS[id] as an
+ *  in-process React component). Falls back to a neutral "panel not mounted"
+ *  placeholder when no host is wired (interface-alone) or the id has no
+ *  registered component (D6: timeline / matgraph / systems drift ids).
+ *  EditorPanelFrame.tsx (pre-M2 iframe panel shell) was deleted in M4.
+ *  withBoundary (E1) still wraps it so a render throw in one panel doesn't
+ *  take down the host.
+ *  Anchors: plan-strategy S2 D6 / S4 R5; requirements AC-04/AC-05, edge E1. */
+function EditorPanelSlot({ id }: { id: string }): ReactNode {
+  const { renderEditorPanel } = usePanelRenderers();
+  const body = renderEditorPanel?.(id);
+  if (body !== undefined && body !== null) return body;
+  return (
+    <div className="surface-placeholder" data-panel={id} data-panel-unmounted="1">
+      <div className="surface-placeholder-title">Panel not mounted</div>
+    </div>
+  );
+}
+
 /** dockview component map: id → renderer (incl. ep:* editor panels). The
  *  wb:<pluginId> dynamic plugin renderers are merged in by DockShell at runtime. */
 export const PANEL_COMPONENTS: Record<string, (props: IDockviewPanelProps) => ReactNode> = {
   ...Object.fromEntries(ALL_PANELS.map((p) => [p.id, withBoundary(`panel:${p.id}`, p.render)])),
-  ...Object.fromEntries(EDITOR_PANEL_IDS.map((id) => [`ep:${id}`, withBoundary(`ep:${id}`, () => <EditorPanelFrame panelId={id} />)])),
+  ...Object.fromEntries(EDITOR_PANEL_IDS.map((id) => [`ep:${id}`, withBoundary(`ep:${id}`, () => <EditorPanelSlot id={id} />)])),
 };
 
 /** id → title (incl. ep:* editor panels). */
