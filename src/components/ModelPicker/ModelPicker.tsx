@@ -112,13 +112,10 @@ export function ModelPicker(props: ModelPickerProps) {
     return post.filter((m) => m.id.toLowerCase().includes(q));
   }, [models, query, showHidden]);
 
-  const grouped = useMemo(() => {
-    const disk = filtered.filter((m) => (m.source ?? 'disk') === 'disk');
-    const live = filtered.filter((m) => m.source === 'live');
-    return { disk, live };
-  }, [filtered]);
-
-  const flat = useMemo(() => [...grouped.disk, ...grouped.live], [grouped]);
+  // The server returns the catalog already strongest-first (claude → version
+  // desc). When live is authoritative it IS the live set — disk only annotates
+  // metadata, so no disk/live split is surfaced: one flat list, one ordering.
+  const flat = filtered;
 
   // Outside-click / Esc / open-focus are owned by Radix Popover now (button &
   // pill variants). We only reset transient menu state when it closes.
@@ -231,7 +228,7 @@ export function ModelPicker(props: ModelPickerProps) {
         )}
         <span className={`mp-id${m.hidden ? ' is-hidden-model' : ''}`}>{m.id}</span>
         <ModelRowBadges m={m} />
-        {m.source === 'live' && <span className="mp-live" title="from LiteLLM /v1/models (no local metadata)">live</span>}
+        {m.live && <span className="mp-live" title="served by the LiteLLM /v1/models proxy">live</span>}
         {m.hidden && <span className="mp-hidden-tag" title="hidden from Composer picker">hidden</span>}
         <span className="mp-tail">
           {rowBadge ? rowBadge(m) : null}
@@ -285,18 +282,7 @@ export function ModelPicker(props: ModelPickerProps) {
       {models && flat.length === 0 && (
         <div className="mp-empty">{query ? `no matches for "${query}"` : 'catalog empty'}</div>
       )}
-      {grouped.disk.length > 0 && (
-        <>
-          <div className="mp-group" aria-hidden="true">disk · {grouped.disk.length}</div>
-          {grouped.disk.map((m, i) => renderRow(m, i))}
-        </>
-      )}
-      {grouped.live.length > 0 && (
-        <>
-          <div className="mp-group" aria-hidden="true">live · {grouped.live.length}</div>
-          {grouped.live.map((m, i) => renderRow(m, grouped.disk.length + i))}
-        </>
-      )}
+      {flat.map((m, i) => renderRow(m, i))}
       <div className="mp-foot">
         ↑↓ navigate · ⏎ {isMulti ? 'toggle' : 'select'} · Esc close
       </div>
