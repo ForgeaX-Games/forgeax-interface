@@ -28,7 +28,8 @@ interface Props {
 }
 
 export function WbPluginDockPanel({ pluginId }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const addDockedPlugin = useAppStore((s) => s.addDockedPlugin);
   const removeDockedPlugin = useAppStore((s) => s.removeDockedPlugin);
   const detachSurface = useAppStore((s) => s.detachSurface);
@@ -47,8 +48,8 @@ export function WbPluginDockPanel({ pluginId }: Props) {
     );
   }
 
-  const label = pickLang(manifest.displayName, 'zh', manifest.id);
-  const desc = pickLang(manifest.description ?? '', 'zh', '');
+  const label = pickLang(manifest.displayName, locale, manifest.id);
+  const desc = pickLang(manifest.description ?? '', locale, '');
   const isStandalone = pluginRendersInSidebarLeftPane(manifest);
 
   if (isStandalone) {

@@ -29,6 +29,8 @@ interface BaseProps {
   /** Disable the picker (button stays visible but unclickable). */
   disabled?: boolean;
   disabledReason?: string;
+  /** Optional runtime/provider catalog scope, e.g. cursor-agent driver models. */
+  providerId?: string | null;
 }
 
 interface SingleProps extends BaseProps {
@@ -84,10 +86,11 @@ export function ModelPicker(props: ModelPickerProps) {
     triggerTitle,
     disabled = false,
     disabledReason,
+    providerId = null,
   } = props;
   const mode = props.mode ?? 'single';
 
-  const { models, error, refresh } = useModelCatalog();
+  const { models, error, refresh } = useModelCatalog(providerId);
   const [open, setOpen] = useState(variant === 'inline');
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(-1);
@@ -114,8 +117,15 @@ export function ModelPicker(props: ModelPickerProps) {
 
   // The server returns the catalog already strongest-first (claude → version
   // desc). When live is authoritative it IS the live set — disk only annotates
-  // metadata, so no disk/live split is surfaced: one flat list, one ordering.
-  const flat = filtered;
+  // metadata, so disk/live are not split. Rented CLI driver catalogs are the
+  // only separate group because they have different metering semantics.
+  const grouped = useMemo(() => {
+    const gateway = filtered.filter((m) => m.source !== 'driver');
+    const driver = filtered.filter((m) => m.source === 'driver');
+    return { gateway, driver };
+  }, [filtered]);
+
+  const flat = useMemo(() => [...grouped.gateway, ...grouped.driver], [grouped]);
 
   // Outside-click / Esc / open-focus are owned by Radix Popover now (button &
   // pill variants). We only reset transient menu state when it closes.
@@ -229,6 +239,15 @@ export function ModelPicker(props: ModelPickerProps) {
         <span className={`mp-id${m.hidden ? ' is-hidden-model' : ''}`}>{m.id}</span>
         <ModelRowBadges m={m} />
         {m.live && <span className="mp-live" title="served by the LiteLLM /v1/models proxy">live</span>}
+        {m.source === 'driver' && (
+          <span
+            className="mp-driver"
+            title={`${m.driverLabel ?? m.driverId ?? 'driver'} · subscription runtime · no local cost metering`}
+          >
+            driver
+          </span>
+        )}
+        {m.source !== 'driver' && m.live && <span className="mp-live" title="served by the LiteLLM /v1/models proxy">live</span>}
         {m.hidden && <span className="mp-hidden-tag" title="hidden from Composer picker">hidden</span>}
         <span className="mp-tail">
           {rowBadge ? rowBadge(m) : null}
@@ -282,7 +301,15 @@ export function ModelPicker(props: ModelPickerProps) {
       {models && flat.length === 0 && (
         <div className="mp-empty">{query ? `no matches for "${query}"` : 'catalog empty'}</div>
       )}
-      {flat.map((m, i) => renderRow(m, i))}
+      {grouped.gateway.map((m, i) => renderRow(m, i))}
+      {grouped.driver.length > 0 && (
+        <>
+          <div className="mp-group" aria-hidden="true">
+            {grouped.driver[0]?.driverLabel ?? 'driver'} · {grouped.driver.length} · no local cost
+          </div>
+          {grouped.driver.map((m, i) => renderRow(m, grouped.gateway.length + i))}
+        </>
+      )}
       <div className="mp-foot">
         ↑↓ navigate · ⏎ {isMulti ? 'toggle' : 'select'} · Esc close
       </div>

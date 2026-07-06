@@ -126,6 +126,7 @@ export const AGENT_GROUPS: AgentGroup[] = [
       'character-designer-2d',
       'vfx-artist-3d',
       'lowpoly',
+      'ui-designer',
     ],
   },
   {
