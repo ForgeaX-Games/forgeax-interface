@@ -105,6 +105,13 @@ export function getLocale(): Locale {
   return current;
 }
 
+/** Subscribe to host locale changes (same-tab; storage events don't fire locally). */
+export function subscribeLocale(listener: (locale: Locale) => void): () => void {
+  const wrapped = () => listener(current);
+  listeners.add(wrapped);
+  return () => listeners.delete(wrapped);
+}
+
 export function setLocale(next: Locale, opts: { persist?: boolean } = {}): void {
   const persist = opts.persist ?? true;
   if (!isLocale(next)) return;

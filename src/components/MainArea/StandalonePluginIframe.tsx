@@ -20,7 +20,7 @@ import type { ReactElement } from 'react';
 // never statically pulls @forgeax/host-sdk (studio-only) into its module graph.
 // The standalone editor shell bundles interface WITHOUT host-sdk present.
 import type { PluginPort } from '@forgeax/host-sdk';
-import { useTranslation, getLocale } from '@/i18n';
+import { useTranslation, getLocale, subscribeLocale } from '@/i18n';
 import type { BusPluginInfo } from '../../lib/bus-api';
 import { upsertSurface, removePluginSurfaces } from '../../lib/surface-store';
 import { isTrustedMessageOrigin } from '../../lib/trustedOrigins';
@@ -123,7 +123,7 @@ function doNavigate(targetPluginId: string, payload?: Record<string, unknown>): 
 }
 
 export function StandalonePluginIframe({ plugin, pane, active = true, reloadNonce = 0 }: Props): ReactElement {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // Host-SDK port factories are injected (studio-only). Absent in the standalone
   // editor shell — but that shell never opens a wb:* plugin, so the wiring effect
   // below simply no-ops when they're missing.
@@ -305,17 +305,23 @@ export function StandalonePluginIframe({ plugin, pane, active = true, reloadNonc
     };
   }, [plugin.id, src, pane, createPluginPort, createWindowTransport]);
 
-  // Push locale to live plugin ports when Studio language changes.
-  useEffect(() => {
-    portRef.current?.setTheme({ locale: i18n.language });
-  }, [i18n.language]);
-
   // Keep-alive visibility: push on every `active` flip without tearing down the
   // iframe.
   useEffect(() => {
     activeRef.current = active;
     portRef.current?.setVisibility(active);
   }, [active]);
+
+  // Host locale → keep-alive plugin iframes (SDK theme.changed + legacy postMessage).
+  useEffect(() => {
+    return subscribeLocale((loc) => {
+      portRef.current?.setTheme({ locale: loc });
+      const win = iframeRef.current?.contentWindow;
+      if (win) {
+        win.postMessage({ type: 'forgeax:locale-changed', locale: loc }, '*');
+      }
+    });
+  }, []);
 
   if (!src) {
     return (
