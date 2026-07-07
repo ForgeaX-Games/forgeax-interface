@@ -40,6 +40,16 @@ export const STORAGE_KEYS = {
   // ── i18n ──
   /** active UI language code ('en' | 'zh' | …). English is the default/source. */
   locale: 'forgeax.locale',
+  /** agent chat reply language ('en' | 'zh'). Global, decoupled from UI locale.
+   *  Default 'en'. Overridden per-turn by followInput when that is enabled. */
+  replyLanguage: 'forgeax.replyLanguage',
+  /** when '1', the agent reply language follows the detected language of each
+   *  user message (highest priority). Default enabled ('1'). */
+  followInput: 'forgeax.followInput',
+
+  // ── publish module ──
+  /** when '1', the first-run Publish coach-mark has been seen (or skipped). */
+  publishOnboarded: 'forgeax.publish.onboarded',
 } as const;
 
 /** Build a per-workspace dockview layout key. */

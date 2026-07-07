@@ -1836,6 +1836,9 @@
   align-items: baseline;
   gap: 8px;
 }
+.wm-agents-lang {
+  margin-left: auto;
+}
 .wm-agents-title {
   font-size: 14px;
   font-weight: 600;
