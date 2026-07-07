@@ -27,6 +27,42 @@ let installed = false;
 
 const CONSOLE_LEVELS = ['log', 'warn', 'error', 'info', 'debug'] as const;
 type ConsoleLevel = (typeof CONSOLE_LEVELS)[number];
+
+// ── Browser (shell) console capture — full-fidelity ring buffer ──────────────
+// healthStore 只收 error/warn/health(喂状态栏,不该被 info/log 噪音淹)。这里另置一个
+// 独立的**全量**外壳控制台环形缓冲(所有 level),供 console.read{source:'browser'} 读,
+// 不污染状态栏。上限 BROWSER_CONSOLE_MAX,超出丢最旧(与 healthStore=400 / consoleLog=500 同策略)。
+export interface BrowserConsoleEntry {
+  level: ConsoleLevel;
+  text: string;
+  ts: number;
+  /** 连续相同(level+text)行折叠计数;>1 表示重复了几次(防 RAF 刷屏淹没缓冲)。 */
+  repeat?: number;
+}
+const BROWSER_CONSOLE_MAX = 500;
+const browserConsole: BrowserConsoleEntry[] = [];
+function recordBrowserConsole(level: ConsoleLevel, text: string): void {
+  if (text.startsWith('[health]')) return; // 防 pushHealth→console 自捕获回环
+  // 去重:与上一条 level+text 相同 → 折叠成 repeat 计数并刷新 ts,不新增(60Hz 刷屏只留一条)。
+  const last = browserConsole[browserConsole.length - 1];
+  if (last && last.level === level && last.text === text) {
+    last.repeat = (last.repeat ?? 1) + 1;
+    last.ts = Date.now();
+    return;
+  }
+  browserConsole.push({ level, text, ts: Date.now() });
+  if (browserConsole.length > BROWSER_CONSOLE_MAX) {
+    browserConsole.splice(0, browserConsole.length - BROWSER_CONSOLE_MAX);
+  }
+}
+/** console.read{source:'browser'} 读取全量外壳控制台(只读引用,勿改)。 */
+export function getBrowserConsole(): readonly BrowserConsoleEntry[] {
+  return browserConsole;
+}
+/** 清空外壳控制台缓冲(console.clear{source:'browser'} 用)。 */
+export function clearBrowserConsole(): void {
+  browserConsole.length = 0;
+}
 function asConsoleLevel(x: unknown): ConsoleLevel {
   return (CONSOLE_LEVELS as readonly string[]).includes(String(x)) ? (String(x) as ConsoleLevel) : 'log';
 }
@@ -112,34 +148,33 @@ export function installHealthBridge(): void {
     pushHealth({ level: 'error', source: 'shell', code: 'unhandled-rejection', message: `unhandled rejection: ${msg}` });
   });
 
-  // Wrap console.error so shell-side fetch rejects / React warnings that only
-  // hit console.error still land in the INFO feed. Keep the original behaviour.
+  // Wrap console.* so shell-side logs are captured. ALL levels feed the full-fidelity
+  // browserConsole ring buffer (read by console.read{source:'browser'}); error/warn
+  // ALSO feed the health store (status bar) as before. Original behaviour preserved.
   const fmtArgs = (args: unknown[]): string =>
     args.map((a) => (a instanceof Error ? a.message : typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })())).join(' ');
 
-  const origError = console.error.bind(console);
-  console.error = (...args: unknown[]): void => {
-    origError(...args);
+  const wrapConsole = (
+    level: ConsoleLevel,
+    orig: (...a: unknown[]) => void,
+    toHealth: HealthLevel | null,
+  ) => (...args: unknown[]): void => {
+    orig(...args);
     try {
       const text = fmtArgs(args);
-      // Skip messages this bridge itself produced via pushHealth → console (avoid loops).
-      if (text.startsWith('[health]')) return;
-      pushHealth({ level: 'error', source: 'shell', code: 'console-error', message: text });
+      if (text.startsWith('[health]')) return; // skip this bridge's own pushHealth→console (avoid loops)
+      recordBrowserConsole(level, text);
+      if (toHealth) pushHealth({ level: toHealth, source: 'shell', code: `console-${level}`, message: text });
     } catch { /* never let logging throw */ }
   };
 
-  // Also wrap console.warn — shell-side warnings (incl. the [vag]/[sync] rejection
-  // diagnostics and the trustedOrigins guards) were previously NOT captured into
-  // the health feed (only console.error was), so they died in DevTools.
-  const origWarn = console.warn.bind(console);
-  console.warn = (...args: unknown[]): void => {
-    origWarn(...args);
-    try {
-      const text = fmtArgs(args);
-      if (text.startsWith('[health]')) return;
-      pushHealth({ level: 'warn', source: 'shell', code: 'console-warn', message: text });
-    } catch { /* never let logging throw */ }
-  };
+  // error/warn → health feed (status bar) + browser buffer; log/info/debug → buffer only
+  // (keep the status bar's signal from drowning in info/log noise).
+  console.error = wrapConsole('error', console.error.bind(console), 'error');
+  console.warn = wrapConsole('warn', console.warn.bind(console), 'warn');
+  console.log = wrapConsole('log', console.log.bind(console), null);
+  console.info = wrapConsole('info', console.info.bind(console), null);
+  console.debug = wrapConsole('debug', console.debug.bind(console), null);
 
   // ── 2 + 3. iframe-forwarded messages ───────────────────────────────────────
   window.addEventListener('message', (ev: MessageEvent) => {

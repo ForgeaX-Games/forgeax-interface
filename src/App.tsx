@@ -8,6 +8,7 @@ import { HealthIndicator } from './components/StatusBar/HealthIndicator';
 import { PulseFeeds } from './components/StatusBar/feeds/PulseFeeds';
 import { VersionBadge } from './components/StatusBar/VersionBadge';
 import { ContextMenu } from './components/ContextMenu/ContextMenu';
+import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { FirstRunSetup } from './components/FirstRun/FirstRunSetup';
 import { DialogHost } from './lib/dialog';
 import { bootStageAppMounted } from './boot/driver';
@@ -195,6 +196,8 @@ export function App({ hideChatAndForge, panelRenderers }: AppProps = {}) {
           interface's L1 store. Omitted (interface-alone) → no overlay. */}
       {(panelRenderers ?? DEFAULT_PANEL_RENDERERS).renderSettings?.()}
       <ContextMenu />
+      {/* 命令面板(Ctrl/⌘+K)——数据源 = ActionRegistry,与按钮 / AI 同一张注册表。 */}
+      <CommandPalette />
       {/* Imperative async confirm()/alert() replacement (shadcn AlertDialog). */}
       <DialogHost />
     </div>
