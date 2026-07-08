@@ -36,17 +36,25 @@ const WORKBENCH_ICON_BY_ID: Record<string, LucideIcon> = {
   'wb-narrative': BookOpen,
   'wb-lowpoly-obj': User,
   ui: LayoutDashboard,
+  'wb-ui': LayoutDashboard,
   narrative: BookOpen,
   skill: Sparkles,
   items: Package,
   'wb-observatory': Telescope,
   anim: Film,
   reel: Clapperboard,
+  'wb-reel': Clapperboard,
+  gamevideo: Gamepad2,
   bgm: Music2,
   scene: MapIcon,
+  'wb-scene-generator': MapIcon,
+  'wb-2d-scene-asset-generator': Archive,
   look: Palette,
   balance: BarChart3,
   'wb-agent-persona': UserCog,
+  'wb-ai-asset': Package,
+  'wb-gen3d': Box,
+  'wb-3d-lowpoly': Blocks,
   code: Code2,
   'plugin-author': Plug,
   admin: Settings,
@@ -65,7 +73,8 @@ export function iconForWorkbenchModule(input: {
 
   const key = `${workbenchId} ${input.label ?? ''} ${input.pluginId ?? ''}`.toLowerCase();
   if (key.includes('narrative') || key.includes('叙事') || key.includes('story') || key.includes('剧情')) return BookOpen;
-  if (key.includes('character-forge') || key.includes('生成')) return PencilRuler;
+  // Narrow: only character-forge / 角色锻造 — not every Chinese label ending in 生成器.
+  if (key.includes('character-forge') || key.includes('角色锻造')) return PencilRuler;
   if (key.includes('lowpoly') || key.includes('humanoid')) return User;
   if (key.includes('character') || key.includes('角色')) return MessageSquareText;
   if (key.includes('narrative') || key.includes('story') || key.includes('叙事')) return BookOpen;

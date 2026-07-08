@@ -25,6 +25,7 @@ import type { BusPluginInfo } from '../../lib/bus-api';
 import { upsertSurface, removePluginSurfaces } from '../../lib/surface-store';
 import { isTrustedMessageOrigin } from '../../lib/trustedOrigins';
 import { useAppStore } from '../../store';
+import { requestComposerInsert } from '../../lib/composer-bridge';
 import { emitForgeaXMessage } from '../../lib/forgeax-bridge';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
 
@@ -98,6 +99,7 @@ const PLUGIN_TO_WB_ID: Record<string, string> = {
   '@forgeax-plugin/wb-character': 'character',
   '@forgeax-plugin/wb-skill': 'skill',
   '@forgeax-plugin/wb-reel': 'reel',
+  '@forgeax-plugin/wb-game-video': 'gamevideo',
 };
 
 /** localStorage key the host writes the cross-workbench handoff payload to.
@@ -196,9 +198,32 @@ export function StandalonePluginIframe({ plugin, pane, active = true, reloadNonc
     const onRawMessage = (ev: MessageEvent) => {
       if (ev.source !== iframe.contentWindow) return;
       if (!isTrustedMessageOrigin(ev.origin)) return; // foreign-origin guard
-      const d = ev.data as { type?: string; targetPluginId?: string; payload?: Record<string, unknown> } | null;
-      if (!d || d.type !== 'FORGEAX_NAVIGATE' || !d.targetPluginId) return;
-      doNavigate(d.targetPluginId, d.payload);
+      const d = ev.data as {
+        type?: string;
+        targetPluginId?: string;
+        payload?: Record<string, unknown>;
+        text?: string;
+      } | null;
+      if (!d) return;
+      if (d.type === 'FORGEAX_NAVIGATE' && d.targetPluginId) {
+        doNavigate(d.targetPluginId, d.payload);
+        return;
+      }
+      // Plugin → host chat composer prefill (e.g. wb-game-video「添加到对话」).
+      // Prefills the caret without auto-sending; the author reviews then sends.
+      if (d.type === 'FORGEAX_COMPOSER_INSERT' && typeof d.text === 'string' && d.text.trim()) {
+        const text = d.text.trim();
+        requestComposerInsert({
+          kind: 'paste',
+          display: text.length > 48 ? `${text.slice(0, 48)}…` : text,
+          detail: text,
+          tooltip: {
+            title: text.length > 64 ? `${text.slice(0, 64)}…` : text,
+            lines: [text.length > 200 ? `${text.slice(0, 200)}…` : text],
+          },
+        });
+        return;
+      }
     };
     window.addEventListener('message', onRawMessage);
 
