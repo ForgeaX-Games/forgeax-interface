@@ -287,7 +287,7 @@
     "placeholderStreaming": "回复进行中 — 可继续输入,[Enter] 排队,当前回复结束后依次发送",
     "placeholderStreamingInterrupt": " · ⚡ 打断并立即发送",
     "placeholderOverrideDownSuffix": " ⚠ (不可用)",
-    "imageUploadSoon": "图片上传 — 即将上线",
+    "imageUpload": "添加图片 — 点击选择,或直接粘贴到输入框",
     "comingSoon": "即将上线",
     "mentionAgentTitle": "Mention agent ({{count}}) — 单击插入 @<agent> 到输入框",
     "mentionSoon": "@ 提示 — 即将上线",

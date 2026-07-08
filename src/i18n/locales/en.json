@@ -287,7 +287,7 @@
     "placeholderStreaming": "Reply in progress — you can keep typing; [Enter] queues it, sent in order after the current reply finishes",
     "placeholderStreamingInterrupt": " · ⚡ interrupt and send now",
     "placeholderOverrideDownSuffix": " ⚠ (unavailable)",
-    "imageUploadSoon": "Image upload — coming soon",
+    "imageUpload": "Attach image — click to choose, or paste one into the input",
     "comingSoon": "Coming soon",
     "mentionAgentTitle": "Mention agent ({{count}}) — click to insert @<agent> into the input box",
     "mentionSoon": "@ mention — coming soon",

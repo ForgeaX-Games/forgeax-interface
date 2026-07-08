@@ -72,6 +72,25 @@ export default defineConfig({
     host: '0.0.0.0',
     strictPort: true,
     open: false,
+    // Vite 5+ rejects requests whose Host header isn't localhost/127.0.0.1
+    // by default. When the dev server is fronted by a platform-provided
+    // domain (e.g. cloud dev-environment gateway), that Host header check
+    // fails and the SPA gets "Blocked request. This host is not allowed."
+    //
+    // Set FORGEAX_INTERFACE_ALLOWED_HOSTS to a comma-separated host list
+    // (e.g. FORGEAX_INTERFACE_ALLOWED_HOSTS=example.com,foo.example.com),
+    // or to the literal value "true" to allow every Host. Unset = keep
+    // vite's safer default (localhost only).
+    ...(process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS
+      ? {
+          allowedHosts:
+            process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS.trim() === 'true'
+              ? true
+              : process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS.split(',')
+                  .map((h) => h.trim())
+                  .filter(Boolean),
+        }
+      : {}),
     ...(httpsServerOption !== undefined ? { https: httpsServerOption } : {}),
     // Native FSEvents (usePolling:false) — ~0-cost when idle. This package
     // watches only its own src (no symlinked dirs), so native events are
