@@ -64,8 +64,10 @@ export function CenterPluginLayer(): ReactElement {
     mode === 'workbench' && !!expandedPluginId && live !== 'loading' && !isStandalone
     // wb-plugin-author renders inline via WorkbenchPluginHost, not here.
     && resolved !== null;
+  const showUnavailable =
+    mode === 'workbench' && !!expandedPluginId && live === null && !resolved;
 
-  const layerActive = !!activePlugin || showLoading || showError;
+  const layerActive = !!activePlugin || showLoading || showError || showUnavailable;
 
   // Windowing — the center surface descriptor for the active plugin.
   const canDetach = getWindowManager().canDetach();
@@ -153,6 +155,11 @@ export function CenterPluginLayer(): ReactElement {
         {showError && (
           <div className="fx-center-plugin-status" style={{ padding: 20, color: '#888' }}>
             {t('centerPlugin.missingStandalonePrefix')}<code>{expandedPluginId}</code>{t('centerPlugin.missingStandaloneMid')}<code>entry.standalone</code>{t('centerPlugin.missingStandaloneSuffix')}
+          </div>
+        )}
+        {showUnavailable && (
+          <div className="fx-center-plugin-status" style={{ padding: 20, color: '#c44' }}>
+            {t('centerPlugin.pluginUnavailablePrefix')}<code>{expandedPluginId}</code>{t('centerPlugin.pluginUnavailableSuffix')}
           </div>
         )}
       </div>

@@ -36,12 +36,8 @@
     "noSectionsHint2": "useSettingsSection({ id, label, node }) — mount one anywhere to add it.",
     "language": {
       "label": "Language",
-      "description": "Interface language. English is the source; other languages are a translation overlay.",
-      "selectAria": "Select interface language",
-      "agentLabel": "Agent reply language",
-      "agentDescription": "Controls the language the agent answers in — separate from the interface language above. You can also switch this from the top-right of the Agents · Team panel.",
-      "replyFixedLabel": "Fixed reply language",
-      "replySelectAria": "Select agent reply language"
+      "description": "Interface language. Controls all UI chrome, agent catalog labels, and the language agents reply in.",
+      "selectAria": "Select interface language"
     },
     "env": {
       "saved": "Wrote {{count}} variable(s) to .env (takes effect after restarting the stack)"
@@ -399,6 +395,7 @@
     "noProducedFiles": "No produced files yet",
     "subagentsHint": "{n} sub-specialists below · talk to the lead (click to view Persona only)",
     "skinGroupHint": "Affects chat tone only · click to switch skin · double-click to edit Persona",
+    "skinChipTitle": "click to switch · double-click to edit Persona",
     "providerCodersHint": "{n} CLI drivers below · click to switch driver + open Persona editor"
   },
   "gameSwitcher": {
@@ -965,7 +962,9 @@
     "loadingPluginSuffix": "…",
     "missingStandalonePrefix": "Plugin ",
     "missingStandaloneMid": " is missing a ",
-    "missingStandaloneSuffix": " entry."
+    "missingStandaloneSuffix": " entry.",
+    "pluginUnavailablePrefix": "Could not load plugin ",
+    "pluginUnavailableSuffix": ". Make sure forgeax-server is running (bun scripts/run.ts in forgeax-studio), then refresh."
   },
   "errorBoundary": {
     "retry": "Retry",

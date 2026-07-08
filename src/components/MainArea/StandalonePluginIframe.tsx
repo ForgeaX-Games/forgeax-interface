@@ -82,6 +82,7 @@ function buildIframeSrc(
   const params: string[] = [];
   if (pane) params.push(`pane=${encodeURIComponent(pane)}`);
   if (slug) params.push(`slug=${encodeURIComponent(slug)}`);
+  params.push(`locale=${encodeURIComponent(getLocale())}`);
   if (params.length === 0) return base;
   return base + (base.includes('?') ? '&' : '?') + params.join('&');
 }

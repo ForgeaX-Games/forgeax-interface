@@ -20,7 +20,9 @@ export function resolveNaming(
   locale?: Locale,
 ): AgentNaming {
   const lang = locale ?? getLocale();
-  if (a.naming && a.naming.title) {
+  if (a.naming?.title) {
+    // Server already localizes naming when /api/workbench/agents?lang=en.
+    if (lang === 'en' && !/[\u4e00-\u9fff]/.test(a.naming.title)) return a.naming;
     if (lang === 'zh') return a.naming;
     const { title, sub } = a.naming;
     if (sub) return { title: sub, sub: title.includes('·') ? title.split('·')[0]! : '' };

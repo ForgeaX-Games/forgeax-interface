@@ -77,20 +77,30 @@ export default defineConfig({
     // domain (e.g. cloud dev-environment gateway), that Host header check
     // fails and the SPA gets "Blocked request. This host is not allowed."
     //
-    // Set FORGEAX_INTERFACE_ALLOWED_HOSTS to a comma-separated host list
-    // (e.g. FORGEAX_INTERFACE_ALLOWED_HOSTS=example.com,foo.example.com),
-    // or to the literal value "true" to allow every Host. Unset = keep
-    // vite's safer default (localhost only).
-    ...(process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS
-      ? {
-          allowedHosts:
-            process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS.trim() === 'true'
-              ? true
-              : process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS.split(',')
-                  .map((h) => h.trim())
-                  .filter(Boolean),
-        }
-      : {}),
+    // Set FORGEAX_INTERFACE_ALLOWED_HOSTS to a comma-separated host list,
+    // or to the literal value "true" (case-insensitive) to allow every
+    // Host. Unset — or a value that reduces to zero non-empty hosts —
+    // keeps vite's safer default (localhost only).
+    //
+    // Vite matches each host entry as follows:
+    //   - exact match          "api.example.com"    -> api.example.com
+    //   - leading-dot wildcard ".example.com"       -> example.com AND
+    //                                                  *.example.com
+    ...(() => {
+      const raw = process.env.FORGEAX_INTERFACE_ALLOWED_HOSTS;
+      if (raw === undefined) return {};
+      const trimmed = raw.trim();
+      if (trimmed === '') return {};
+      if (trimmed.toLowerCase() === 'true') return { allowedHosts: true as const };
+      const hosts = trimmed
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean);
+      // Empty after filter means the value was pure whitespace/commas — fall
+      // back to vite's safe default (skip the key entirely) rather than
+      // silently forbidding every non-loopback request.
+      return hosts.length > 0 ? { allowedHosts: hosts } : {};
+    })(),
     ...(httpsServerOption !== undefined ? { https: httpsServerOption } : {}),
     // Native FSEvents (usePolling:false) — ~0-cost when idle. This package
     // watches only its own src (no symlinked dirs), so native events are

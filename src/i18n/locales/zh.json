@@ -36,12 +36,8 @@
     "noSectionsHint2": "useSettingsSection({ id, label, node }) 在任意组件里挂载一项即可。",
     "language": {
       "label": "语言",
-      "description": "界面语言。英文为源语言，其他语言为翻译覆盖层。",
-      "selectAria": "选择界面语言",
-      "agentLabel": "Agent 回复语言",
-      "agentDescription": "控制 Agent 回复所用的语言，与上面的界面语言相互独立。也可在「Agents · Team」面板右上角快捷切换。",
-      "replyFixedLabel": "固定回复语言",
-      "replySelectAria": "选择 Agent 回复语言"
+      "description": "界面语言。控制所有 UI 文案、Agent 目录展示语言，以及 Agent 回复所用语言。",
+      "selectAria": "选择界面语言"
     },
     "env": {
       "saved": "已写入 {{count}} 个变量到 .env（重启 stack 后生效）"
@@ -399,6 +395,7 @@
     "noProducedFiles": "暂无产物文件",
     "subagentsHint": "下挂 {n} 个专科 · 跟主 agent 说就行（点开仅查看 Persona）",
     "skinGroupHint": "仅作用于聊天语气 · 单击切换皮肤 · 双击进 Persona 编辑",
+    "skinChipTitle": "单击切换 · 双击进 Persona 编辑",
     "providerCodersHint": "下挂 {n} 个 CLI 驱动 · 点击切换驱动 + 进 Persona 编辑"
   },
   "gameSwitcher": {
@@ -965,7 +962,9 @@
     "loadingPluginSuffix": "…",
     "missingStandalonePrefix": "插件 ",
     "missingStandaloneMid": " 缺少 ",
-    "missingStandaloneSuffix": " 入口。"
+    "missingStandaloneSuffix": " 入口。",
+    "pluginUnavailablePrefix": "无法加载插件 ",
+    "pluginUnavailableSuffix": "。请确认 forgeax-server 已启动（在 forgeax-studio 目录运行 bun scripts/run.ts），然后刷新页面。"
   },
   "errorBoundary": {
     "retry": "重试",
