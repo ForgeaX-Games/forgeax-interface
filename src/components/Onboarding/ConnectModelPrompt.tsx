@@ -12,14 +12,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n';
-import { useAppStore } from '../../store';
+import { useShellStore } from '../../store';
 import { APP_EVENTS } from '../../lib/storageKeys';
 import './Onboarding.css';
 
 export function ConnectModelPrompt() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const openOverlay = useAppStore((s) => s.openOverlay);
+  const openOverlay = useShellStore((s) => s.openOverlay);
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
