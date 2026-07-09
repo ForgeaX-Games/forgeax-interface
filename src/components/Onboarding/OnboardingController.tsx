@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation, changeLanguage, getLocale, type Locale } from '@/i18n';
-import { useAppStore } from '../../store';
+import { useShellStore } from '../../store';
 import { applyModelRoute } from '../../lib/model-route';
 import { activateWorkspace } from '../../lib/workspace-activate';
 import { fetchCliProviders, type CliProviderInfo } from '../../lib/cli-providers';
@@ -151,8 +151,8 @@ async function patchEnv(patch: Record<string, string>): Promise<void> {
 
 export function OnboardingController() {
   const { t } = useTranslation();
-  const openOverlay = useAppStore((s) => s.openOverlay);
-  const switchGame = useAppStore((s) => s.switchGame);
+  const openOverlay = useShellStore((s) => s.openOverlay);
+  const switchGame = useShellStore((s) => s.switchGame);
 
   const [phase, setPhaseState] = useState<OnboardingPhase>(() => loadOnboarding().phase);
   const [lang, setLang] = useState<Locale>(() => getLocale());
@@ -286,6 +286,13 @@ export function OnboardingController() {
     try {
       if (keyOpen && keyOn) {
         await patchEnv({ OPENAI_BASE_URL: baseUrl.trim(), OPENAI_API_KEY: apiKey.trim() });
+        // First credential landed → re-pull model catalogs so the picker probes
+        // with the new key instead of the empty/disk-only list it may have cached
+        // behind the overlay (else the models only appear after a page refresh).
+        try {
+          const { refreshAllModelCatalogs } = await import('../ModelPicker/useModelCatalog');
+          await refreshAllModelCatalogs();
+        } catch { /* catalog refresh failure must not undo the saved credential */ }
       }
       let ok = true;
       // Only gate on CLI health when the user actually engaged the CLI card —

@@ -247,6 +247,7 @@
       "groups": {
         "layout": "Layout",
         "mode": "Top mode",
+        "edit": "Edit",
         "overlay": "Overlay",
         "focus": "Focus",
         "general": "General"
@@ -723,10 +724,10 @@
     }
   },
   "projectSwitcher": {
-    "triggerTooltip": "workspace (agentic working dir) · switching hot-restarts engine + cli",
+    "triggerTooltip": "project (agentic working dir) · switching hot-restarts engine + cli",
     "switching": "Switching…",
-    "newWorkspaceTooltip": "Create a new workspace (agentic working dir)",
-    "newWorkspace": "New workspace",
+    "newProjectTooltip": "Create a new project (agentic working dir)",
+    "newProject": "New project",
     "empty": "No projects yet",
     "currentSuffix": "· current",
     "extSourceTooltip": "From ~/.forgeax/known-projects.json",
@@ -1057,6 +1058,7 @@
     "closeOverlay": "Close current overlay · browser fullscreen → game fullscreen → Settings → Dashboard in order",
     "modePreview": "Switch to Preview mode",
     "modeWorkbench": "Switch to Workbench mode",
+    "switchWorkbenchN": "Switch to workbench {{n}} (Blender parity — indexed into workbench list)",
     "openPlugins": "Settings → Plugins (was the Bus mode tab)",
     "focusComposer": "Focus the right ChatPanel composer"
   },
@@ -1116,6 +1118,8 @@
   "dockShell": {
     "popoutToWindow": "Pop out to a separate OS window",
     "resetLayout": "Reset Layout",
+    "reset": "Reset",
+    "resetPositions": "Reset panel positions",
     "editorPanels": "Editor Panels",
     "mainPanels": "Main Panels",
     "morePanels": "More Panels",
@@ -1231,6 +1235,17 @@
     "thinking": "{{displayName}} is thinking",
     "emptyResponse": "(Empty response — the upstream cli produced nothing this time; try sending again)"
   },
+  "agentStatus": {
+    "expectant": ["On standby", "Slacking off", "Rubbing hands, ready to go", "Geared up and ready"],
+    "focused": ["Brain on fire", "Holding a mental meeting", "Gears spinning like crazy", "Deep in thought"],
+    "cheerful": ["Yapping away", "Keyboard's on fire", "Muttering along", "Typing at warp speed"],
+    "diligent": ["Firing up the grill", "Clang-clang, under construction", "Firing up the furnace", "Heads down, grinding"],
+    "delegating": ["Handing out tasks", "Calling in backup", "Commanding the squad", "Playing hands-off boss"],
+    "proud": ["Fresh out of the oven", "Dish is served", "Ding~ all done", "Delivered with pride"],
+    "weary": ["Recovering HP", "Grabbing a water break", "Battery running low", "Flopping for a bit"],
+    "sad": ["Oops, crashed", "Hitting a wall", "Having an emo moment", "Wiping away tears"],
+    "curious": ["Gathering to watch", "Peeking curiously", "Looking around", "Poking around"]
+  },
   "markdownView": {
     "taskDoneReadonly": "Done (read-only)",
     "taskTodoReadonly": "Not done (read-only)",
@@ -1250,10 +1265,11 @@
     "imagePart": "[Image: {{path}}]",
     "imageGeneric": "[Image]"
   },
-  "workspaceTabs": {
-    "addWorkspace": "New workspace",
+  "workbenchSwitcher": {
+    "addWorkbench": "New workbench",
     "rename": "Rename",
-    "deleteWorkspace": "Delete workspace"
+    "duplicate": "Duplicate",
+    "deleteWorkbench": "Delete workbench"
   },
   "consolePanel": {
     "clearTitle": "Clear console",
@@ -1306,7 +1322,8 @@
     "linkTitle": "{{base}} — click to view in Bus details →"
   },
   "workbenchModuleStrip": {
-    "ariaLabel": "Workbench modules"
+    "ariaLabel": "Workbench modules",
+    "empty": "No workbench plugins available"
   },
   "providerBadge": {
     "clickToBusDetail": "{{title}} · click to view in Bus details →"

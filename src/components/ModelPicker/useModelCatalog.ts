@@ -81,3 +81,21 @@ export function _resetModelCatalogCache(): void {
   cached.clear();
   inflight.clear();
 }
+
+/**
+ * Force-refresh every catalog the app currently holds — call after an LLM
+ * credential change (new key / base-url can change which models the proxy
+ * exposes, e.g. switching LiteLLM proxies). Refetches each known (providerId)
+ * tuple with `force` and pushes the fresh list to all mounted consumers via
+ * their subscriber callbacks, so the picker updates without a page reload.
+ *
+ * Covers both cached and actively-subscribed keys; nothing to refresh (no
+ * picker mounted yet) → no-op, the next mount fetches fresh anyway. The
+ * default gateway key ('gateway') maps back to `undefined` providerId.
+ */
+export async function refreshAllModelCatalogs(): Promise<void> {
+  const keys = new Set<string>([...cached.keys(), ...subscribers.keys()]);
+  await Promise.all(
+    [...keys].map((k) => fetchOnce(k === 'gateway' ? undefined : k, true).catch(() => [] as ModelCatalogEntry[])),
+  );
+}
