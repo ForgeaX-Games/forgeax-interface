@@ -36,10 +36,28 @@ export const STORAGE_KEYS = {
   pinnedSlug: 'forgeax.pinnedSlug',
   /** first-run boot splash seen flag. */
   bootSplash: 'forgeax.boot.splash.v1',
+  /** first-run onboarding state machine (welcome→project→home). Shape:
+   *  OnboardingPersisted (see components/Onboarding/types). v2 supersedes the
+   *  legacy boolean `onboardingSeenLegacy`, which is read once to migrate. */
+  onboarding: 'forgeax.onboarding.v2',
+  /** legacy boolean "onboarding dismissed" flag (pre state-machine) — read once
+   *  to migrate existing users past the first-run wizard, then ignored. */
+  onboardingSeenLegacy: 'forgeax.onboarding.seen',
 
   // ── i18n ──
   /** active UI language code ('en' | 'zh' | …). English is the default/source. */
   locale: 'forgeax.locale',
+
+  // ── model routing ──
+  /** persistent cli provider override (store.ts). null → native forgeax path. */
+  providerOverride: 'forgeax.providerOverride',
+  /** { [providerKey]: modelId } — last model the user HAND-PICKED per provider
+   *  (providerKey = cli-id | 'forgeax'). New sessions seed from this so the
+   *  picker lands on "where I left off"; a provider SWITCH still resets to the
+   *  provider default. See lib/model-prefs.ts. */
+  lastModelByProvider: 'forgeax.lastModel.byProvider.v1',
+
+  // ── reply language ──
   /** agent chat reply language ('en' | 'zh'). Global, decoupled from UI locale.
    *  Default 'en'. Overridden per-turn by followInput when that is enabled. */
   replyLanguage: 'forgeax.replyLanguage',
@@ -65,4 +83,15 @@ export const APP_EVENTS = {
   openPanel: 'forgeax:shell:open-panel',
   /** Focus a dock panel by id ONLY if it already exists (no reopen / no force-insert). detail: { id: string } */
   focusPanel: 'forgeax:shell:focus-panel',
+  /** Chat composer intercepted a send with no model path — open the connect
+   *  prompt. detail: { text?: string } (the pending message, echoed back on
+   *  resume so the composer can re-send it after the user connects). */
+  openConnectPrompt: 'forgeax:open-connect-prompt',
+  /** Connect prompt resolved with a usable model path — the composer that
+   *  opened it should re-send the pending message. detail: { text?: string } */
+  resumeSend: 'forgeax:resume-send',
+  /** Onboarding milestones changed in the SAME session (tour finished, first
+   *  chat done) — lets the chat empty-state hint react without a reload, since
+   *  it can't re-read localStorage on its own. No detail. */
+  onboardingChanged: 'forgeax:onboarding-changed',
 } as const;

@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTranslation } from '@/i18n';
 import { useAppStore } from '../../store';
 import { confirmDialog, alertDialog } from '../../lib/dialog';
-import { STORAGE_KEYS } from '../../lib/storageKeys';
+import { activateWorkspace } from '../../lib/workspace-activate';
 import { FsBrowser } from './FsBrowser';
 import './FsBrowser.css';
 import './TopBar.css';
@@ -73,7 +73,7 @@ export function ProjectSwitcher() {
     if (!row) return;
     setSwitching(true);
     try {
-      await activateWorkspace(row.absPath, true);
+      await activateWorkspace({ path: row.absPath, initIfMissing: true });
       // Engine restart + symlink swap done server-side; full page reload
       // re-binds all UI state (chat / agents / preview iframe) to the new
       // workspace. activateWorkspace() already updated localStorage.forgeax.pinnedSlug
@@ -183,27 +183,6 @@ interface NewProjectModalProps {
   onOpened: (absPath: string) => void;
 }
 
-/**
- * Shared workspace activator — POST /api/workspaces/activate and re-pin
- * localStorage.forgeax.pinnedSlug to the server-resolved activeSlug, so the
- * post-reload iframe lands on a real game rather than whatever slug the OLD
- * workspace had pinned.
- */
-async function activateWorkspace(absPath: string, initIfMissing: boolean) {
-  const r = await fetch('/api/workspaces/activate', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ path: absPath, initIfMissing }),
-  });
-  const j = (await r.json()) as { ok?: boolean; error?: string; absPath?: string; activeSlug?: string };
-  if (!r.ok || !j.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
-  try {
-    if (j.activeSlug) localStorage.setItem(STORAGE_KEYS.pinnedSlug, j.activeSlug);
-    else localStorage.removeItem(STORAGE_KEYS.pinnedSlug);
-  } catch { /* ignore quota / disabled storage */ }
-  return j;
-}
-
 function NewProjectModal({ initialTab, onClose, onOpened }: NewProjectModalProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ModalTab>(initialTab);
@@ -230,7 +209,7 @@ function NewProjectModal({ initialTab, onClose, onOpened }: NewProjectModalProps
       const j = (await r.json()) as { ok?: boolean; error?: string; absDir?: string };
       if (!r.ok || !j.ok) { setErr(j.error ?? `HTTP ${r.status}`); setBusy(false); return; }
       // 2) immediately activate the new workspace
-      await activateWorkspace(j.absDir ?? '', true);
+      await activateWorkspace({ path: j.absDir ?? '', initIfMissing: true });
       window.location.reload();
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   };
@@ -239,7 +218,7 @@ function NewProjectModal({ initialTab, onClose, onOpened }: NewProjectModalProps
     setBusy(true);
     setErr(null);
     try {
-      await activateWorkspace(absPath, initIfMissing);
+      await activateWorkspace({ path: absPath, initIfMissing });
       onClose();
       onOpened(absPath);
       window.location.reload();

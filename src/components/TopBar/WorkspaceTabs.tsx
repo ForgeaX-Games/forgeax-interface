@@ -97,7 +97,7 @@ export function WorkspaceTabs({ setMode }: { setMode: (m: 'edit' | 'workbench') 
 
   return (
     <>
-    <div className="tb-center" ref={centerRef} role="tablist" aria-label="Workspaces">
+    <div className="tb-center" ref={centerRef} role="tablist" aria-label="Workspaces" data-tour-id="tb-center">
       {slider !== null && (
         <div className={`mode-tab-slider${sliderReady ? ' ready' : ''}`} aria-hidden="true"
           style={{ transform: `translateX(${slider.x}px)`, width: slider.w }} />

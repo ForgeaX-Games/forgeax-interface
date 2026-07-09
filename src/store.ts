@@ -5,8 +5,9 @@ import { recordLog } from './lib/logSink';
 import { alertDialog } from './lib/dialog';
 import { getWindowManager, surfaceKey, type SurfaceDescriptor } from './lib/platform';
 import { bootAppMode } from './lib/workspaces';
-import { resolveKernelForAgent } from './lib/agent-cli-provider';
 import { STORAGE_KEYS } from './lib/storageKeys';
+import { getLastModel } from './lib/model-prefs';
+import { resolveKernelForAgent } from './lib/agent-cli-provider';
 
 // P2.6d — 'bus' joins as a top-level mode for the Bus admin panel.
 // Mirrors the Viewport / Workbench switch in the TopBar; rendered by MainArea.
@@ -498,7 +499,7 @@ interface AppState {
 
 // localStorage key for the persistent cli provider override. Picking 'claude-code'
 // should survive a page reload — matches the "pick once, keep using it" feedback.
-const PROVIDER_OVERRIDE_KEY = 'forgeax.providerOverride';
+const PROVIDER_OVERRIDE_KEY = STORAGE_KEYS.providerOverride;
 function loadProviderOverride(): string | null {
   try {
     const v = localStorage.getItem(PROVIDER_OVERRIDE_KEY);
@@ -812,8 +813,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!sid) return null;
     return get().agentBySid[sid] ?? null;
   },
-  // providerOverride 设置：写盘当默认 + mirror 到 active tab。switchToSession 时
-  // mirror 自动从新 tab 的 providerOverride 拉过去，这俩 setter 不需要 tab-aware。
+  // providerOverride 是全局单一设置（Settings › Providers）：写盘当默认 + mirror 到
+  // active tab 仅作记录。switchToSession 不再从 tab 反向拉 provider（会让 Settings 激活值
+  // 随 session 乱跳），切 session 只对齐模型、不动全局 provider。
   replyLanguage: loadReplyLanguage(),
   followInput: loadFollowInput(),
   setReplyLanguage: (lang) => {
@@ -979,12 +981,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         const active = persisted && newTabs.some((t) => t.sid === persisted)
           ? persisted
           : (newTabs[0]?.sid ?? null);
-        const activeTab = newTabs.find((t) => t.sid === active) ?? null;
+        // provider 是全局设置，绝不从 tab 反推（会随 active session 乱跳）。
         set({
           tabs: newTabs,
           activeSid: active,
           currentSessionId: active,
-          providerOverride: activeTab?.providerOverride ?? get().providerOverride,
         });
         persistActiveSid(active);
         connectForgeaXWs(active);
@@ -1028,13 +1029,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         const active = s.activeSid && merged.some((t) => t.sid === s.activeSid)
           ? s.activeSid
           : (merged[0]?.sid ?? null);
-        const activeTab = merged.find((t) => t.sid === active) ?? null;
         persistActiveSid(active);
+        // provider 全局，不从 tab 反推。
         return {
           tabs: merged,
           activeSid: active,
           currentSessionId: active,
-          providerOverride: activeTab?.providerOverride ?? s.providerOverride,
         };
       });
     } catch (e) {
@@ -1076,7 +1076,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // ① defaultBootstrapAgent 来自 settings/agent-prefs 的 bus 快照（L1 不再持有）。
       const bootstrap = (peek('prefs:agents') as { defaultBootstrapAgent?: string | null } | undefined)
         ?.defaultBootstrapAgent ?? null;
-      const { sid } = await createSession({
+      const { sid, bootstrappedAgent } = await createSession({
         // 用户主动在 UI 里建 session（点 + 新建），可以传一个语义化的 displayName。
         // 不传时让 server 端落 undefined（UI 自己用 tabLabel 占位反映"无名"）。
         displayName: opts?.displayName,
@@ -1091,6 +1091,36 @@ export const useAppStore = create<AppState>((set, get) => ({
       const seedOverride = opts?.providerOverride !== undefined
         ? opts.providerOverride
         : get().providerOverride;
+      // Seed the bootstrapped agent's model. The scaffold default is
+      // AGENT_DEFAULTS.models.model (claude-opus-4-8), which is fine for the
+      // native path but wrong for a CLI driver (that id isn't in the driver's
+      // catalog). Precedence:
+      //   1. the model the user last HAND-PICKED for this provider (model-prefs)
+      //      — "new session resumes where I left off";
+      //   2. else, for a CLI driver, its catalog default (first non-hidden) so
+      //      the model belongs to the active provider;
+      //   3. else (native, nothing remembered) leave the scaffold default.
+      // Only cases 1/2 write; awaited-before-activate so the composer never
+      // flashes a stale id; best-effort so a catalog hiccup can't block create.
+      if (bootstrappedAgent) {
+        try {
+          const catalogProviderId =
+            seedOverride && seedOverride !== 'forgeax' ? seedOverride : null;
+          const remembered = getLastModel(catalogProviderId);
+          if (remembered || catalogProviderId) {
+            const { listModels, setAgentModels } = await import('./lib/model-config');
+            const catalog = await listModels(catalogProviderId);
+            const rememberedOk =
+              !!remembered && catalog.some((m) => m.id === remembered && !m.hidden);
+            const next = rememberedOk
+              ? remembered
+              : catalogProviderId
+                ? (catalog.find((m) => !m.hidden)?.id ?? catalog[0]?.id)
+                : undefined;
+            if (next) await setAgentModels(sid, bootstrappedAgent, [next]);
+          }
+        } catch { /* best-effort — leave the scaffold default */ }
+      }
       set((s) => {
         const newTab: ChatTab = {
           sid,
@@ -1125,10 +1155,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!t2) return;
     }
     const target = get().tabs.find((t) => t.sid === sid)!;
+    // 切 session：把该 session 的模型对齐到「当前设置的 provider」。provider 是全局
+    // 单一设置（Settings › Providers），但从盘上加载的 session（如切 game 带出的历史
+    // 会话）其 agent.json 模型可能仍属于旧 provider。若不在当前 provider 的 catalog 里
+    // → 切到该 provider 上次手选模型（model-prefs）或默认；已属于则不动。在翻 activeSid
+    // 之前做，好让 composer 首帧 fetch 直接画对齐后的值（不闪旧模型）。best-effort，
+    // 绝不因对齐失败阻断切换。
+    const agentPath = target.agentId ?? get().agentBySid[sid] ?? null;
+    if (agentPath) {
+      try {
+        const { reconcileSessionModelToActiveProvider } = await import('./lib/model-route');
+        await reconcileSessionModelToActiveProvider(sid, agentPath);
+      } catch { /* never block a session switch on model reconcile */ }
+    }
+    // provider 是全局单一设置（Settings › Providers；chat 内切换器已隐藏），切
+    // session 绝不改动它——否则 Settings 的激活 provider 会跟着目标 tab 的历史值乱跳。
+    // session 与全局 provider 的错配只对齐「模型」（上面 reconcile 已做），不动 provider。
     set({
       activeSid: sid,
       currentSessionId: sid,
-      providerOverride: target.providerOverride,
     });
     persistActiveSid(sid);
     const { connectForgeaXWs } = await import('./lib/forgeax-bridge');
@@ -1179,7 +1224,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           tabs: [fresh],
           activeSid: newSid,
           currentSessionId: newSid,
-          providerOverride: fresh.providerOverride,
           ...omitSessionResidue(s),
         }));
         persistActiveSid(newSid);
@@ -1204,7 +1248,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         tabs: remainingMetas,
         activeSid: next.sid,
         currentSessionId: next.sid,
-        providerOverride: next.providerOverride,
         ...omitSessionResidue(s),
       };
     });

@@ -667,7 +667,7 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
   return (
     <>
     <div className="topbar">
-      <div className="tb-left">
+      <div className="tb-left" data-tour-id="tb-left">
         {/* Decorative macOS-style traffic dots are a WEB-form aesthetic. In the
            Tauri desktop app the OS draws the real (functional) traffic lights,
            so drawing our own here duplicates them — render only in the browser. */}
@@ -704,7 +704,7 @@ export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
 
       <WorkspaceTabs setMode={setMode} />
 
-      <div className="tb-right">
+      <div className="tb-right" data-tour-id="tb-right">
         <DashboardToggle />
         <TbDivider />
         <button

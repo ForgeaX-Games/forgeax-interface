@@ -9,7 +9,8 @@ import { PulseFeeds } from './components/StatusBar/feeds/PulseFeeds';
 import { VersionBadge } from './components/StatusBar/VersionBadge';
 import { ContextMenu } from './components/ContextMenu/ContextMenu';
 import { CommandPalette } from './components/CommandPalette/CommandPalette';
-import { FirstRunSetup } from './components/FirstRun/FirstRunSetup';
+import { OnboardingController, ConnectModelPrompt } from './components/Onboarding';
+import { useOnboardingPhase } from './components/Onboarding/types';
 import { DialogHost } from './lib/dialog';
 import { bootStageAppMounted } from './boot/driver';
 import { useGlobalShortcuts } from './lib/global-shortcuts';
@@ -47,6 +48,11 @@ export function App({ hideChatAndForge, panelRenderers }: AppProps = {}) {
   const fullscreen        = useAppStore((s) => s.fullscreen);
   const sidebarCollapsed  = useAppStore((s) => s.sidebarCollapsed);
   const chatpanelCollapsed = useAppStore((s) => s.chatpanelCollapsed);
+  // §14 three-state boot: during welcome/project (init) we render ONLY the
+  // onboarding — no TopBar/DockShell/status bar — so the shell never binds to a
+  // project the user hasn't picked yet. Full shell mounts at home/done.
+  const onboardingPhase = useOnboardingPhase();
+  const shellHidden = onboardingPhase === 'welcome' || onboardingPhase === 'project';
   // Drive the boot splash to "ready" after the first React paint. Two rAF
   // ticks inside bootStageAppMounted() guarantee the studio shell is on
   // screen before the splash fades, otherwise users see a brief blank frame.
@@ -141,6 +147,20 @@ export function App({ hideChatAndForge, panelRenderers }: AppProps = {}) {
   // WAL replay trigger lives in ChatPanel — it watches activeTab.agentId
   // and re-fires loadSession on every change. No mount hook here so the
   // trigger has a single owner.
+  // Init state (welcome/project): render ONLY the onboarding + dialog host over a
+  // bare shell frame — no TopBar/DockShell/surfaces/status bar. Keeps all hooks
+  // above unconditional (rules-of-hooks) by branching in the returned tree.
+  if (shellHidden) {
+    return (
+      <PanelRenderersProvider value={panelRenderers ?? DEFAULT_PANEL_RENDERERS}>
+        <div className="studio-shell studio-shell--preview-skin">
+          <OnboardingController />
+          <DialogHost />
+        </div>
+      </PanelRenderersProvider>
+    );
+  }
+
   return (
     <PanelRenderersProvider value={panelRenderers ?? DEFAULT_PANEL_RENDERERS}>
     <div
@@ -149,7 +169,8 @@ export function App({ hideChatAndForge, panelRenderers }: AppProps = {}) {
       data-sidebar-collapsed={sidebarCollapsed ? '1' : undefined}
       data-chatpanel-collapsed={chatpanelCollapsed ? '1' : undefined}
     >
-      <FirstRunSetup />
+      <OnboardingController />
+      <ConnectModelPrompt />
       <TopBar hideChatAndForge={hideChatAndForge} />
       {/* Dockable workspace (dockview) — replaces the fixed Sidebar | MainArea |
           ChatPanel panes. Each region is now a drag/dock/tab/float panel with a
