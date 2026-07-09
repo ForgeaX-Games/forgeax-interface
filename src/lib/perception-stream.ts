@@ -15,7 +15,7 @@
  *  These events have no chat representation — session-stream's dispatch skips
  *  `perception:*` (so they're never rendered as system messages). */
 
-import { getSessionClient, type SessionEvent } from '../store-parts/session-client';
+import { onSessionEvent, type SessionEvent } from './forgeax-bridge';
 
 /** Shape carried on the `forgeax:perception-query` CustomEvent detail. */
 export interface PerceptionQueryDetail {
@@ -47,5 +47,5 @@ function dispatchPerception(evt: SessionEvent): void {
 /** Wired in main.tsx alongside the other stream subscriptions. Idempotent —
  *  same handler key, HMR-safe. */
 export function subscribePerceptionStream(): void {
-  getSessionClient().onSessionEvent('perception', dispatchPerception);
+  onSessionEvent('perception', dispatchPerception);
 }

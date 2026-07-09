@@ -16,7 +16,7 @@
 // DERIVATION over (providerOverride, FORGEAX_MODEL), and switching source is a
 // single `applyModelRoute` that writes both consistently. No ghost field.
 
-import { useShellStore } from '../../store';
+import { useAppStore } from '../../store';
 import { getAgentModel, listModels, setAgentModels } from '../model-config';
 import { getLastModel } from '../model-prefs';
 
@@ -80,7 +80,7 @@ async function patchEnv(patch: Record<string, string>): Promise<void> {
  *              its own model selection)
  */
 export async function applyModelRoute(source: ModelSource): Promise<void> {
-  const setProviderOverride = useShellStore.getState().setProviderOverride;
+  const setProviderOverride = useAppStore.getState().setProviderOverride;
   switch (source.kind) {
     case 'api-key':
       await patchEnv({ FORGEAX_MODEL: source.model });
@@ -108,7 +108,7 @@ export function currentCatalogProvider(providerOverride: string | null): string 
 export async function resetActiveAgentModelToProviderDefault(
   catalogProviderId: string | null,
 ): Promise<{ sid: string; agentPath: string; selected: string } | null> {
-  const st = useShellStore.getState();
+  const st = useAppStore.getState();
   const sid = st.activeSid;
   const agentPath = sid ? (st.tabs.find((t) => t.sid === sid)?.agentId ?? null) : null;
   if (!sid || !agentPath) return null;
@@ -134,7 +134,7 @@ export async function resetActiveAgentModelToProviderDefault(
 export async function resetOpenSessionsModelToProviderDefault(
   catalogProviderId: string | null,
 ): Promise<{ selected: string; count: number } | null> {
-  const st = useShellStore.getState();
+  const st = useAppStore.getState();
   const targets = st.tabs
     .map((t) => ({ sid: t.sid, agentPath: t.agentId }))
     .filter((x): x is { sid: string; agentPath: string } => !!x.sid && !!x.agentPath);
@@ -177,7 +177,7 @@ export async function reconcileSessionModelToActiveProvider(
   sid: string,
   agentPath: string,
 ): Promise<{ selected: string } | null> {
-  const catalogProviderId = currentCatalogProvider(useShellStore.getState().providerOverride);
+  const catalogProviderId = currentCatalogProvider(useAppStore.getState().providerOverride);
   const catalog = await listModels(catalogProviderId).catch(() => null);
   if (!catalog || catalog.length === 0) return null;
 
@@ -211,7 +211,7 @@ export async function reconcileSessionModelToActiveProvider(
  * Any CLI override, any visible key, or any model id → ready.
  */
 export async function checkModelReady(): Promise<boolean> {
-  const providerOverride = useShellStore.getState().providerOverride;
+  const providerOverride = useAppStore.getState().providerOverride;
   if (providerOverride && providerOverride !== 'forgeax') return true; // CLI driver path
 
   try {

@@ -9,8 +9,7 @@
 // server-resolved activeSlug FIRST so the post-reload preview iframe lands on a
 // real game rather than whatever slug the OLD workspace had pinned.
 
-import { STORAGE_KEYS, SESSION_KEYS } from './storageKeys';
-import { waitForEngineSettled } from './workspace-reload';
+import { STORAGE_KEYS } from './storageKeys';
 
 export interface ActivateWorkspaceInput {
   /** Absolute path (or `~/...`) of the workspace directory to activate. */
@@ -48,15 +47,5 @@ export async function activateWorkspace(input: ActivateWorkspaceInput): Promise<
     if (j.activeSlug) localStorage.setItem(STORAGE_KEYS.pinnedSlug, j.activeSlug);
     else localStorage.removeItem(STORAGE_KEYS.pinnedSlug);
   } catch { /* ignore quota / disabled storage */ }
-  // Seed the workspace-changed dedup key to the resolved root so the broadcast
-  // that `activate` fanned out to THIS tab is skipped (broadcast.ts dedups on
-  // equality) — the caller drives the single reload instead of racing it (005).
-  try {
-    if (j.absPath) sessionStorage.setItem(SESSION_KEYS.activeRoot, j.absPath);
-  } catch { /* ignore quota / disabled storage */ }
-  // Wait for the engine vite to finish the symlink-flip restart before the caller
-  // reloads, so the post-reload preview loads exactly once against a live engine
-  // (todo 005). Bounded internally, so a no-rescan switch never hangs the caller.
-  await waitForEngineSettled(j.activeSlug);
   return j;
 }

@@ -8,28 +8,21 @@
 //
 // Versioning: when a value's SHAPE changes incompatibly, bump its key suffix
 // (…:v2 → …:v3) and add a migration. The dockview layout uses a separate
-// numeric stamp (LAYOUT_VERSION) handled by workspaces.migrateWorkbenchSchema().
+// numeric stamp (LAYOUT_VERSION) handled by workspaces.migrateLayoutVersion().
 
 export const STORAGE_KEYS = {
-  // ── workbenches (Blender-style named layouts) ──
-  //
-  // NOTE: after the v7→v8 migration (T7 · 2026-07-07), all workbench state
-  // lives under project-scoped keys (see `workbenchesKeyForProject` /
-  // `workbenchLayoutKeyForProject` below). The keys listed here are LEGACY —
-  // read once by `migrateWorkbenchSchema()` on first boot after upgrade to
-  // recover pre-v8 user state, then deleted. No runtime read/write path
-  // should touch them.
-  /** [LEGACY, v7] { list: Workbench[]; activeId } — pre-v8 global workbench list + selection. */
+  // ── workspaces (Blender-style named layouts) ──
+  /** { list: WorkspaceEntry[]; activeId } — current workspace list + selection. */
   workspaces: 'forgeax:workspaces:v2',
-  /** [LEGACY, v7] pre-v2 shape of the above — read once by migration. */
+  /** legacy v1 of the above — read once to migrate user workspaces, then ignored. */
   workspacesLegacyV1: 'forgeax:workspaces:v1',
-  /** [LEGACY, v7] pre-v2 active-id key — read once by migration. */
+  /** legacy active-id key — kept in sync for old readers / migration. */
   workspaceActiveLegacy: 'forgeax:workspace:active',
-  /** [LEGACY, v7] prefix; full key is `${wsLayoutPrefix}<workbenchId>` → SerializedDockview. */
+  /** prefix; full key is `${wsLayoutPrefix}<workspaceId>` → SerializedDockview. */
   wsLayoutPrefix: 'forgeax:ws-layout:',
-  /** [LEGACY, v7] numeric stamp of the built-in default-layout schema. Replaced by `workbenchSchemaVersionKey`. */
+  /** numeric stamp of the built-in default-layout schema (see CURRENT_LAYOUT_VERSION). */
   wsLayoutVersion: 'forgeax:ws-layout-version',
-  /** [LEGACY, pre-workspaces] single-layout key — read once by migration. */
+  /** legacy single-layout key (pre-workspaces) — read once for migration. */
   legacyDockLayout: 'forgeax:shell:dock:v4',
 
   // ── session / chat shell (store.ts) ──
@@ -77,37 +70,8 @@ export const STORAGE_KEYS = {
   publishOnboarded: 'forgeax.publish.onboarded',
 } as const;
 
-/** Build a per-workspace dockview layout key. Legacy — kept for the v7→v8
- *  migration to READ from; runtime paths use `workbenchLayoutKeyForProject`. */
-export const wsLayoutKey = (workbenchId: string): string => `${STORAGE_KEYS.wsLayoutPrefix}${workbenchId}`;
-
-// ── project-scoped workbench keys (v8 schema · T7) ─────────────────────────
-//
-// Post-v8, workbench state is namespaced under the current project id so
-// switching projects re-reads a per-project list + per-project layouts. The
-// project id is set by `setCurrentProject(projId)` (workbenches.ts), driven by
-// ProjectSwitcher.tsx after `/api/projects` returns.
-/** Per-project workbench list + active selection. { list: Workbench[]; activeId } */
-export const workbenchesKeyForProject = (projId: string): string =>
-  `forgeax:project:${projId}:workbenches`;
-/** Per-project, per-workbench dockview layout cache (SerializedDockview). */
-export const workbenchLayoutKeyForProject = (projId: string, wbId: string): string =>
-  `forgeax:project:${projId}:workbench-layout:${wbId}`;
-/** Schema-version stamp (replaces the legacy `wsLayoutVersion`). Global —
- *  the version applies to the on-disk layout across every project. */
-export const workbenchSchemaVersionKey = 'forgeax:workbench-schema-version';
-/** Legacy global panel-region overrides map — inlined into every workbench's
- *  panelLocations by the v7→v8 migration, then deleted. Kept as a constant
- *  so the migration can reference it by name. */
-export const legacyPanelLocationsKey = 'forgeax:panel-locations';
-
-// Session-scoped keys (sessionStorage, per-tab — NOT persisted like the above).
-export const SESSION_KEYS = {
-  /** last-activated workspace absPath — dedups the `workspace-changed` reload
-   *  (see boot/broadcast.ts + lib/workspace-reload.ts) so a re-broadcast of the
-   *  current root can't loop, and so the acting tab reloads only once. */
-  activeRoot: 'forgeax.activeRoot',
-} as const;
+/** Build a per-workspace dockview layout key. */
+export const wsLayoutKey = (workspaceId: string): string => `${STORAGE_KEYS.wsLayoutPrefix}${workspaceId}`;
 
 // Cross-component window CustomEvent names (NOT storage, but same "stringly-typed
 // global namespace" footgun — centralized here so they can't drift either).

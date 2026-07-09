@@ -6,11 +6,9 @@
  *   Ctrl+Shift+B  toggle Sidebar
  *   Ctrl+Shift+C  toggle ChatPanel
  *   Ctrl+Shift+D  toggle Dashboard overlay
- *   Ctrl+Shift+1..9  switch to workbench N (Blender parity — index into the
- *                    persisted workbench list, so custom workbenches also
- *                    reachable by ordinal)
- *   Ctrl+Shift+0  open Settings → Plugins (was Ctrl+Shift+3 before P3.5 —
- *                 relocated so 1..9 are free for workbench switching)
+ *   Ctrl+Shift+1  mode: Viewport
+ *   Ctrl+Shift+2  mode: Workbench
+ *   Ctrl+Shift+3  open Settings → Plugins (was the Bus mode tab)
  *   Ctrl+/        focus chat composer
  *   Ctrl+H        open Settings → Changelog
  *   Esc           close current overlay (Settings → Dashboard → Fullscreen)
@@ -26,8 +24,7 @@
 
 import { useEffect } from 'react';
 import { t } from '@/i18n';
-import { useShellStore } from '../store';
-import { loadWorkbenchList, setActiveWorkbench } from './workbenches';
+import { useAppStore } from '../store';
 
 export interface ShortcutDef {
   /** 显示给用户的字符串,e.g. "Ctrl+Shift+F"。Mac 上 UI 会自动替换 Ctrl → ⌘/⌃。 */
@@ -36,8 +33,8 @@ export interface ShortcutDef {
   match: (e: KeyboardEvent) => boolean;
   /** 一行描述,显示在 Settings 表里。 */
   label: string;
-  /** 分组(Layout / Mode / Overlay / Focus / general / edit)。 */
-  group: 'layout' | 'mode' | 'overlay' | 'focus' | 'general' | 'edit';
+  /** 分组(Layout / Mode / Overlay / Focus)。 */
+  group: 'layout' | 'mode' | 'overlay' | 'focus' | 'general';
   /** 触发动作。返回 true 表示 preventDefault。 */
   run: () => boolean | void;
   /** Esc 这种允许在 input 里触发(其他必须 target 不是 editable 才触发)。 */
@@ -47,8 +44,7 @@ export interface ShortcutDef {
 // Helper: is the event happening inside a text-editing surface?
 // Guards against non-Element targets (e.g. window / document from synthetic
 // dispatch) where .tagName / .closest aren't defined.
-// Exported for unit tests (T4-9 typing-target-guard coverage).
-export function isTypingTarget(e: KeyboardEvent): boolean {
+function isTypingTarget(e: KeyboardEvent): boolean {
   const t = e.target;
   if (!t || !(t instanceof Element)) return false;
   const tag = (t as HTMLElement).tagName;
@@ -62,8 +58,7 @@ export function isTypingTarget(e: KeyboardEvent): boolean {
 // IME-composing check — Chinese input methods send a stream of keydowns
 // while composing; key === "Process" or keyCode === 229 signals "the user
 // is in IME, don't intercept anything."
-// Exported for unit tests (T4-9 IME-guard coverage).
-export function isComposing(e: KeyboardEvent): boolean {
+function isComposing(e: KeyboardEvent): boolean {
   if (e.isComposing) return true;
   if (e.keyCode === 229) return true;
   if (e.key === 'Process') return true;
@@ -75,179 +70,11 @@ function mod(e: KeyboardEvent): boolean {
   return e.ctrlKey || e.metaKey;
 }
 
-// ── Editor keyboard-router deps (keyboard-router convergence, M4 T4-1..T4-3) ──
-// The interface package is editor-agnostic (lint:agnostic forbids importing
-// @forgeax/editor), so the edit-domain shortcuts (Delete / Backspace / F2 /
-// Ctrl+D / Ctrl+A / G) are injected by the host editor via
-// registerKeyboardRouterDeps. Each dep is a thin callback the editor wires to
-// its own gateway / selection / viewport-quadrant — the router stays a pure
-// dispatcher and never touches editor state directly (G-1 / AC-A1: still ONE
-// global keydown listener — the one in useGlobalShortcuts below).
-export interface RouterSelectedAsset {
-  guid: string;
-  kind: string;
-  name: string;
-  packPath: string;
-  payload: Record<string, unknown>;
-}
-
-export interface KeyboardRouterDeps {
-  /** Dispatch an editor op through the one gateway door. */
-  dispatch: (op: { kind: string; [k: string]: unknown }, origin?: string) => void;
-  /** Current entity-selection handles (for Delete / F2 / Ctrl+D routing). */
-  getEntitySelection: () => number[];
-  /** Current asset-selection list (for Delete / F2 / Ctrl+D routing). */
-  getAssetSelection: () => RouterSelectedAsset[];
-  /** Derive of "who was selected last" — drives triple-domain key routing (AC-C1). */
-  getLastSelectionDomain: () => 'entity' | 'asset' | 'folder' | null;
-  /** True under ▶ Play (entity-domain Delete must early-return, AC-A5b). */
-  isPlayMode: () => boolean;
-  /** Current viewport display axis (for G toggle, AC-Cb4). */
-  getDisplay: () => 'scene' | 'game';
-  /** Current input owner (for G: play·game yields to the game, T0-10 / RK-10). */
-  getInputTarget: () => 'scene' | 'game';
-  /** Entity: delete the given handles (cascade, one undo step). */
-  deleteEntities: (ids: number[]) => void;
-  /** Entity: duplicate the given handles. */
-  duplicateEntities: (ids: number[]) => void;
-  /** Entity: open rename for the given handle. */
-  renameEntity: (id: number) => void;
-  /** Entity: select all entities. */
-  selectAllEntities: () => void;
-  /** Asset: delete the given assets (UI-layer guard dialog if needed, AC-C2). */
-  deleteAssets: (assets: RouterSelectedAsset[]) => void;
-  /** Asset: duplicate the given asset (guid, packPath). */
-  duplicateAsset: (guid: string, packPath: string) => void;
-  /** Asset: rename the given asset (guid, packPath). */
-  renameAsset: (guid: string, packPath: string) => void;
-  /** Asset: select all assets in the active browser (CB-scoped, wired by CB). */
-  selectAllAssets: () => void;
-  /** Folder: get current folder selection paths (D3b). */
-  getFolderSelection?: () => { path: string }[];
-  /** Folder: delete the given folders (D3b). */
-  deleteFolders?: (folders: { path: string }[]) => void;
-}
-
-let routerDeps: KeyboardRouterDeps | null = null;
-/** Inject the editor-side callbacks the router needs. Called once at host boot
- *  (forgeax-editor standalone/main.tsx) BEFORE the App mounts (useGlobalShortcuts
- *  reads this at effect time, which is after mount, so registration first is safe). */
-export function registerKeyboardRouterDeps(deps: KeyboardRouterDeps | null): void {
-  routerDeps = deps;
-}
-
-// Build the edit-domain shortcut list from injected deps. Pure dispatcher: every
-// branch routes through a dep callback (which the editor maps onto gateway ops),
-// so this file stays editor-agnostic. Three-layer guards (IME / typing-target /
-// play-mode) are enforced by the host's onKey wrapper (isComposing / isTypingTarget)
-// plus the per-op play-mode checks below.
-function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
-  const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
-
-  // Triple-domain Delete (AC-C2): folder → asset → entity.
-  // Entity+play early-returns (edit-rejected-in-play).
-  const routeDelete = (): boolean => {
-    const domain = deps.getLastSelectionDomain() ?? 'entity';
-    if (domain === 'folder') {
-      const folders = deps.getFolderSelection?.();
-      if (folders && folders.length > 0) { deps.deleteFolders?.(folders); return true; }
-      return false;
-    }
-    if (domain === 'asset') {
-      const assets = deps.getAssetSelection();
-      if (assets.length > 0) { deps.deleteAssets(assets); return true; }
-      return false;
-    }
-    if (deps.isPlayMode()) return false; // let the key fall through in play
-    const ids = deps.getEntitySelection();
-    if (ids.length > 0) { deps.deleteEntities(ids); return true; }
-    return false;
-  };
-  const routeF2 = (): boolean => {
-    const domain = deps.getLastSelectionDomain() ?? 'entity';
-    if (domain === 'asset') {
-      const a = deps.getAssetSelection()[0];
-      if (a) { deps.renameAsset(a.guid, a.packPath); return true; }
-      return false;
-    }
-    const id = deps.getEntitySelection()[0];
-    if (id != null) { deps.renameEntity(id); return true; }
-    return false;
-  };
-  const routeCtrlD = (): boolean => {
-    const domain = deps.getLastSelectionDomain() ?? 'entity';
-    if (domain === 'asset') {
-      for (const a of deps.getAssetSelection()) deps.duplicateAsset(a.guid, a.packPath);
-      return true;
-    }
-    const ids = deps.getEntitySelection();
-    if (ids.length > 0) { deps.duplicateEntities(ids); return true; }
-    return false;
-  };
-  const routeCtrlA = (): boolean => {
-    const domain = deps.getLastSelectionDomain() ?? 'entity';
-    if (domain === 'asset') deps.selectAllAssets();
-    else deps.selectAllEntities();
-    return true;
-  };
-  // G display toggle (AC-Cb4): play·game + inputTarget==='game' yields to the
-  // game (T0-10). Otherwise toggle scene⇄game through the setDisplay session op.
-  const routeG = (): boolean => {
-    if (deps.getInputTarget() === 'game') return false;
-    deps.dispatch(
-      { kind: 'setDisplay', display: deps.getDisplay() === 'game' ? 'scene' : 'game' },
-      'human',
-    );
-    return true;
-  };
-
-  return [
-    {
-      combo: isMac ? 'Backspace' : 'Delete',
-      group: 'edit',
-      label: 'Delete selection',
-      match: (e) => e.key === 'Delete' || (isMac && e.key === 'Backspace'),
-      run: routeDelete,
-    },
-    {
-      combo: 'F2',
-      group: 'edit',
-      label: 'Rename selection',
-      match: (e) => !mod(e) && !e.shiftKey && !e.altKey && e.key === 'F2',
-      run: routeF2,
-    },
-    {
-      combo: 'Ctrl+D',
-      group: 'edit',
-      label: 'Duplicate selection',
-      match: (e) => mod(e) && !e.shiftKey && !e.altKey
-        && (e.code === 'KeyD' || e.key.toLowerCase() === 'd'),
-      run: routeCtrlD,
-    },
-    {
-      combo: 'Ctrl+A',
-      group: 'edit',
-      label: 'Select all (entity / asset)',
-      match: (e) => mod(e) && !e.shiftKey && !e.altKey
-        && (e.code === 'KeyA' || e.key.toLowerCase() === 'a'),
-      run: routeCtrlA,
-    },
-    {
-      combo: 'G',
-      group: 'edit',
-      label: 'Toggle viewport display (scene ⇄ game)',
-      match: (e) => !mod(e) && !e.shiftKey && !e.altKey
-        && (e.key === 'g' || e.key === 'G'),
-      run: routeG,
-    },
-  ];
-}
-
 // Build the shortcut registry. Each match() / run() is plain JS so we can
 // drive them from a Settings table later (or a Command Palette).
 export function buildShortcuts(): ShortcutDef[] {
-  const store = useShellStore.getState;
-  const shortcuts: ShortcutDef[] = [
+  const store = useAppStore.getState;
+  return [
     // ── Layout (collapse / fullscreen) ──
     {
       combo: 'Ctrl+Shift+F',
@@ -335,37 +162,26 @@ export function buildShortcuts(): ShortcutDef[] {
       },
     },
 
-    // ── Workbench switch (Blender parity: Ctrl+Shift+1..9 → workbench N) ──
-    // P3.5 · Was three fixed-mode bindings (Viewport / Workbench / Plugins);
-    // now indexes into loadWorkbenchList().list so custom workbenches are
-    // reachable by ordinal, matching Blender's workspace-tab shortcut
-    // ergonomic and VSCode's Ctrl+N-tab switcher.
-    //
-    // Mode side-effect: we can't call setMode directly here — the derivation
-    // 'scene' vs 'ai' lives in modeForWorkbench() in WorkbenchSwitcher.tsx. To
-    // avoid a shortcuts → component import cycle, we mirror the same rule
-    // inline (only 'scene' id → 'scene' mode; every other id → 'ai' mode).
-    // WorkbenchSwitcher subscribes to workbench-list changes and re-renders,
-    // but AppMode is a store field — someone has to write it.
-    ...([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((n): ShortcutDef => ({
-      combo: `Ctrl+Shift+${n}`,
-      group: 'mode',
-      label: t('shortcuts.switchWorkbenchN', { n }),
-      match: (e) => mod(e) && e.shiftKey && e.code === `Digit${n}`,
-      run: () => {
-        const { list } = loadWorkbenchList();
-        const wb = list[n - 1];
-        if (!wb) return false; // no Nth workbench — let default browser behavior through
-        setActiveWorkbench(wb.id);
-        store().setMode(wb.id === 'scene' ? 'scene' : 'ai');
-        return true;
-      },
-    })),
+    // ── Top-level mode ──
     {
-      combo: 'Ctrl+Shift+0',
-      group: 'overlay',
+      combo: 'Ctrl+Shift+1',
+      group: 'mode',
+      label: t('shortcuts.modeViewport'),
+      match: (e) => mod(e) && e.shiftKey && (e.code === 'Digit1' || e.key === '1' || e.key === '!'),
+      run: () => { store().setMode('edit'); return true; },
+    },
+    {
+      combo: 'Ctrl+Shift+2',
+      group: 'mode',
+      label: t('shortcuts.modeWorkbench'),
+      match: (e) => mod(e) && e.shiftKey && (e.code === 'Digit2' || e.key === '2' || e.key === '@'),
+      run: () => { store().setMode('workbench'); return true; },
+    },
+    {
+      combo: 'Ctrl+Shift+3',
+      group: 'mode',
       label: t('shortcuts.openPlugins'),
-      match: (e) => mod(e) && e.shiftKey && (e.code === 'Digit0' || e.key === '0' || e.key === ')'),
+      match: (e) => mod(e) && e.shiftKey && (e.code === 'Digit3' || e.key === '3' || e.key === '#'),
       run: () => { store().openOverlay('settings', 'plugins'); return true; },
     },
 
@@ -402,10 +218,6 @@ export function buildShortcuts(): ShortcutDef[] {
       },
     },
   ];
-  // Inject the host editor's edit-domain shortcuts (Delete / F2 / Ctrl+D /
-  // Ctrl+A / G) when deps were registered at boot. Keeps this file editor-agnostic.
-  if (routerDeps) shortcuts.push(...editShortcuts(routerDeps));
-  return shortcuts;
 }
 
 /**

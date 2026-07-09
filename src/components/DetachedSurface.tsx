@@ -39,55 +39,27 @@ export function DetachedSurface({ surface }: Props): ReactElement {
  *  Wrapped full-bleed since they normally live inside a sized layout slot. */
 function DetachedPanelSurface({ surface }: Props): ReactElement {
   const { t } = useTranslation();
-  const renderers = usePanelRenderers();
-  const chatDescriptor = renderers.panels?.chat;
-  const SceneEditor = renderers.surfaces?.SceneEditor;
-  const AgentsBrowser = renderers.detached?.AgentsBrowser;
-  const FilesBrowser = renderers.detached?.FilesBrowser;
+  const { renderPreview, renderEdit, renderChat, renderWorkbench } = usePanelRenderers();
   let body: ReactElement;
   switch (surface.id) {
     case 'chat':
-      // chat is a 前L2 @forgeax/chat app injected via panels['chat'] (R4); a
+      // chat is a 前L2 @forgeax/chat app injected via renderChat (R4); a
       // detached chat window has no keep-alive layer so render it directly.
-      body = (
-        <>
-          {chatDescriptor ? (
-            <div data-fx-slot="DockPanel:chat" style={{ display: 'contents' }}>{chatDescriptor.render()}</div>
-          ) : (
-            <NoEditorBody />
-          )}
-        </>
-      );
+      body = <>{renderChat ? renderChat() : <NoEditorBody />}</>;
       break;
     case 'agents':
-      // 前L2 @forgeax/ai-workbench via detached.AgentsBrowser (R4): agents browser variant.
-      body = (
-        <>
-          {AgentsBrowser ? (
-            <div data-fx-slot="AgentsBrowser" style={{ display: 'contents' }}><AgentsBrowser /></div>
-          ) : (
-            <NoEditorBody />
-          )}
-        </>
-      );
+      // 前L2 @forgeax/workbench via renderWorkbench (R4): agents browser variant.
+      body = <>{renderWorkbench ? renderWorkbench('agents') : <NoEditorBody />}</>;
       break;
     case 'files':
-      // 前L2 @forgeax/ai-workbench via detached.FilesBrowser (R4): file workbench variant.
-      body = (
-        <>
-          {FilesBrowser ? (
-            <div data-fx-slot="FilesBrowser" style={{ display: 'contents' }}><FilesBrowser /></div>
-          ) : (
-            <NoEditorBody />
-          )}
-        </>
-      );
+      // 前L2 @forgeax/workbench via renderWorkbench (R4): file workbench variant.
+      body = <>{renderWorkbench ? renderWorkbench('files') : <NoEditorBody />}</>;
       break;
     // DockShell panels popped into their own OS window (design §0.2.2 / #10).
     case 'console':
       body = <ConsolePanel />;
       break;
-    case 'tools':
+    case 'workbench':
       body = <Sidebar />;
       break;
     case 'main':
@@ -98,16 +70,13 @@ function DetachedPanelSurface({ surface }: Props): ReactElement {
     // visibility), so render the real surface directly via PanelRenderers — not the
     // in-shell <SurfaceAnchor> placeholder, which would leave the window empty.
     // 2026-06-30: 'preview'/'edit' merged into single 'viewport' panel.
+    case 'edit':
     case 'edit': // legacy backward compat
     case 'preview': // legacy backward compat
       body = (
         <div className="surface-region">
           <FatalBanner source="edit" />
-          {SceneEditor ? (
-            <div data-fx-slot="SceneEditor" style={{ display: 'contents' }}><SceneEditor viewportOnly={false} /></div>
-          ) : (
-            <NoEditorBody />
-          )}
+          {renderEdit ? renderEdit({ viewportOnly: false }) : <NoEditorBody />}
         </div>
       );
       break;

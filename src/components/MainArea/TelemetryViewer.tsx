@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useShellStore, type TelemetryRecord, type TelemetrySpan, type TelemetryLog } from '../../store';
+import { useAppStore, type TelemetryRecord, type TelemetrySpan, type TelemetryLog } from '../../store';
 import './TelemetryViewer.css';
 
 // TelemetryViewer — a dock panel for the observability (trace + log) feed.
@@ -122,8 +122,8 @@ export function filterAndSortLogs(logs: TelemetryLog[], level: LogLevel | 'all')
 
 /** store-connected 容器:读 telemetry slice + clear,委托给纯展示组件 {@link TelemetryView}。 */
 export function TelemetryViewer() {
-  const telemetry = useShellStore((s) => s.telemetry);
-  const clearTelemetry = useShellStore((s) => s.clearTelemetry);
+  const telemetry = useAppStore((s) => s.telemetry);
+  const clearTelemetry = useAppStore((s) => s.clearTelemetry);
   return <TelemetryView telemetry={telemetry} onClear={clearTelemetry} />;
 }
 

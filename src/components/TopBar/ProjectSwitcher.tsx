@@ -1,15 +1,13 @@
 // ProjectSwitcher (workspace/agentic-dir switcher) + its New/Open modal,
-// extracted from TopBar.tsx (§D). The workspace activator lives in the shared
-// lib/workspace-activate so first-run onboarding reuses the exact same flow.
+// extracted from TopBar.tsx (§D). activateWorkspace() lives here too since both
+// the switcher and the modal call it.
 import { useState, useEffect } from 'react';
 import { FolderTree, FolderOpen, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTranslation } from '@/i18n';
-import { useShellStore } from '../../store';
+import { useAppStore } from '../../store';
 import { confirmDialog, alertDialog } from '../../lib/dialog';
-import { setCurrentProject } from '../../lib/workbenches';
 import { activateWorkspace } from '../../lib/workspace-activate';
-import { reloadOnceForWorkspace } from '../../lib/workspace-reload';
 import { FsBrowser } from './FsBrowser';
 import './FsBrowser.css';
 import './TopBar.css';
@@ -40,10 +38,6 @@ export function ProjectSwitcher() {
       const j = (await r.json()) as { projects?: ProjectRow[]; current?: string };
       setProjects(j.projects ?? []);
       setCurrent(j.current ?? '');
-      // T7: propagate the active project id into the workbenches module so
-      // every localStorage read/write namespaces under
-      // `forgeax:project:${projId}:*`. Idempotent for the same id.
-      setCurrentProject(j.current ?? 'default');
     } catch { /* ignore */ }
   };
 
@@ -83,10 +77,8 @@ export function ProjectSwitcher() {
       // Engine restart + symlink swap done server-side; full page reload
       // re-binds all UI state (chat / agents / preview iframe) to the new
       // workspace. activateWorkspace() already updated localStorage.forgeax.pinnedSlug
-      // to the resolved activeSlug, seeded the workspace-changed dedup key, and
-      // waited for the engine to settle — so this reloads once, against a healthy
-      // engine (todo 005). reloadOnceForWorkspace() dedups vs the broadcast path.
-      reloadOnceForWorkspace();
+      // to the resolved activeSlug so the post-reload iframe points at a real game.
+      window.location.reload();
     } catch (e) {
       void alertDialog({ body: (e as Error).message });
       setSwitching(false);
@@ -132,10 +124,10 @@ export function ProjectSwitcher() {
               background: 'var(--bg-2)',
               zIndex: 1,
             }}
-            title={t('projectSwitcher.newProjectTooltip')}
+            title={t('projectSwitcher.newWorkspaceTooltip')}
           >
             <Plus size={12} style={{ marginRight: 4 }} />
-            <span className="tb-game-name">{t('projectSwitcher.newProject')}</span>
+            <span className="tb-game-name">{t('projectSwitcher.newWorkspace')}</span>
           </button>
           {projects.length === 0 && <div className="tb-game-empty">{t('projectSwitcher.empty')}</div>}
           {projects.map((p) => (
@@ -218,7 +210,7 @@ function NewProjectModal({ initialTab, onClose, onOpened }: NewProjectModalProps
       if (!r.ok || !j.ok) { setErr(j.error ?? `HTTP ${r.status}`); setBusy(false); return; }
       // 2) immediately activate the new workspace
       await activateWorkspace({ path: j.absDir ?? '', initIfMissing: true });
-      reloadOnceForWorkspace();
+      window.location.reload();
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   };
 
@@ -229,7 +221,7 @@ function NewProjectModal({ initialTab, onClose, onOpened }: NewProjectModalProps
       await activateWorkspace({ path: absPath, initIfMissing });
       onClose();
       onOpened(absPath);
-      reloadOnceForWorkspace();
+      window.location.reload();
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   };
 

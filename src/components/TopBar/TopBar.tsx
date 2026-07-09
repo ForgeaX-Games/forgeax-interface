@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo, useReducer } from 'react';
-import { WorkbenchSwitcher } from './WorkbenchSwitcher';
+import { WorkspaceTabs } from './WorkspaceTabs';
 import { SessionSwitcher } from './SessionSwitcher';
 import { ProjectSwitcher } from './ProjectSwitcher';
 import { GameSwitcher } from './GameSwitcher';
 import { AndroidPackageDialog, type AndroidPackageConfig } from './AndroidPackageDialog';
 import { IosPackageDialog, type IosPackageConfig } from './IosPackageDialog';
-import { STORAGE_KEYS } from '../../lib/storageKeys';
+import { STORAGE_KEYS, APP_EVENTS } from '../../lib/storageKeys';
 import { CircleGauge, LayoutGrid, Rocket, Settings, ShieldAlert, Check, X, Globe, Monitor, Laptop, Smartphone, Apple, ChevronDown, History, RefreshCw, Trash2, Loader2, Wrench, Eraser, UploadCloud, PlayCircle, FolderOpen, Copy, HelpCircle, Info, ChevronRight, CheckCircle2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -17,10 +17,11 @@ import {
 } from '../ui/dropdown-menu';
 import { useConfirmToast, type PendingConfirm } from '../../lib/useConfirmToast';
 import { useSurface, type UISurfaceActionDef } from '../../lib/surface';
-import { useShellStore } from '../../store';
-import { useCommand } from '../../core/app-shell';
-import { getWorkbenchClient } from '../../store';
-import { usePanelRenderers } from '../DockShell/panelRenderers';
+// SettingsDrawer is no longer rendered from here — its body migrated into
+// the SettingsPanel overlay (see App.tsx).  We still import its Section /
+// EnvField helpers from this file via SectionsRegister.tsx.
+import { useAppStore } from '../../store';
+import { isTauri } from '../../lib/platform/runtime';
 import { dashApi } from '../../lib/dashboard-api';
 import { alertDialog, confirmDialog } from '../../lib/dialog';
 import { listBusPlugins } from '../../lib/bus-api';
@@ -297,7 +298,7 @@ function ConfirmToastList({ confirms, onAck, onDeny }: ConfirmToastListProps) {
   );
 }
 
-// WorkbenchSwitcher + modeForWorkbench extracted → ./WorkbenchSwitcher (§D).
+// WorkspaceTabs + modeForWorkspace extracted → ./WorkspaceTabs (§D).
 
 interface EngineRootCandidate {
   path: string;
@@ -306,15 +307,23 @@ interface EngineRootCandidate {
   recommended: boolean;
 }
 
-export function TopBar() {
+export interface TopBarProps {
+  /**
+   * BANDAGE — when `true`, the TopBar omits the Forge agent entry region
+   * (the SessionSwitcher cluster, anchored as `data-testid="forge-entry"`).
+   * Drilled in from App.tsx for the standalone editor host
+   * (`packages/editor/standalone/main.tsx`). When `false` / omitted, the
+   * full studio TopBar renders unchanged. See plan-strategy section 2 D-4
+   * + D-9 and ADR-0018 for the bandage rationale and scheduled removal.
+   */
+  hideChatAndForge?: boolean;
+}
+
+export function TopBar({ hideChatAndForge }: TopBarProps = {}) {
   const { t } = useTranslation();
-  const hasChatSurface = Boolean(usePanelRenderers().panels?.chat);
-  const { mode, setMode } = useShellStore();
-  const openOverlay = useShellStore((s) => s.openOverlay);
-  const pinnedSlug = useShellStore((s) => s.pinnedSlug);
-  // Route the LayoutGrid button through the command bus so keyboard / palette /
-  // iframe all share one entry (was: window.dispatchEvent(APP_EVENTS.dockLayoutToggle)).
-  const dockLayoutToggle = useCommand<{ rect?: { top: number; bottom: number; left: number; right: number } }>('app.dock.layoutToggle');
+  const { mode, setMode } = useAppStore();
+  const openOverlay = useAppStore((s) => s.openOverlay);
+  const pinnedSlug = useAppStore((s) => s.pinnedSlug);
   const [packaging, setPackaging] = useState(false);
   const [packagingPlatform, setPackagingPlatform] = useState('');
   const [rebuildEngine, setRebuildEngine] = useState(false);
@@ -355,9 +364,10 @@ export function TopBar() {
     let cancelled = false;
     (async () => {
       try {
-        const j = await getWorkbenchClient().getEngineRoots();
+        const r = await fetch('/api/workbench/package/engine-roots');
+        const j = (await r.json()) as { roots?: EngineRootCandidate[] };
         if (cancelled) return;
-        const roots = (j.roots ?? []) as unknown as EngineRootCandidate[];
+        const roots = j.roots ?? [];
         setEngineRoots(roots);
         const recommended = roots.find((x) => x.recommended) ?? roots.find((x) => x.valid);
         if (recommended) setSelectedEngineRoot(recommended.path);
@@ -371,8 +381,8 @@ export function TopBar() {
     let slug = pinnedSlug;
     if (!slug) {
       try {
-        const j = await getWorkbenchClient().getActiveSlug();
-        slug = j.activeSlug ?? null;
+        const r = await fetch('/api/workbench/active-slug');
+        slug = ((await r.json()) as { activeSlug?: string | null }).activeSlug ?? null;
       } catch { /* fall through */ }
     }
     return slug ?? null;
@@ -412,13 +422,18 @@ export function TopBar() {
     setPackaging(true);
     setPackagingPlatform(platform);
     try {
-      const j = await getWorkbenchClient().packageGame(slug, {
-        targetPlatform: platform,
-        rebuildEngine,
-        forceRebuild: false,
-        engineRoot: selectedEngineRoot,
-        ...(cfg ?? {}),
+      const r = await fetch(`/api/workbench/games/${slug}/package`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetPlatform: platform,
+          rebuildEngine,
+          forceRebuild: false,
+          engineRoot: selectedEngineRoot,
+          ...(cfg ?? {}),
+        }),
       });
+      const j = (await r.json()) as Record<string, unknown>;
 
       // Async job (Windows / native platforms)
       if (j.async && typeof j.jobId === 'string') {
@@ -430,7 +445,7 @@ export function TopBar() {
       }
 
       // Synchronous result (Web)
-      if (!j.ok) {
+      if (!r.ok || !j.ok) {
         await alertDialog({
           title: t('topbar.package.failed'),
           body: <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{String(j.detail || j.error || t('topbar.package.unknownError'))}</pre>,
@@ -463,7 +478,8 @@ export function TopBar() {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise(r => setTimeout(r, INTERVAL));
       try {
-        const job = (await getWorkbenchClient().pollPackageJob(jobId)) as unknown as {
+        const r = await fetch(`/api/workbench/package/jobs/${jobId}`);
+        const job = (await r.json()) as {
           status: string;
           phase: string;
           logTail: string[];
@@ -512,11 +528,12 @@ export function TopBar() {
     setPackagingPlatform(platform);
     setShowHistory(false);
     try {
-      const j = await getWorkbenchClient().packageGame(slug, {
-        targetPlatform: platform,
-        forceRebuild: true,
-        engineRoot: selectedEngineRoot,
+      const r = await fetch(`/api/workbench/games/${slug}/package`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetPlatform: platform, forceRebuild: true, engineRoot: selectedEngineRoot }),
       });
+      const j = (await r.json()) as Record<string, unknown>;
       if (j.async && typeof j.jobId === 'string') {
         setShowProgress(true);
         setProgressPhase('starting');
@@ -552,17 +569,21 @@ export function TopBar() {
 
     setCleaning(true);
     try {
-      const j = await getWorkbenchClient().cleanPackage();
+      const r = await fetch('/api/workbench/package/clean', { method: 'POST' });
+      const j = (await r.json()) as {
+        ok: boolean;
+        totalBytes: number;
+        targets: Array<{ path: string; existed: boolean; removed: boolean; bytes: number; error?: string }>;
+      };
       const fmtSize = (b: number): string => {
         if (b <= 0) return '0 B';
         const u = ['B', 'KB', 'MB', 'GB']; let i = 0; let n = b;
         while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
         return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${u[i]}`;
       };
-      const anyError = j.targets.some((tg) => Boolean(tg.error));
       setCleaning(false);
       await alertDialog({
-        title: anyError ? t('topbar.package.cleanPartial') : t('topbar.package.cleanDone'),
+        title: j.ok ? t('topbar.package.cleanDone') : t('topbar.package.cleanPartial'),
         body: (
           <div style={{ fontSize: 13, lineHeight: 1.6 }}>
             <div>{t('topbar.package.cleanFreed', { size: fmtSize(j.totalBytes) })}</div>
@@ -647,11 +668,19 @@ export function TopBar() {
     <>
     <div className="topbar">
       <div className="tb-left" data-tour-id="tb-left">
-        {/* Decorative macOS-style traffic dots — 2026-07-08 removed.
-           Browser: the browser window itself already has real traffic lights
-           at the OS level, so drawing our own inside the app chrome is a
-           visual dup. Tauri: OS draws the real (functional) ones, same dup.
-           Neither host needs fake dots; they were a P4.65 skin holdover. */}
+        {/* Decorative macOS-style traffic dots are a WEB-form aesthetic. In the
+           Tauri desktop app the OS draws the real (functional) traffic lights,
+           so drawing our own here duplicates them — render only in the browser. */}
+        {!isTauri() && (
+          <>
+            <div className="tb-dots-cluster">
+              <span className="dot r" />
+              <span className="dot y" />
+              <span className="dot g" />
+            </div>
+            <TbDivider />
+          </>
+        )}
         {/* 2026-06-02 — removed the standalone "+" (NewMenu): its "新建 game" /
             "新建 session" duplicated the per-selector create actions. Each
             selector now owns its own pinned "新建 X": workspace → ProjectSwitcher,
@@ -659,8 +688,13 @@ export function TopBar() {
         <ProjectSwitcher />
         <TbDivider />
         <GameSwitcher />
-        {/* Forge agent entry region appears only when the host injects chat. */}
-        {hasChatSurface && (
+        {/* Forge agent entry region — the SessionSwitcher drives chat-session
+            picking for the Forge agent. Anchored with data-testid="forge-entry"
+            (plan-strategy section 2 D-9: testid is the i18n / theme-stable
+            selector). When hideChatAndForge=true the standalone editor host
+            (packages/editor/standalone/) renders the App shell without this
+            cluster. */}
+        {!hideChatAndForge && (
           <span data-testid="forge-entry" style={{ display: 'contents' }}>
             <TbDivider />
             <SessionSwitcher />
@@ -668,7 +702,7 @@ export function TopBar() {
         )}
       </div>
 
-      <WorkbenchSwitcher setMode={setMode} />
+      <WorkspaceTabs setMode={setMode} />
 
       <div className="tb-right" data-tour-id="tb-right">
         <DashboardToggle />
@@ -679,7 +713,9 @@ export function TopBar() {
           title={t('topbar.layout.tooltip')}
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
-            void dockLayoutToggle({ rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right } });
+            window.dispatchEvent(new CustomEvent(APP_EVENTS.dockLayoutToggle, {
+              detail: { rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right } },
+            }));
           }}
         >
           <LayoutGrid size={16} />
@@ -1028,8 +1064,9 @@ function PackageHistoryDialog({ onClose, onRetry, t }: {
 
   const fetchHistory = async () => {
     try {
-      const j = await getWorkbenchClient().listPackageHistory();
-      setRecords((j.records ?? []) as unknown as HistoryRecord[]);
+      const r = await fetch('/api/workbench/package/history');
+      const j = (await r.json()) as { records: HistoryRecord[] };
+      setRecords(j.records ?? []);
     } catch { /* empty */ }
     setLoading(false);
   };
@@ -1038,7 +1075,7 @@ function PackageHistoryDialog({ onClose, onRetry, t }: {
 
   const handleDelete = async (id: string) => {
     try {
-      await getWorkbenchClient().deletePackageHistory(id, { clean: true });
+      await fetch(`/api/workbench/package/history/${id}?clean=1`, { method: 'DELETE' });
       setRecords(prev => prev.filter(r => r.id !== id));
     } catch { /* ignore */ }
   };
@@ -1095,9 +1132,9 @@ function PackageHistoryDialog({ onClose, onRetry, t }: {
 }
 
 function DashboardToggle() {
-  const dashboardOpen = useShellStore((s) => s.activeOverlay === 'dashboard');
-  const openOverlay = useShellStore((s) => s.openOverlay);
-  const closeOverlay = useShellStore((s) => s.closeOverlay);
+  const dashboardOpen = useAppStore((s) => s.activeOverlay === 'dashboard');
+  const openOverlay = useAppStore((s) => s.openOverlay);
+  const closeOverlay = useAppStore((s) => s.closeOverlay);
   return (
     <button
       className={`tb-icon-btn${dashboardOpen ? ' active' : ''}`}

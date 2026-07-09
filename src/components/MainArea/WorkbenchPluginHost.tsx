@@ -1,9 +1,10 @@
 import type { ReactElement } from 'react';
 import { MoveLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n';
-import { useShellStore } from '../../store';
+import { useAppStore } from '../../store';
 import type { BusPluginInfo } from '../../lib/bus-api';
 import { usePluginManifest } from '../../lib/use-plugin-manifest';
+import { WorkbenchAgentPicker } from './WorkbenchAgentPicker';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
 
 // MainArea-side workbench plugin host. Standalone-iframe plugins are now owned
@@ -35,11 +36,10 @@ export function pluginRendersInSidebarLeftPane(pluginInfo?: BusPluginInfo | null
  *  picker's preferredAgent. */
 export function WorkbenchPluginHost(): ReactElement | null {
   const { t } = useTranslation();
-  const pluginId = useShellStore((s) => s.workbenchExpandedPluginId);
-  const setPluginId = useShellStore((s) => s.setWorkbenchExpandedPluginId);
+  const pluginId = useAppStore((s) => s.workbenchExpandedPluginId);
+  const setPluginId = useAppStore((s) => s.setWorkbenchExpandedPluginId);
   const manifest = usePluginManifest(pluginId ?? '');
-  const { workbenchPanels, slots } = usePanelRenderers();
-  const CornerAgentPicker = slots?.CornerAgentPicker;
+  const { workbenchPanels } = usePanelRenderers();
 
   if (!pluginId) return null;
 
@@ -49,7 +49,13 @@ export function WorkbenchPluginHost(): ReactElement | null {
     </button>
   );
 
-  const preferredAgentPluginId = manifest && manifest !== 'loading' ? manifest.workbench?.preferredAgent : undefined;
+  const picker = (
+    <WorkbenchAgentPicker
+      preferredAgentPluginId={
+        manifest && manifest !== 'loading' ? manifest.workbench?.preferredAgent : undefined
+      }
+    />
+  );
 
   // Standalone-iframe plugins are owned by CenterPluginLayer (keep-alive).
   if (manifest && manifest !== 'loading' && manifest.entry?.standalone) return null;
@@ -62,18 +68,9 @@ export function WorkbenchPluginHost(): ReactElement | null {
   if (InlinePanel) {
     return (
       <div className="wb-plugin-host">
-        <div className="wb-plugin-host-bar">
-          {back}
-          {CornerAgentPicker && (
-            <div data-fx-slot="CornerAgentPicker" style={{ display: 'contents' }}>
-              <CornerAgentPicker preferredAgentPluginId={preferredAgentPluginId} />
-            </div>
-          )}
-        </div>
+        <div className="wb-plugin-host-bar">{back}{picker}</div>
         <div className="wb-plugin-host-body" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div data-fx-slot={`workbenchPanels:${pluginId}`} style={{ display: 'contents' }}>
-            <InlinePanel />
-          </div>
+          <InlinePanel />
         </div>
       </div>
     );
