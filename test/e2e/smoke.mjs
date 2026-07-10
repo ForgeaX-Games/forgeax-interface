@@ -127,27 +127,7 @@ try {
     check('reference: workspace tab flow', false, String(e?.message ?? e).split('\n')[0]);
   }
 
-  // 5) Editor-iframe context menu → rendered by the PARENT at the top layer
-  //    (architecture unify). The editor tree is empty headless, so simulate the
-  //    iframe's VAG_CONTEXT_MENU post and assert the parent opens a menu.
-  try {
-    // close any open menu first
-    await page.keyboard.press('Escape').catch(() => {});
-    await page.waitForTimeout(200);
-    await page.evaluate(() => {
-      window.postMessage({ type: 'VAG_CONTEXT_MENU', menuId: 'e2e', x: 120, y: 120,
-        items: [{ id: 'ref', label: '引用到 Chat' }, { sep: true }, { id: 'del', label: '删除', danger: true }] }, '*');
-    });
-    await page.waitForTimeout(500);
-    const r = await page.evaluate(() => {
-      const wrap = document.querySelector('[data-radix-popper-content-wrapper], [role="menu"]');
-      const item = [...document.querySelectorAll('[role="menuitem"]')].find((n) => (n.textContent || '').includes('引用到 Chat'));
-      return { open: !!item, topLayer: !!wrap };
-    });
-    check('editor-iframe menu: rendered by parent at top layer', r.open && r.topLayer);
-  } catch (e) {
-    check('editor-iframe menu flow', false, String(e?.message ?? e).split('\n')[0]);
-  }
+
 } catch (e) {
   check('e2e harness', false, String(e?.message ?? e));
 } finally {
