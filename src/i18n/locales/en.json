@@ -125,11 +125,15 @@
       "setActive": "Set as active",
       "inUse": "In use",
       "switched": "Switched model source: {{source}}",
+      "native": {
+        "title": "ForgeaX Kernel (native)",
+        "hint": "The built-in ForgeaX kernel — the default, flagship path. Runs in-process and resolves whatever model credential you configure below (a LiteLLM proxy, or a direct ANTHROPIC / OPENAI / GEMINI key).",
+        "badge": "Native",
+        "useReason": "Configure a model credential first — a LiteLLM proxy, or an ANTHROPIC / OPENAI / GEMINI key."
+      },
       "api": {
         "title": "LiteLLM Proxy",
-        "hint": "Point at your LiteLLM proxy: set Base URL + Key. Both the model catalog and the native ForgeaX kernel route through it (the key is mirrored to ANTHROPIC_* so forgeax-core speaks to the proxy).",
-        "useLabel": "Use LiteLLM for model calls",
-        "useReason": "Enter and save both the LiteLLM Base URL and Key first"
+        "hint": "Point at your LiteLLM proxy: set Base URL + Key. Both the model catalog and the native ForgeaX kernel route through it (the key is mirrored to ANTHROPIC_* so forgeax-core speaks to the proxy)."
       },
       "cli": {
         "title": "Local CLI",

@@ -125,11 +125,15 @@
       "setActive": "设为使用",
       "inUse": "当前使用",
       "switched": "已切换模型来源：{{source}}",
+      "native": {
+        "title": "ForgeaX 内核(原生)",
+        "hint": "内置的 ForgeaX 内核 —— 默认、旗舰对话路径。进程内运行,使用你在下方配置的任意模型凭据(LiteLLM 代理,或 ANTHROPIC / OPENAI / GEMINI 直连 key)。",
+        "badge": "原生",
+        "useReason": "请先配置一个模型凭据 —— LiteLLM 代理,或 ANTHROPIC / OPENAI / GEMINI key。"
+      },
       "api": {
         "title": "LiteLLM 代理",
-        "hint": "指向你的 LiteLLM 代理：填 Base URL 与 Key。模型目录和原生 ForgeaX 内核都走它（Key 会镜像到 ANTHROPIC_*，让 forgeax-core 直连该代理）。",
-        "useLabel": "用 LiteLLM 调用模型",
-        "useReason": "先填写并保存 LiteLLM 的 Base URL 与 Key"
+        "hint": "指向你的 LiteLLM 代理：填 Base URL 与 Key。模型目录和原生 ForgeaX 内核都走它（Key 会镜像到 ANTHROPIC_*，让 forgeax-core 直连该代理）。"
       },
       "cli": {
         "title": "本地 CLI",
