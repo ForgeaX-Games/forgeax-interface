@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation, changeLanguage, getLocale, type Locale } from '@/i18n';
 import { useShellStore } from '../../store';
+import { useHost } from '../../core/app-shell';
 import { applyModelRoute } from '../../lib/model-route';
 import { listModelsWithLive } from '../../lib/model-config';
 import { activateWorkspace } from '../../lib/workspace-activate';
@@ -28,6 +29,8 @@ import {
   type ConnectSelected,
 } from './connect-selection';
 import { isUserExistingGame, resolveProjectName, toGameSlug } from './project-name';
+import { latchTourShellDefaults, prepareTourShell } from './prepareTourShell';
+import { loadWorkbenchList, subscribeWorkbenchList } from '../../lib/workbenches';
 import './Onboarding.css';
 
 /** Native OS folder dialog via the local Studio server (same machine as the UI). */
@@ -196,6 +199,7 @@ async function patchEnv(patch: Record<string, string>): Promise<void> {
 
 export function OnboardingController() {
   const { t } = useTranslation();
+  const host = useHost();
   const openOverlay = useShellStore((s) => s.openOverlay);
   const switchGame = useShellStore((s) => s.switchGame);
 
@@ -241,6 +245,19 @@ export function OnboardingController() {
   // chat empty state (ChatPanel), not here.
   const [tourIdx, setTourIdx] = useState(0);
   const [tourActive, setTourActive] = useState(() => !loadOnboarding().done.tour);
+
+  // Scene tab + default dock layout so tour anchors (sidebar/preview/chat) exist.
+  // Re-apply when workbench list notifies with a non-scene activeId — home mount
+  // races ProjectSwitcher.setCurrentProject, which can revive a stale 'ai' tab
+  // from the real project namespace after our first prepare.
+  useEffect(() => {
+    if (phase !== 'home' || !tourActive) return;
+    prepareTourShell(host);
+    return subscribeWorkbenchList(() => {
+      if (loadWorkbenchList().activeId === 'scene') return;
+      prepareTourShell(host);
+    });
+  }, [phase, tourActive, host]);
 
   const setPhase = useCallback((p: OnboardingPhase) => {
     setPhaseState(p);
@@ -441,6 +458,8 @@ export function OnboardingController() {
   // fresh and reads the active game — no full reload needed for the game step).
   const enterHomeWith = useCallback(async (slug: string) => {
     if (slug) { try { await switchGame(slug); } catch { /* pin best-effort */ } }
+    // Latch Scene + default layout intent before shell mounts (onReady race).
+    if (!loadOnboarding().done.tour) latchTourShellDefaults();
     setPhase('home');
   }, [switchGame, setPhase]);
 
