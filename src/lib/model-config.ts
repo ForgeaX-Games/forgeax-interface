@@ -104,6 +104,25 @@ export async function listModelsWithMeta(providerId?: string | null): Promise<Mo
   return { models: data.models ?? [], driver: data.driver };
 }
 
+/** Full `list_models` payload including the live-probe summary. Use this when
+ *  connectivity must NOT treat disk-only fallback as success (onboarding). */
+export async function listModelsWithLive(
+  providerId?: string | null,
+): Promise<{
+  models: ModelCatalogEntry[];
+  live: { source: string; error?: string; ids: number };
+}> {
+  const args = providerId ? [providerId] : [];
+  const data = await callQuery<{
+    models: ModelCatalogEntry[];
+    live: { source: string; error?: string; ids: number };
+  }>("list_models", args);
+  return {
+    models: data.models ?? [],
+    live: data.live ?? { source: "disabled", ids: 0 },
+  };
+}
+
 /** 读 agent.json::models.model —— **不**经 AGENT_DEFAULTS deep-merge，
  *  能区分"用户没配"（chain=[]、raw=null）和"显式空 chain"（chain=[]、raw=[]）。 */
 export async function getAgentModel(sid: string, agentPath: string): Promise<AgentModelState> {
