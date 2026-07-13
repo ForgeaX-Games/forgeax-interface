@@ -715,6 +715,15 @@ export function DockRegion({ region }: { region: DockRegionId }) {
     // dockview tab drags, so this is safe).
     const on = (): void => document.documentElement.classList.add('fx-dock-dragging');
     const off = (): void => document.documentElement.classList.remove('fx-dock-dragging');
+    // Only flag a drag as a DOCKVIEW tab/group drag when it originates in a tab
+    // strip. In-panel HTML5 drags (e.g. Hierarchy entity rows being re-parented)
+    // must NOT set fx-dock-dragging, or the CSS above would kill pointer-events on
+    // the very drop targets that drag needs (the tree rows). Tab drags always
+    // start inside `.dv-tabs-and-actions-container` (same anchor as onPointerDown).
+    const onDragStart = (e: DragEvent): void => {
+      const t = e.target as Element | null;
+      if (t && t.closest('.dv-tabs-and-actions-container')) on();
+    };
     // Floating-GROUP moves (dragging the window's tab bar) are POINTER-based, not
     // HTML5 dragstart — so catch pointerdown on the tab bar (`.dv-tabs-and-actions-
     // container`) too, else a floating window can't be merged back over an iframe
@@ -765,13 +774,13 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       }, 0);
     };
     window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('dragstart', on, true);
+    window.addEventListener('dragstart', onDragStart, true);
     window.addEventListener('pointerup', off, true);
     window.addEventListener('dragend', onDragEnd, true);
     window.addEventListener('drop', off, true);
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
-      window.removeEventListener('dragstart', on, true);
+      window.removeEventListener('dragstart', onDragStart, true);
       window.removeEventListener('pointerup', off, true);
       window.removeEventListener('dragend', onDragEnd, true);
       window.removeEventListener('drop', off, true);

@@ -105,11 +105,16 @@
 .tour-btn-ghost:hover:not(:disabled) { color: var(--text-secondary, rgba(255, 255, 255, 0.62)); }
 .tour-btn-primary {
   background: var(--primary, #d4ff48);
-  color: var(--color-text-on-bright-primary, #12161c);
+  color: var(--color-text-on-bright-primary, #000000);
   border: none;
-  font-weight: 600;
+  font-weight: 500;
 }
-.tour-btn-primary:hover { filter: brightness(1.05); }
+.tour-btn-primary:hover:not(:disabled),
+.tour-btn-primary:active:not(:disabled),
+.tour-btn-primary:focus-visible:not(:disabled) {
+  background: var(--color-brand-primary-hover, var(--primary, #d4ff48));
+  color: var(--color-text-on-bright-primary, #000000);
+}
 
 @keyframes tour-fade-in {
   from { opacity: 0; }
