@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { listExtensionsShared, type ExtensionInfo } from './extension-api';
 
-/** A plugin has two identities: the canonical manifest id (`@forgeax-plugin/
+/** A plugin has two identities: the canonical manifest id (`@forgeax-extension/
  *  wb-observatory`, the bus SSOT) and the short workbench id (`wb-observatory`,
  *  the UI-facing alias). Callers open plugins by either form — the sidebar
  *  passes the manifest id, while `workbench.open_plugin` / deep links often pass
  *  the workbench id. Resolution must accept both, else opening by the alias
- *  never finds the manifest and the panel falls to "Could not load plugin". */
+ *  never finds the manifest and the panel falls to "Could not load plugin".
+ *  A third accepted form: persisted dock layouts written before the Extension
+ *  rename (ADR 0025 M3) carry `@forgeax-plugin/*` in the user's localStorage —
+ *  normalize at this single match point (same sanctioned compat exception as
+ *  the kernel scanner's id normalize). */
 export function manifestMatchesId(m: ExtensionInfo, id: string): boolean {
-  return m.id === id || m.workbench?.id === id;
+  const norm = id.replace(/^@forgeax-plugin\//, '@forgeax-extension/');
+  return m.id === norm || m.workbench?.id === norm;
 }
 
 /** Fetches the bus manifest for a single plugin id, with retry/polling so a

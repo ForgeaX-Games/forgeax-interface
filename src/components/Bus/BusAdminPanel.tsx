@@ -1877,12 +1877,12 @@ function PluginDetail({
   const hasAgentLink = p.kind === 'agent';
   const hasWbLink = p.kind === 'workbench' && !!wb;
   const hasKindLink = !hasAgentLink && !hasWbLink;
-  // The id IS the npm package; daemon scans packages/marketplace/plugins/<dir>
+  // The id IS the npm package; daemon scans packages/marketplace/extensions/<dir>
   // where dir is the trailing segment after the @forgeax-plugin/ scope.
   const dir = p.id.startsWith('@forgeax-plugin/')
     ? p.id.slice('@forgeax-plugin/'.length)
     : p.id;
-  const manifestHint = `packages/marketplace/plugins/${dir}/manifest.json`;
+  const manifestHint = `packages/marketplace/extensions/${dir}/manifest.json`;
   // P4.95 — manifest hint pill becomes click-to-copy. Parallel move to P4.94
   // (entry.frontend lime pill → deep-link button): the cyan manifest path was
   // information-only for 4 weeks; now one click copies it to the clipboard so
@@ -2042,14 +2042,14 @@ function PluginDetail({
                 type="button"
                 className="ba-detail-code ba-detail-entry ba-detail-entry-link"
                 onClick={(e) => { e.stopPropagation(); onOpenWbTab(); }}
-                title={t('bus.entryOpenWbTitle', { wbId: wb.id, path: `packages/marketplace/plugins/${dir}/${p.entry.frontend.replace(/^\.\//, '')}` })}
+                title={t('bus.entryOpenWbTitle', { wbId: wb.id, path: `packages/marketplace/extensions/${dir}/${p.entry.frontend.replace(/^\.\//, '')}` })}
               >
                 {p.entry.frontend}
               </button>
             ) : (
               <code
                 className="ba-detail-code ba-detail-entry"
-                title={`packages/marketplace/plugins/${dir}/${p.entry.frontend.replace(/^\.\//, '')}`}
+                title={`packages/marketplace/extensions/${dir}/${p.entry.frontend.replace(/^\.\//, '')}`}
               >
                 {p.entry.frontend}
               </code>

@@ -54,12 +54,12 @@ function buildIframeSrc(
   if (!sa) return null;
   // Three address modes:
   //   1. embeddedAlso=true — plugin ships a built dist served by the host at
-  //      /plugins/<id>/. Prefer this when set: the studio doesn't launch the
+  //      /extensions/<id>/. Prefer this when set: the studio doesn't launch the
   //      plugin's own dev server, and declared `port` may collide with other
   //      services (e.g. wb-character's 15173 collides with the engine).
   //   2. plugin declares `port` — use http://<host>:<port>/<readyProbe?>
-  //   3. plugin only declares `start` — fall back to /plugins/<id>/.
-  const embeddedSrc = `/plugins/${encodeURIComponent(plugin.id.replace(/^@[^/]+\//, ''))}/`;
+  //   3. plugin only declares `start` — fall back to /extensions/<id>/.
+  const embeddedSrc = `/extensions/${encodeURIComponent(plugin.id.replace(/^@[^/]+\//, ''))}/`;
   let base: string;
   if (sa.embeddedAlso === true) base = embeddedSrc;
   else if (typeof sa.port === 'number') {

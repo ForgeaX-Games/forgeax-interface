@@ -20,9 +20,9 @@ import './Sidebar.css';
 // MainArea path in `WorkbenchExtensionHost.tsx`. Anything without an iframe
 // surface falls through to `ExtensionPlaceholder`.
 // Cross-references:
-//   - manifest sample: packages/marketplace/plugins/wb-character/forgeax-plugin.json
+//   - manifest sample: packages/marketplace/extensions/wb-character/forgeax-plugin.json
 //   - host helper:     extensionRendersInSidebarLeftPane (MainArea/WorkbenchExtensionHost)
-//   - server route:    packages/server/src/main.ts → /plugins/<id>/* serveStatic
+//   - server route:    packages/server/src/main.ts → /extensions/<id>/* serveStatic
 
 // P2.6a — the WORKBENCH icons row is two segments stitched together:
 //
@@ -497,7 +497,7 @@ function ExtensionPlaceholder({ entry, siblingCount }: { entry: BusEntry; siblin
   const dir = m.id.startsWith('@forgeax-plugin/')
     ? m.id.slice('@forgeax-plugin/'.length)
     : m.id;
-  const manifestPath = `packages/marketplace/plugins/${dir}/manifest.json`;
+  const manifestPath = `packages/marketplace/extensions/${dir}/manifest.json`;
   const openInBus = () => {
     emitDeepLink('bus:expand-plugin', m.id);
     openSettingsStore('settings', 'plugins');
