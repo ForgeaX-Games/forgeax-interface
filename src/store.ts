@@ -301,11 +301,11 @@ export interface AppState {
   // like wb-character), tile click sets this slot instead of workbenchTab.
   // MainArea/WorkbenchMode.tsx early-returns a full-bleed plugin host when
   // this is non-null; null = show the default workbench gallery / editor.
-  workbenchExpandedPluginId: string | null;
-  setWorkbenchExpandedPluginId: (id: string | null) => void;
+  workbenchExpandedExtensionId: string | null;
+  setWorkbenchExpandedExtensionId: (id: string | null) => void;
 
   // 2026-06 (architecture review §B3) — workbenchTab (sidebar nav) and
-  // workbenchExpandedPluginId (center takeover) used to be set by separate
+  // workbenchExpandedExtensionId (center takeover) used to be set by separate
   // calls on every "open a plugin" path; missing one desynced the sidebar
   // left pane from the center (the left-pane-blank class of bug). openWorkbench
   // is the ONE atomic action every open path funnels through, so the two fields
@@ -323,7 +323,7 @@ export interface AppState {
   // keep-alive) or `floating` (present here, hosted in a Tauri WebviewWindow).
   // While floating, the main window MUST NOT also render its keep-alive iframe
   // (that would spin up a second 3D engine / WS for the same surface), so
-  // KeepAlivePluginIframes filters these out.
+  // KeepAliveExtensionIframes filters these out.
   //
   // Browser form: detach is a no-op (WindowManager.canDetach() === false), so
   // this map stays empty and behavior is unchanged.
@@ -332,9 +332,9 @@ export interface AppState {
   redockSurface: (d: import('./lib/platform').SurfaceDescriptor) => Promise<void>;
   /** Plugin IDs currently open as top-level DockShell panels (so Sidebar knows
    *  to hide their keep-alive iframes to avoid double-rendering). */
-  dockedPlugins: Set<string>;
-  addDockedPlugin: (id: string) => void;
-  removeDockedPlugin: (id: string) => void;
+  dockedExtensions: Set<string>;
+  addDockedExtension: (id: string) => void;
+  removeDockedExtension: (id: string) => void;
   /** Internal: called by the WindowManager close listener (see main.tsx) when
    *  the user closes a detached window — redocks without re-closing the window. */
   markSurfaceDocked: (key: string) => void;

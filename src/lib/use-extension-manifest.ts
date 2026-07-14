@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listBusPluginsShared, type BusPluginInfo } from './bus-api';
+import { listExtensionsShared, type ExtensionInfo } from './extension-api';
 
 /** A plugin has two identities: the canonical manifest id (`@forgeax-plugin/
  *  wb-observatory`, the bus SSOT) and the short workbench id (`wb-observatory`,
@@ -7,7 +7,7 @@ import { listBusPluginsShared, type BusPluginInfo } from './bus-api';
  *  passes the manifest id, while `workbench.open_plugin` / deep links often pass
  *  the workbench id. Resolution must accept both, else opening by the alias
  *  never finds the manifest and the panel falls to "Could not load plugin". */
-export function manifestMatchesId(m: BusPluginInfo, id: string): boolean {
+export function manifestMatchesId(m: ExtensionInfo, id: string): boolean {
   return m.id === id || m.workbench?.id === id;
 }
 
@@ -22,11 +22,11 @@ export function manifestMatchesId(m: BusPluginInfo, id: string): boolean {
  *    MAX_ATTEMPTS (the plugin genuinely ships no standalone entry — e.g. the
  *    inline wb-plugin-author panel — so there is nothing more to wait for).
  *
- *  Extracted from WorkbenchPluginHost so the keep-alive CenterPluginLayer can
+ *  Extracted from WorkbenchExtensionHost so the keep-alive CenterExtensionLayer can
  *  share one implementation (single source of truth for manifest resolution).
  */
-export function usePluginManifest(pluginId: string): BusPluginInfo | null | 'loading' {
-  const [info, setInfo] = useState<BusPluginInfo | null | 'loading'>('loading');
+export function useExtensionManifest(pluginId: string): ExtensionInfo | null | 'loading' {
+  const [info, setInfo] = useState<ExtensionInfo | null | 'loading'>('loading');
   useEffect(() => {
     if (!pluginId) {
       setInfo(null);
@@ -42,7 +42,7 @@ export function usePluginManifest(pluginId: string): BusPluginInfo | null | 'loa
     const tick = async () => {
       attempts += 1;
       try {
-        const res = await listBusPluginsShared({ force: attempts > 1 });
+        const res = await listExtensionsShared({ force: attempts > 1 });
         if (cancelled) return;
         const found = res.items.find((p) => manifestMatchesId(p, pluginId)) ?? null;
         setInfo(found);
