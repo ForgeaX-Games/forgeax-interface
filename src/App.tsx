@@ -5,7 +5,7 @@
 // and renders the fixed chrome (TopBar / DockShell / SurfaceKeepAliveLayer /
 // GlobalStatusBar / overlays / modals). All side effects — postMessage
 // listeners, editor-ref pills, focus-panel routing, builtin actions — live in
-// plugins now (see core/plugins/*). This file only owns:
+// plugins now (see core/extensions/*). This file only owns:
 //   - global shortcut binding (reads store; not a plugin concern)
 //   - reading store flags for shell chrome data-attrs
 //   - overlays / status-feeds slot rendering (via host.panels)
