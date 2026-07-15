@@ -373,7 +373,7 @@ export function buildShortcuts(): ShortcutDef[] {
     {
       combo: 'Ctrl+Shift+0',
       group: 'overlay',
-      label: t('shortcuts.openPlugins'),
+      label: t('shortcuts.openExtensions'),
       match: (e) => mod(e) && e.shiftKey && (e.code === 'Digit0' || e.key === '0' || e.key === ')'),
       run: () => { store().openOverlay('settings', 'plugins'); return true; },
     },
