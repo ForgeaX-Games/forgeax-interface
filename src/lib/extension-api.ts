@@ -1,6 +1,3 @@
-import type { PluginSourceDescriptor } from '@forgeax/types';
-export { pluginSourceDisplayPath } from '@forgeax/types';
-
 // P2.6a — typed client for /api/bus/* endpoints.
 // Mirrors the slim shape returned by packages/server/src/api/bus.ts so the UI
 // never depends on full ExtensionManifest fields server-side never exposes.
@@ -118,8 +115,6 @@ export interface ExtensionInfo {
   entry?: ExtensionEntryInfo;
   /** kind=agent 才有：统一命名。title=「中文职能·英文名」，sub=灰字英文职能。 */
   naming?: { title: string; sub: string };
-  /** Safe filesystem origin — UI must not reconstruct plugins/<id>. */
-  source: PluginSourceDescriptor;
 }
 
 export interface ExtensionListResponse {
@@ -136,6 +131,21 @@ export function pickLang(
   if (!text) return fallback;
   if (typeof text === 'string') return text;
   return text[lang] ?? text.zh ?? text.en ?? fallback;
+}
+
+/**
+ * Flat L0 marketplace path hint for BusAdminPanel / Sidebar detail rows.
+ * Normalizes `@forgeax-extension/<slug>` and legacy `@forgeax-plugin/<slug>`
+ * to `packages/marketplace/extensions/<slug>/forgeax-extension.json`.
+ *
+ * Deliberately local (id → path): no kind bucket, no PluginSourceDescriptor /
+ * plugin-layout dependency (those were reverted with the kind-layout experiment).
+ */
+export function extensionManifestPathHint(id: string): string {
+  const slug = id
+    .replace(/^@forgeax-extension\//, '')
+    .replace(/^@forgeax-plugin\//, '');
+  return `packages/marketplace/extensions/${slug}/forgeax-extension.json`;
 }
 
 export async function listExtensions(kind?: string): Promise<ExtensionListResponse> {

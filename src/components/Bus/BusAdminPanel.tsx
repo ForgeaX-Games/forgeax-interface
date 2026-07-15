@@ -88,7 +88,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, type TFunction } from '@/i18n';
-import { listExtensions, pickLang, pluginSourceDisplayPath, type ExtensionInfo } from '../../lib/extension-api';
+import { extensionManifestPathHint, listExtensions, pickLang, type ExtensionInfo } from '../../lib/extension-api';
 import { dashApi, type ProviderHealth } from '../../lib/dashboard-api';
 import { useShellStore } from '../../store';
 import { emitDeepLink, useDeepLink } from '../../lib/deep-link-bus';
@@ -1877,9 +1877,10 @@ function PluginDetail({
   const hasAgentLink = p.kind === 'agent';
   const hasWbLink = p.kind === 'workbench' && !!wb;
   const hasKindLink = !hasAgentLink && !hasWbLink;
-  // Origin metadata from the bus/registry — never reconstruct plugins/<id>.
-  const manifestHint = pluginSourceDisplayPath(p.source);
-  const extensionRootHint = manifestHint.replace(/\/forgeax-plugin\.json$/, '');
+  // Flat L0 path hint from id — see extensionManifestPathHint (no kind bucket /
+  // PluginSourceDescriptor; those were reverted with the kind-layout experiment).
+  const manifestHint = extensionManifestPathHint(p.id);
+  const extensionRootHint = manifestHint.replace(/\/forgeax-extension\.json$/, '');
   // P4.95 — manifest hint pill becomes click-to-copy. Parallel move to P4.94
   // (entry.frontend lime pill → deep-link button): the cyan manifest path was
   // information-only for 4 weeks; now one click copies it to the clipboard so

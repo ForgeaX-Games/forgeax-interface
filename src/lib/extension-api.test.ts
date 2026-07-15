@@ -8,7 +8,7 @@
  * raised in DockShell's boot effect before the fix.
  */
 import { describe, it, expect, afterEach } from 'bun:test';
-import { listExtensions, pluginSourceDisplayPath } from './extension-api';
+import { extensionManifestPathHint, listExtensions } from './extension-api';
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -39,18 +39,24 @@ describe('listExtensions — no-bus degrade', () => {
   });
 });
 
-describe('extensionSourceDisplayPath', () => {
-  it('preserves L1/L2 source semantics instead of presenting them as bundled L0 paths', () => {
-    expect(pluginSourceDisplayPath({
-      layer: 'L1',
-      layout: 'legacy',
-      relativeManifestPath: 'user-tool/forgeax-extension.json',
-    })).toBe('~/.forgeax/extensions/user-tool/forgeax-extension.json');
-    expect(pluginSourceDisplayPath({
-      layer: 'L2',
-      layout: 'canonical',
-      bucketKind: 'tool',
-      relativeManifestPath: 'tool/project-tool/forgeax-extension.json',
-    })).toBe('.forgeax/extensions/tool/project-tool/forgeax-extension.json');
+describe('extensionManifestPathHint — flat Marketplace path', () => {
+  it('maps @forgeax-extension/<slug> to packages/marketplace/extensions/<slug>/forgeax-extension.json', () => {
+    expect(extensionManifestPathHint('@forgeax-extension/wb-character')).toBe(
+      'packages/marketplace/extensions/wb-character/forgeax-extension.json',
+    );
+  });
+
+  it('maps legacy @forgeax-plugin/<slug> the same way (persisted / pre-rename ids)', () => {
+    expect(extensionManifestPathHint('@forgeax-plugin/wb-observatory')).toBe(
+      'packages/marketplace/extensions/wb-observatory/forgeax-extension.json',
+    );
+  });
+
+  it('accepts a bare slug and stays flat (no kind bucket)', () => {
+    expect(extensionManifestPathHint('agent-iori')).toBe(
+      'packages/marketplace/extensions/agent-iori/forgeax-extension.json',
+    );
+    expect(extensionManifestPathHint('@forgeax-extension/wb-character')).not.toContain('/workbench/');
+    expect(extensionManifestPathHint('@forgeax-extension/wb-character')).not.toContain('manifest.json');
   });
 });
