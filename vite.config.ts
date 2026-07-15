@@ -108,10 +108,10 @@ export default defineConfig({
     // .forgeax/games tree.
     watch: { usePolling: false, ignored: ['**/src-tauri/**', '**/node_modules/**', '**/dist/**', '**/.git/**'] },
     // Vite 5+ restricts file access to its project root by default.  Marketplace
-    // plugin frontends live at ../../marketplace/extensions/*/src/panel.tsx and
+    // extension frontends live at ../../marketplace/plugins/<kind>/*/src/panel.tsx and
     // are statically imported via Sidebar.tsx's LazyPluginPanels map; allow the
     // monorepo root so those imports resolve.  See:
-    //   packages/marketplace/extensions/wb-character-forge/DESIGN.md (template).
+    //   packages/marketplace/plugins/workbench/_template/ (scaffold).
     fs: { allow: ['..', '../..'] },
     proxy: {
       '/api': { target: SERVER, changeOrigin: true },
@@ -138,11 +138,11 @@ export default defineConfig({
       // @id, @fs) just like /preview. Mirrors the preview-runtime wiring.
       '/editor': { target: EDITOR, changeOrigin: true, ws: true },
       // Plugin iframe assets — the studio server's serveStatic mounts each
-      // plugin's vite build dist under /extensions/<plugin-id>/*. Without this
-      // proxy the interface dev server SPA-falls back to its own index.html
-      // and the iframe ends up loading a nested studio UI. See:
-      //   packages/server/src/main.ts → serveStatic('/extensions/wb-character/*')
-      //   packages/marketplace/extensions/wb-character-host/panel.tsx
+      // extension's vite build dist under /extensions/<extension-id>/*
+      // (URL id, not filesystem kind path). Without this proxy the interface
+      // dev server SPA-falls back to its own index.html and the iframe ends
+      // up loading a nested studio UI. See packages/server static mounts and
+      // packages/marketplace/plugins/workbench/<slug>/.
       '/extensions': { target: SERVER, changeOrigin: true },
       // wb-character iframe legacy shim — the plugin submodule's 88 fetch
       // sites hit /__ce-api__/* expecting the old vite-dev plugin. Studio

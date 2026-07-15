@@ -282,6 +282,7 @@
       "familyLabel": "家族"
     },
     "sections": {
+      "extensions": "扩展",
       "fxpackImport": ".fxpack 导入",
       "forkRecord": "Fork & 录制"
     },
@@ -625,7 +626,7 @@
     },
     "install": {
       "title": "安装",
-      "hint": "复制到 destRoot/.forgeax/plugins/<id>/ · 自动 reload",
+      "hint": "复制到 destRoot/.forgeax/plugins/<kind>/<slug>/ · 自动 reload",
       "destRootL1Placeholder": "通常: ~ (写入 ~/.forgeax/plugins/)",
       "destRootL2Placeholder": "当前 project root",
       "layerL1": "L1 · 用户级",

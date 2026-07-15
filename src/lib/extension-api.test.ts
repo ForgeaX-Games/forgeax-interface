@@ -8,7 +8,7 @@
  * raised in DockShell's boot effect before the fix.
  */
 import { describe, it, expect, afterEach } from 'bun:test';
-import { listExtensions } from './extension-api';
+import { listExtensions, pluginSourceDisplayPath } from './extension-api';
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -36,5 +36,21 @@ describe('listExtensions — no-bus degrade', () => {
     mockFetch(200, 'application/json', JSON.stringify(payload));
     const res = await listExtensions('workbench');
     expect(res).toEqual(payload);
+  });
+});
+
+describe('extensionSourceDisplayPath', () => {
+  it('preserves L1/L2 source semantics instead of presenting them as bundled L0 paths', () => {
+    expect(pluginSourceDisplayPath({
+      layer: 'L1',
+      layout: 'legacy',
+      relativeManifestPath: 'user-tool/forgeax-extension.json',
+    })).toBe('~/.forgeax/extensions/user-tool/forgeax-extension.json');
+    expect(pluginSourceDisplayPath({
+      layer: 'L2',
+      layout: 'canonical',
+      bucketKind: 'tool',
+      relativeManifestPath: 'tool/project-tool/forgeax-extension.json',
+    })).toBe('.forgeax/extensions/tool/project-tool/forgeax-extension.json');
   });
 });

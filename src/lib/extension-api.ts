@@ -1,3 +1,6 @@
+import type { PluginSourceDescriptor } from '@forgeax/types';
+export { pluginSourceDisplayPath } from '@forgeax/types';
+
 // P2.6a — typed client for /api/bus/* endpoints.
 // Mirrors the slim shape returned by packages/server/src/api/bus.ts so the UI
 // never depends on full ExtensionManifest fields server-side never exposes.
@@ -115,6 +118,8 @@ export interface ExtensionInfo {
   entry?: ExtensionEntryInfo;
   /** kind=agent 才有：统一命名。title=「中文职能·英文名」，sub=灰字英文职能。 */
   naming?: { title: string; sub: string };
+  /** Safe filesystem origin — UI must not reconstruct plugins/<id>. */
+  source: PluginSourceDescriptor;
 }
 
 export interface ExtensionListResponse {

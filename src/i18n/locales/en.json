@@ -282,6 +282,7 @@
       "familyLabel": "family"
     },
     "sections": {
+      "extensions": "Extensions",
       "fxpackImport": ".fxpack import",
       "forkRecord": "Fork & record"
     },
@@ -625,7 +626,7 @@
     },
     "install": {
       "title": "Install",
-      "hint": "Copy to destRoot/.forgeax/plugins/<id>/ · auto reload",
+      "hint": "Copy to destRoot/.forgeax/plugins/<kind>/<slug>/ · auto reload",
       "destRootL1Placeholder": "Usually: ~ (writes to ~/.forgeax/plugins/)",
       "destRootL2Placeholder": "Current project root",
       "layerL1": "L1 · user level",
