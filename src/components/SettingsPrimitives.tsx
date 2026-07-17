@@ -32,6 +32,7 @@ export function EnvField({
   onSave,
   busy,
   visible,
+  notSetHint,
 }: {
   label: string;
   masked: string | null;
@@ -39,6 +40,8 @@ export function EnvField({
   onSave: (v: string) => void;
   busy: boolean;
   visible?: boolean;
+  /** shown instead of "Not set" when the env is empty but a built-in default applies */
+  notSetHint?: string;
 }) {
   const { t } = useTranslation();
   const stored = masked ?? '';
@@ -55,7 +58,7 @@ export function EnvField({
   }, [label]);
   const trimmed = value.trim();
   const dirty = visible ? trimmed !== stored : trimmed.length > 0;
-  const slot = visible ? placeholder : (masked ? `已保存 ${masked} · 输入新值可覆盖` : t('settings.drawer.envNotSet'));
+  const slot = visible ? placeholder : (masked ? `已保存 ${masked} · 输入新值可覆盖` : (notSetHint ?? t('settings.drawer.envNotSet')));
 
   const commit = () => {
     if (!trimmed || !dirty || busy) return;
@@ -125,7 +128,8 @@ interface UploadResultData {
   ok: true; kind: 'result'; namespace: string; repoUrl: string; branch: string;
   /** repo-relative snapshot path, e.g. `<ns>/data/<ts>` */
   path: string;
-  commit: string; filesChanged: number; bytes: number; skipped: boolean;
+  commit: string; filesChanged: number; sourceFileCount: number;
+  sourceBytes: number; archiveBytes: number; bytes: number; skipped: boolean;
 }
 interface UploadFailureData { ok: false; kind: string; error: string }
 type UploadOutcome = UploadPlanData | UploadResultData | UploadFailureData;
@@ -214,18 +218,17 @@ export function UploadPanel({ tokenSet }: { tokenSet?: boolean }) {
       )}
       {phase === 'idle' && !outcome && tokenSet === false && (
         <div className="settings-help" style={{ marginTop: 6 }}>
-          提示:上传需要 GitHub token——用内部共享 token(向管理员索取),或{' '}
+          提示:已内置共享 token,直接点按钮即可上传。想传到自己的仓?
           <a href={PERSONAL_TOKEN_URL} target="_blank" rel="noreferrer">创建自己的个人 token ↗</a>
-          (勾选 repo 权限即可,页面已预填)。拿到后粘贴到上方 token 栏并 Save。
-          没填 token 也可以先点按钮预览会上传哪些文件。
+          (勾选 repo 权限即可,页面已预填),粘贴到上方 token 栏并 Save 覆盖默认值。
         </div>
       )}
 
       {phase === 'planned' && plan && (
         <div className="settings-help" style={{ lineHeight: 1.7 }}>
           <div>
-            将上传 <b>{plan.fileCount}</b> 个文件({fmtBytes(plan.bytes)})→{' '}
-            <code>{plan.repo}</code> @ <code>{plan.branch}</code> 的{' '}
+            将压缩 <b>{plan.fileCount}</b> 个文件({fmtBytes(plan.bytes)})并上传为{' '}
+            <code>workspace.tar.gz</code> → <code>{plan.repo}</code> @ <code>{plan.branch}</code> 的{' '}
             <code>{plan.namespace}/data/&lt;上传时间&gt;/</code> 快照目录
           </div>
           {plan.skippedSymlinks.length > 0 && <div>已跳过 {plan.skippedSymlinks.length} 个软链目录(样例游戏,不上传)</div>}
@@ -271,7 +274,9 @@ export function UploadPanel({ tokenSet }: { tokenSet?: boolean }) {
                 </span>
               ) : (
                 <span>
-                  <span className="ok-pill">已上传 {outcome.filesChanged} 个文件({fmtBytes(outcome.bytes)})</span>{' '}
+                  <span className="ok-pill">
+                    已上传 {outcome.sourceFileCount} 个文件的压缩包({fmtBytes(outcome.sourceBytes)} → {fmtBytes(outcome.archiveBytes)})
+                  </span>{' '}
                   <a href={`${outcome.repoUrl}/tree/${outcome.branch}/${outcome.path}`} target="_blank" rel="noreferrer">
                     查看本次快照
                   </a>{' '}
@@ -281,7 +286,7 @@ export function UploadPanel({ tokenSet }: { tokenSet?: boolean }) {
                   <code>@{outcome.commit.slice(0, 7)}</code>
                 </span>
               )}
-              <SnapshotUrlRow url={`${outcome.repoUrl}/tree/${outcome.branch}/${outcome.path}`} />
+              <SnapshotUrlRow url={`${outcome.repoUrl}/raw/${outcome.branch}/${outcome.path}/workspace.tar.gz`} />
             </>
           ) : (
             <span className="err-pill" style={{ whiteSpace: 'normal' }}>上传失败:{outcome.error}</span>
