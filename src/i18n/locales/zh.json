@@ -1160,9 +1160,7 @@
     "deny": "拒绝",
     "allow": "允许",
     "capabilityLabel": "能力:{{capability}}",
-    "rememberSession": "记住本会话",
-    "expand": "▼ 展开 ({{count}} 字)",
-    "collapse": "▲ 收起"
+    "rememberSession": "记住本会话"
   },
   "dockShell": {
     "popoutToWindow": "弹出为独立 OS 窗口",

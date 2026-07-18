@@ -1160,9 +1160,7 @@
     "deny": "Deny",
     "allow": "Allow",
     "capabilityLabel": "Capability: {{capability}}",
-    "rememberSession": "Remember for this session",
-    "expand": "▼ Expand ({{count}} chars)",
-    "collapse": "▲ Collapse"
+    "rememberSession": "Remember for this session"
   },
   "dockShell": {
     "popoutToWindow": "Pop out to a separate OS window",
