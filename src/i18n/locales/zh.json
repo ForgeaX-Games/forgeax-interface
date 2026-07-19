@@ -432,7 +432,8 @@
     "placeholderStreaming": "回复进行中 — 可继续输入,[Enter] 排队,当前回复结束后依次发送",
     "placeholderStreamingInterrupt": " · ⚡ 打断并立即发送",
     "placeholderOverrideDownSuffix": " ⚠ (不可用)",
-    "imageUpload": "添加图片 — 点击选择,或直接粘贴到输入框",
+    "imageUpload": "添加任意文件 — 图片/PDF 直达模型,其它文件存给 agent 自行解析;也可直接粘贴/拖拽到输入框",
+    "fileTooLarge": "{{name}}:内容太大 — 超过 {{limit}} 上限",
     "comingSoon": "即将上线",
     "mentionAgentTitle": "Mention agent ({{count}}) — 单击插入 @<agent> 到输入框",
     "mentionSoon": "@ 提示 — 即将上线",
@@ -1160,7 +1161,9 @@
     "deny": "拒绝",
     "allow": "允许",
     "capabilityLabel": "能力:{{capability}}",
-    "rememberSession": "记住本会话"
+    "rememberSession": "记住本会话",
+    "expand": "▼ 展开 ({{count}} 字)",
+    "collapse": "▲ 收起"
   },
   "dockShell": {
     "popoutToWindow": "弹出为独立 OS 窗口",

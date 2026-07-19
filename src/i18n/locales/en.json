@@ -432,7 +432,8 @@
     "placeholderStreaming": "Reply in progress — you can keep typing; [Enter] queues it, sent in order after the current reply finishes",
     "placeholderStreamingInterrupt": " · ⚡ interrupt and send now",
     "placeholderOverrideDownSuffix": " ⚠ (unavailable)",
-    "imageUpload": "Attach image — click to choose, or paste one into the input",
+    "imageUpload": "Attach any file — images and PDFs go straight to the model, other files are saved for the agent to read; paste or drag also works",
+    "fileTooLarge": "{{name}}: content too large — exceeds the {{limit}} limit",
     "comingSoon": "Coming soon",
     "mentionAgentTitle": "Mention agent ({{count}}) — click to insert @<agent> into the input box",
     "mentionSoon": "@ mention — coming soon",
@@ -1160,7 +1161,9 @@
     "deny": "Deny",
     "allow": "Allow",
     "capabilityLabel": "Capability: {{capability}}",
-    "rememberSession": "Remember for this session"
+    "rememberSession": "Remember for this session",
+    "expand": "▼ Expand ({{count}} chars)",
+    "collapse": "▲ Collapse"
   },
   "dockShell": {
     "popoutToWindow": "Pop out to a separate OS window",
