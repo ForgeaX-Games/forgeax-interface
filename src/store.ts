@@ -197,6 +197,17 @@ export interface SendMessageOpts {
   attachments?: Array<Record<string, unknown>>;
 }
 
+/** User-message multimodal attachment kept for transcript display + wire send. */
+export interface ChatAttachment {
+  kind: 'image' | 'document' | 'file' | string;
+  name?: string;
+  mediaType?: string;
+  /** Base64 payload (no data: URL prefix) or a data: URL — live send only. */
+  data?: string;
+  /** Durable upload path after server materialize — used on history reload. */
+  path?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -204,6 +215,8 @@ export interface ChatMessage {
    *  有它且 server 侧存在对应 checkpoint 记录时,气泡 hover 出「回到这里」。 */
   msgId?: string;
   text: string;
+  /** role='user' — pasted / picked attachments shown in the bubble (images inline). */
+  attachments?: ChatAttachment[];
   thinking?: string;
   toolCalls: ToolCall[];
   /** role='system' visual classification — drives icon / color in ChatPanel. */
