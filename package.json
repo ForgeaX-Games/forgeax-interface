@@ -70,10 +70,8 @@
     "lint:dep": "depcruise -c .dependency-cruiser.cjs src"
   },
   "dependencies": {
+    "@forgeax-studio/extension-platform": "0.0.1",
     "@google/model-viewer": "^4.2.0",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-os": "^2",
-    "@tauri-apps/plugin-shell": "^2",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-checkbox": "^1",
     "@radix-ui/react-context-menu": "^2.2.6",
@@ -85,6 +83,9 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-os": "^2",
+    "@tauri-apps/plugin-shell": "^2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
@@ -94,8 +95,8 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.2",
-    "zod": "^3.25.0"
+    "zod": "^3.25.0",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.10.2",
