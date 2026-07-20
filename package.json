@@ -24,6 +24,7 @@
     "./components/StatusBar/healthBridge": "./src/components/StatusBar/healthBridge.ts",
     "./components/StatusBar/feeds/PulseFeeds": "./src/components/StatusBar/feeds/PulseFeeds.tsx",
     "./components/StatusBar/VersionBadge": "./src/components/StatusBar/VersionBadge.tsx",
+    "./core/app-shell": "./src/core/app-shell/index.ts",
     "./i18n": "./src/i18n/index.ts",
     "./i18n/LanguageSettingsSection": "./src/i18n/LanguageSettingsSection.tsx",
     "./lib/aegis": "./src/lib/aegis.ts",
