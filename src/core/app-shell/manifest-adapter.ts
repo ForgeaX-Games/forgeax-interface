@@ -43,6 +43,9 @@ export function appExtensionFromManifest(input: ManifestExtensionInput): AppExte
     panels = { [surface]: { ...components } } as Partial<PanelRenderers>;
   } else if (surface === 'overlay') {
     panels = { overlays: { ...components } } as Partial<PanelRenderers>;
+  } else if (surface === 'slot') {
+    // ai-workbench 槽件(MainAreaBody / SidebarAgents / CornerAgentPicker 等)
+    panels = { slots: { ...components } } as Partial<PanelRenderers>;
   } else {
     const Component = Object.values(components)[0]!;
     panels = {
