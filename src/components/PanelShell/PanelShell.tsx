@@ -259,22 +259,19 @@ function PanelMenuButton({
   const footerItems = items.filter((item) => item.kind !== 'separator' && item.tone === 'reset');
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="fx-panel-action no-motion-lift"
-          disabled={!state.enabled}
-          data-active={state.active ? 'true' : 'false'}
-          data-highlight={state.highlighted ? 'true' : 'false'}
-          data-has-label={label ? 'true' : 'false'}
-          data-location={location}
-          title={action.title}
-          aria-label={action.title}
-        >
-          {Icon && <Icon size={14} />}
-          {label && <span className="fx-panel-action-label">{label}</span>}
-          <ChevronDown size={12} />
-        </button>
+      <DropdownMenuTrigger
+        className="fx-panel-action no-motion-lift"
+        disabled={!state.enabled}
+        data-active={state.active ? 'true' : 'false'}
+        data-highlight={state.highlighted ? 'true' : 'false'}
+        data-has-label={label ? 'true' : 'false'}
+        data-location={location}
+        title={action.title}
+        aria-label={action.title}
+      >
+        {Icon && <Icon size={14} />}
+        {label && <span className="fx-panel-action-label">{label}</span>}
+        <ChevronDown size={12} />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="fx-panel-menu" align={location === 'header/right' ? 'end' : 'start'} sideOffset={6}>
         <div className="fx-panel-menu-title">{action.title}</div>

@@ -52,23 +52,31 @@ function buildIframeSrc(
 ): string | null {
   const sa = plugin.entry?.standalone;
   if (!sa) return null;
-  // Three address modes:
+  // Four address modes:
   //   1. embeddedAlso=true — plugin ships a built dist served by the host at
   //      /extensions/<id>/. Prefer this when set: the studio doesn't launch the
   //      plugin's own dev server, and declared `port` may collide with other
   //      services (e.g. wb-character's 15173 collides with the engine).
-  //   2. plugin declares `port` — use http://<host>:<port>/<readyProbe?>
-  //   3. plugin only declares `start` — fall back to /extensions/<id>/.
-  const embeddedSrc = `/extensions/${encodeURIComponent(plugin.id.replace(/^@[^/]+\//, ''))}/`;
+  //   2. anydev/cloud proxy mode — keep the browser on Studio's HTTPS origin and
+  //      let Vite proxy to the plugin's plain-HTTP dev server inside the container.
+  //   3. plugin declares `port` — use http://<host>:<port>/<readyProbe?>
+  //   4. plugin only declares `start` — fall back to /extensions/<id>/.
+  const shortId = plugin.id.replace(/^@[^/]+\//, '');
+  const encodedShortId = encodeURIComponent(shortId);
+  const embeddedSrc = `/extensions/${encodedShortId}/`;
   let base: string;
   if (sa.embeddedAlso === true) base = embeddedSrc;
-  else if (typeof sa.port === 'number') {
+  else if (import.meta.env.VITE_FORGEAX_STANDALONE_PROXY === '1') {
+    const probe = sa.readyProbe ?? '/';
+    const path = probe.startsWith('/') ? probe : `/${probe}`;
+    base = `/__fx-plugin/${encodedShortId}${path}`;
+  } else if (typeof sa.port === 'number') {
     const probe = sa.readyProbe ?? '/';
     const path = probe.startsWith('/') ? probe : `/${probe}`;
     // Match the parent page's protocol. When the Studio UI is served over HTTPS
     // (FORGEAX_INTERFACE_HTTPS=1, e.g. remote-IP access) an `http://` iframe is
     // blocked as mixed content. The plugin dev server must then also serve HTTPS
-    // (run.sh passes the studio .tls cert to its vite). Falls back to http://
+    // (run.ts passes the studio .tls cert to its vite). Falls back to http://
     // transparently when the parent is http.
     base = `${window.location.protocol}//${window.location.hostname}:${sa.port}${path}`;
   } else base = embeddedSrc;

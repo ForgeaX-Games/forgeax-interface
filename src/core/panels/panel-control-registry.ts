@@ -20,20 +20,35 @@ export function createPanelControlRegistry(): PanelControlRegistry {
     for (const listener of [...listeners]) listener();
   };
 
+  // Batch-deferred notification: data mutations (push/splice) happen
+  // immediately so reads (list/get) always return fresh data, but listener
+  // notifications are deferred to a microtask. This avoids triggering
+  // forceStoreRerender (useSyncExternalStore) during React 19's commit
+  // phase, which otherwise causes "Maximum update depth exceeded".
+  let emitScheduled = false;
+  const scheduleEmit = (): void => {
+    if (emitScheduled) return;
+    emitScheduled = true;
+    queueMicrotask(() => {
+      emitScheduled = false;
+      emit();
+    });
+  };
+
   const list = (): readonly PanelControlContribution[] => entries.flatMap((entry) => entry.controls);
 
   return {
     contribute(owner, controls) {
       const entry: Entry = { owner, controls };
       entries.push(entry);
-      emit();
+      scheduleEmit();
       let removed = false;
       return () => {
         if (removed) return;
         removed = true;
         const index = entries.indexOf(entry);
         if (index >= 0) entries.splice(index, 1);
-        emit();
+        scheduleEmit();
       };
     },
     get(id) {

@@ -21,6 +21,23 @@ export function createPanelActionRegistry(): PanelActionRegistry {
     version++;
     for (const listener of [...listeners]) listener();
   };
+
+  // Batch-deferred notification: data mutations (push/splice) happen
+  // immediately so reads (list/all) always return fresh data, but listener
+  // notifications are deferred to a microtask. This avoids triggering
+  // forceStoreRerender (useSyncExternalStore) during React 19's commit
+  // phase, which otherwise causes "Maximum update depth exceeded".
+  let emitScheduled = false;
+  const scheduleEmit = (): void => {
+    cache = null;
+    if (emitScheduled) return;
+    emitScheduled = true;
+    queueMicrotask(() => {
+      emitScheduled = false;
+      emit();
+    });
+  };
+
   const all = (): readonly PanelActionContribution[] => {
     if (cache) return cache;
     cache = entries.flatMap((entry) => entry.actions).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -31,14 +48,14 @@ export function createPanelActionRegistry(): PanelActionRegistry {
     contribute(owner, actions) {
       const entry: Entry = { owner, actions };
       entries.push(entry);
-      emit();
+      scheduleEmit();
       let removed = false;
       return () => {
         if (removed) return;
         removed = true;
         const index = entries.indexOf(entry);
         if (index >= 0) entries.splice(index, 1);
-        emit();
+        scheduleEmit();
       };
     },
     list(panelId) {
