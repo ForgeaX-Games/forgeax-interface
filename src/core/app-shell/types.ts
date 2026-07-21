@@ -6,8 +6,19 @@ import type { CommandsRegistry, CommandDescriptor } from '../extension-foundatio
 import type { ContextKeysApi } from '../extension-foundation/context-keys';
 import type { StorageApi } from '../extension-foundation/storage';
 import type { PanelRenderers } from '../../components/DockShell/panelRenderers';
-import type { PillPayload } from '../../lib/composer-bridge';
 import type { PanelActionContribution, PanelActionsApi, PanelControlContribution, PanelControlsApi } from '../panels';
+
+export type AppShellPillKind =
+  | 'file' | 'dir' | 'agent' | 'tool' | 'game' | 'log' | 'entity' | 'paste'
+  | 'skill' | 'command';
+
+export interface AppShellPillPayload {
+  kind: AppShellPillKind;
+  display: string;
+  icon?: string;
+  detail: string;
+  tooltip: { title: string; lines: string[] };
+}
 
 export interface AppBusEventMap extends Record<string, unknown> {
   'panel:open':          { id: string; source?: string };
@@ -16,7 +27,7 @@ export interface AppBusEventMap extends Record<string, unknown> {
   'dock:reset':          Record<string, never>;
   'dock:layout-toggle':  { workbenchId?: string; rect?: { top: number; bottom: number; left: number; right: number } };
   'anim:handoff':        { fromSurface: string; toSurface: string };
-  'chat:pill':           { pill: PillPayload };
+  'chat:pill':           { pill: AppShellPillPayload };
   'iframe:navigate':     { extensionId: string; url?: string };
   'capability:added':    { capability: string; provider: string };
   'capability:removed':  { capability: string; provider: string };
