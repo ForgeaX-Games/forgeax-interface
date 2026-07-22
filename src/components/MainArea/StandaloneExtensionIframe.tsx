@@ -102,6 +102,13 @@ const PLUGIN_TO_WB_ID: Record<string, string> = {
   '@forgeax-plugin/wb-skill': 'skill',
   '@forgeax-plugin/wb-reel': 'reel',
   '@forgeax-plugin/wb-game-video': 'gamevideo',
+  // ADR 0025 renamed forgeax-plugin → forgeax-extension; keep both until all
+  // handoff callers emit the new prefix.
+  '@forgeax-extension/wb-anim': 'anim',
+  '@forgeax-extension/wb-character': 'character',
+  '@forgeax-extension/wb-skill': 'skill',
+  '@forgeax-extension/wb-reel': 'reel',
+  '@forgeax-extension/wb-game-video': 'gamevideo',
 };
 
 /** localStorage key the host writes the cross-workbench handoff payload to.
