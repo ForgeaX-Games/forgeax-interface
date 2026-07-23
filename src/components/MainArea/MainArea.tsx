@@ -15,14 +15,20 @@ export function MainArea() {
   // MainArea body is a 前L2 @forgeax/ai-workbench app injected via the
   // slots.MainAreaBody slot (R4); interface holds no @forgeax/ai-workbench import.
   const MainAreaBody = usePanelRenderers().slots?.MainAreaBody;
+  // The 'main' dock panel exists ONLY in the AI workbench layout (Scene uses a
+  // separate 'viewport' panel), so its body is always AI content. Render
+  // MainAreaBody whenever injected — do NOT gate on `mode`, which persists
+  // separately from the active workbench and can transiently desync on boot /
+  // project switch (that desync made this panel render the editor viewport even
+  // though the dock was the AI layout). The `mode==='scene'` ViewportPanel branch
+  // is only a fallback for interface-alone hosts that inject no MainAreaBody.
   return (
     <main className="main-area">
-      {mode === 'scene' && <ViewportPanel />}
-      {mode === 'ai' && MainAreaBody && (
+      {MainAreaBody ? (
         <div data-fx-slot="MainAreaBody" style={{ display: 'contents' }}>
           <MainAreaBody />
         </div>
-      )}
+      ) : (mode === 'scene' ? <ViewportPanel /> : null)}
       {/* Always-mounted keep-alive overlay for standalone center plugins. Lives
           here (above the mode/tab conditionals) so plugin iframes survive
           viewport↔workbench and tab switches instead of cold-restarting. It

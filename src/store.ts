@@ -511,6 +511,25 @@ export interface AppState {
   setOverlayParam: (param: string | null) => void;
   closeOverlay: () => void;
 
+  // ── New/Open-project modal (workspace) ──
+  //  The ProjectSwitcher dropdown was removed from the TopBar; 新建/打开 now
+  //  live in the File menu. This drives the hosted <NewProjectModal>.
+  //  null = closed; 'new' | 'open' = which tab.
+  projectModalTab: 'new' | 'open' | null;
+  openProjectModal: (tab: 'new' | 'open') => void;
+  closeProjectModal: () => void;
+
+  // ── Game switcher / new-game modal (driven from the File menu) ──
+  //  The File menu's 新建项目 / 打开项目 / 打开最近 now open GAME flows (a project
+  //  is a game here). `openGameModal` → the new-game dialog; `gameSwitcherOpen`
+  //  → the "open game" list modal (its body is the game list). Driven by menu
+  //  commands (game.new / game.open); rendered by GameModalHost in App.tsx.
+  gameSwitcherOpen: boolean;
+  setGameSwitcherOpen: (v: boolean) => void;
+  gameModalOpen: boolean;
+  openGameModal: () => void;
+  closeGameModal: () => void;
+
   // ── Fullscreen ("immersive" mode) ──
   //
   // Hides TopBar / Sidebar / ChatPanel / StatusBar so MainArea fills the

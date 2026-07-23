@@ -34,6 +34,14 @@ export function createShellState(
   | 'openOverlay'
   | 'setOverlayParam'
   | 'closeOverlay'
+  | 'projectModalTab'
+  | 'openProjectModal'
+  | 'closeProjectModal'
+  | 'gameSwitcherOpen'
+  | 'setGameSwitcherOpen'
+  | 'gameModalOpen'
+  | 'openGameModal'
+  | 'closeGameModal'
   | 'fullscreen'
   | 'setFullscreen'
   | 'toggleFullscreen'
@@ -107,6 +115,16 @@ export function createShellState(
       set({ overlayParam: param });
     },
     closeOverlay: () => set({ activeOverlay: null }),
+
+    projectModalTab: null,
+    openProjectModal: (tab) => set({ projectModalTab: tab }),
+    closeProjectModal: () => set({ projectModalTab: null }),
+
+    gameSwitcherOpen: false,
+    setGameSwitcherOpen: (v) => set({ gameSwitcherOpen: v }),
+    gameModalOpen: false,
+    openGameModal: () => set({ gameModalOpen: true }),
+    closeGameModal: () => set({ gameModalOpen: false }),
 
     fullscreen: false,
     setFullscreen: (v) => set({ fullscreen: v }),

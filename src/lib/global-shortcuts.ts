@@ -143,6 +143,13 @@ let routerDeps: KeyboardRouterDeps | null = null;
 export function registerKeyboardRouterDeps(deps: KeyboardRouterDeps | null): void {
   routerDeps = deps;
 }
+/** Read the currently injected router deps. Returns null until the host has
+ *  called registerKeyboardRouterDeps() at boot. Command-bus wrappers
+ *  (editor-commands extension) resolve deps lazily via this getter so they
+ *  stay editor-agnostic and boot-order-safe. */
+export function getKeyboardRouterDeps(): KeyboardRouterDeps | null {
+  return routerDeps;
+}
 
 // Build the edit-domain shortcut list from injected deps. Pure dispatcher: every
 // branch routes through a dep callback (which the editor maps onto gateway ops),

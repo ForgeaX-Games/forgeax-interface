@@ -90,6 +90,25 @@ const LS_KEY = STORAGE_KEYS.legacyDockLayout;  // legacy — only read for migra
 // buildDefault lives in builtinWorkbenches.ts.
 export { buildDefault };
 
+// -----------------------------------------------------------------------------
+// Module-level panel visibility mirror. Consumers (Window menu `checked()`,
+// `app.panel.toggle` command) call `isPanelVisible(id)` without needing a
+// DockviewApi ref. Each DockRegion keeps the shared set in sync via dockview's
+// onDidAddPanel / onDidRemovePanel events — panel ids are globally unique, so
+// a single Set across all regions is sufficient.
+// -----------------------------------------------------------------------------
+const _visiblePanelIds = new Set<string>();
+
+function _setPanelVisibility(id: string, visible: boolean): void {
+  if (visible) _visiblePanelIds.add(id);
+  else _visiblePanelIds.delete(id);
+}
+
+/** Whether a panel with the given id is currently mounted in any DockRegion. */
+export function isPanelVisible(id: string): boolean {
+  return _visiblePanelIds.has(id);
+}
+
 // Pop a dock panel OUT into a REAL OS window (index.html?surface=panel&id=<id>
 // → DetachedSurface, which renders the panel's in-process React component).
 // No-op in the browser (canDetach() false) — web users tear off via drag-float.
@@ -155,6 +174,10 @@ export function DockRegion({ region }: { region: DockRegionId }) {
     // ep:* ids are host-owned: a persisted layout may not resurrect a panel
     // which is absent from this host's injected editor manifest.
     if (id.startsWith('ep:') && !editorPanelIds.includes(id.slice(3))) return false;
+    // chat now lives in the shell-level ChatColumn (fixed column right of the
+    // ActivityRail), never inside the dock — dropped from every seeded layout by
+    // filterLayoutByMembership, and closeStrayPanels evicts it from restores.
+    if (id === 'chat') return false;
     // No descriptor registered → treat non-editor panels as belonging to the
     // DockShell region (matches the pre-refactor behavior).
     const desc = panels?.[id];
@@ -317,6 +340,32 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       e.accept();
     });
     onReadyCleanupsRef.current.push(() => { try { overlaySub.dispose(); } catch { /* noop */ } });
+
+    // Keep the module-level visibility mirror in sync. Seed from current panels
+    // (in case restore already populated the api before this callback fired),
+    // then subscribe to add/remove for future changes. On cleanup, drop this
+    // region's own entries so HMR remounts don't leak stale "visible" ids.
+    const ownedIds = new Set<string>();
+    try {
+      api.panels.forEach((p) => {
+        ownedIds.add(p.id);
+        _setPanelVisibility(p.id, true);
+      });
+    } catch { /* noop */ }
+    const addSub = api.onDidAddPanel((p) => {
+      ownedIds.add(p.id);
+      _setPanelVisibility(p.id, true);
+    });
+    const remSub = api.onDidRemovePanel((p) => {
+      ownedIds.delete(p.id);
+      _setPanelVisibility(p.id, false);
+    });
+    onReadyCleanupsRef.current.push(() => {
+      try { addSub.dispose(); } catch { /* noop */ }
+      try { remSub.dispose(); } catch { /* noop */ }
+      for (const id of ownedIds) _setPanelVisibility(id, false);
+      ownedIds.clear();
+    });
 
     // Note: migration is triggered by setCurrentProject() (ProjectSwitcher)
     // and by loadWorkbenchList()/loadWorkbenchLayout() as belt+suspenders,
@@ -632,6 +681,22 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       const id = payload.id;
       if (!id) return;
       try { apiRef.current?.getPanel(id)?.api.setActive(); } catch { /* noop */ }
+    });
+  }, [host]);
+
+  // Close a panel by id. No-op if the panel isn't currently mounted in THIS
+  // region — panel ids are globally unique, so at most one region owns it and
+  // the others fall through silently. Peer to panel:open/panel:focus; used by
+  // the `app.panel.close` / `app.panel.toggle` commands and the Window menu.
+  useEffect(() => {
+    return host.bus.on('panel:close', (payload) => {
+      const id = payload.id;
+      if (!id) return;
+      const api = apiRef.current;
+      if (!api) return;
+      const existing = api.getPanel(id);
+      if (!existing) return;
+      try { existing.api.close(); } catch { /* noop */ }
     });
   }, [host]);
 
