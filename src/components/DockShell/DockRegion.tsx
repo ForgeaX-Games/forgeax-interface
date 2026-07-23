@@ -28,12 +28,9 @@ import { buildTabContextMenuItems } from './tabContextMenu';
 import { AuxBarResizer } from './AuxBarResizer';
 import { useAuxBarWidth } from './useAuxBarWidth';
 import {
-  getCurrentProject,
   loadWorkbenchList,
   loadWorkbenchLayout,
-  removeWorkbenchLayout,
   saveWorkbenchLayout,
-  subscribeCurrentProject,
   subscribeWorkbenchList,
   initWorkbenchLayouts,
 } from '../../lib/workbenches';
@@ -384,13 +381,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
           const parsed = JSON.parse(raw) as { panels?: Record<string, unknown> };
           if (!isValidLayout(parsed, wsId)) {
             // Evict the bad layout so it doesn't come back on next load.
-            try {
-              if (regionRef.current === 'DockShell') {
-                removeWorkbenchLayout(wsId);
-              } else {
-                localStorage.removeItem(layoutKey(wsId));
-              }
-            } catch { /* noop */ }
+            try { localStorage.removeItem(layoutKey(wsId)); } catch { /* noop */ }
             return false;
           }
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -405,15 +396,10 @@ export function DockRegion({ region }: { region: DockRegionId }) {
         } catch { try { api.clear(); } catch { /* noop */ } return false; }
       };
       try {
-        if (regionRef.current === 'DockShell') {
-          const saved = loadWorkbenchLayout(activeId);
-          restored = saved ? tryRestore(JSON.stringify(saved), activeId) : false;
-          if (!restored && activeId === 'scene') {
-            // migration: try the old single-layout key
-            restored = tryRestore(localStorage.getItem(LS_KEY));
-          }
-        } else {
-          restored = tryRestore(localStorage.getItem(layoutKey(activeId)), activeId);
+        restored = tryRestore(localStorage.getItem(layoutKey(activeId)), activeId);
+        if (!restored && activeId === 'scene') {
+          // migration: try the old single-layout key
+          restored = tryRestore(localStorage.getItem(LS_KEY));
         }
       } catch { restored = false; }
       if (!restored) {
@@ -536,7 +522,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
             ));
           const missingMain = newId === 'ai' && !savedPanels['main'];
           if (hasStaleEpPanels || missingMain) {
-            try { removeWorkbenchLayout(newId); } catch { /* noop */ }
+            try { localStorage.removeItem(layoutKey(newId)); } catch { /* noop */ }
             // fall through to buildDefault
           } else {
             api.fromJSON(saved);
@@ -641,9 +627,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
   // the dock is ready and localStorage was empty before init.
   useEffect(() => {
     const { activeId } = loadWorkbenchList();
-    const hadActiveLayout = region === 'DockShell'
-      ? !!loadWorkbenchLayout(activeId)
-      : !!localStorage.getItem(layoutKey(activeId));
+    const hadActiveLayout = !!localStorage.getItem(layoutKey(activeId));
     void initWorkbenchLayouts(new Set(editorPanelIds)).then(() => {
       if (hadActiveLayout) return; // localStorage already had data — nothing to apply
       // Tour/layout reset already seeded the default — don't rehydrate a stale
@@ -659,27 +643,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
         closeStrayPanels(api);
       } catch { /* fall through — keep current layout */ }
     });
-  }, [closeStrayPanels, editorPanelIds, layoutKey, region]);
-
-  // Re-apply the active workspace layout when the project id becomes known
-  // after boot (belt+suspenders for the early-bootstrap path in main.tsx).
-  const prevProjectIdRef = useRef(getCurrentProject());
-  useEffect(() => {
-    if (region !== 'DockShell') return;
-    return subscribeCurrentProject((projId) => {
-      if (projId === prevProjectIdRef.current) return;
-      prevProjectIdRef.current = projId;
-      const api = apiRef.current;
-      if (!api) return;
-      const { activeId } = loadWorkbenchList();
-      const saved = loadWorkbenchLayout(activeId);
-      if (!saved) return;
-      try {
-        api.fromJSON(saved);
-        closeStrayPanels(api);
-      } catch { /* noop */ }
-    });
-  }, [closeStrayPanels, region]);
+  }, [closeStrayPanels, editorPanelIds, layoutKey]);
 
   // Reopen a panel that was closed (× on its tab) so closing one is never a
   // dead end. Re-added to the right of whatever's there.
