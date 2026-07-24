@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { Box, Bot, Wrench, Store } from 'lucide-react';
+import { Box, Bot } from 'lucide-react';
 import { useShellStore } from '../../store';
-import { emitDeepLink } from '../../lib/deep-link-bus';
 import { listExtensions, type ExtensionInfo } from '../../lib/extension-api';
 import { useSurface, type UISurfaceActionDef } from '../../lib/surface';
 import { extensionRendersInMainArea } from '../MainArea/WorkbenchExtensionHost';
@@ -34,13 +33,14 @@ interface RailItem {
 
 // Product spec: category → ordered plugin slugs.
 const RAIL_CATEGORIES: ReadonlyArray<{ category: string; slugs: readonly string[] }> = [
-  { category: '3D', slugs: ['wb-lowpoly-obj', 'wb-skill', 'wb-gen3d', 'wb-3d-lowpoly'] },
+  // wb-lowpoly-obj (方块人编辑) and wb-diffusion-renderer (Diffusion Renderer) are
+  // temporarily withheld from the rail — features not yet complete.
+  { category: '3D', slugs: ['wb-skill', 'wb-gen3d', 'wb-3d-lowpoly'] },
   { category: '2D', slugs: ['wb-character', 'wb-items', 'wb-anim', 'wb-2d-scene-asset-generator'] },
-  { category: '通用', slugs: ['wb-ui', 'wb-narrative', 'wb-diffusion-renderer', 'wb-reel', 'wb-game-video', 'wb-bgm', 'wb-scene-generator'] },
+  { category: '通用', slugs: ['wb-ui', 'wb-narrative', 'wb-reel', 'wb-game-video', 'wb-bgm', 'wb-scene-generator'] },
 ];
 // Product spec: slug → short display name (产品规范名称).
 const RAIL_LABELS: Record<string, string> = {
-  'wb-lowpoly-obj': '方块人编辑',
   'wb-skill': '技能特效',
   'wb-gen3d': '3D角色',
   'wb-3d-lowpoly': '3D低多边形',
@@ -50,7 +50,6 @@ const RAIL_LABELS: Record<string, string> = {
   'wb-2d-scene-asset-generator': '2D场景资产',
   'wb-ui': 'UI设计',
   'wb-narrative': '叙事设计',
-  'wb-diffusion-renderer': 'Diffusion Renderer',
   'wb-reel': '影游工坊',
   'wb-game-video': '视频游戏',
   'wb-bgm': '音乐音效',
@@ -207,19 +206,6 @@ export function ActivityRail() {
   const openEditor = () => { setActiveWorkbench('scene'); };
   const openAgents = () => { void railSurface.dispatch('selectTab', { tab: 'agents' }); };
   const openPlugin = (id: string) => { void railSurface.dispatch('selectTab', { tab: id }); };
-  const openPluginAuthor = () => {
-    setActiveWorkbench('ai');
-    if (pluginAuthorId) {
-      useShellStore.getState().openWorkbench({ expandedExtensionId: pluginAuthorId });
-      return;
-    }
-    emitDeepLink('bus:expand-plugin', '@forgeax-extension/wb-plugin-author');
-    useShellStore.getState().openOverlay('settings', 'plugins');
-  };
-  const openPluginStore = () => {
-    emitDeepLink('bus:filter-kind', 'workbench');
-    useShellStore.getState().openOverlay('settings', 'plugins');
-  };
 
   const editorActive = mode === 'scene';
   const agentsActive = mode === 'ai' && workbenchTab === 'agents';
@@ -305,31 +291,6 @@ export function ActivityRail() {
           })}
         </div>
       ))}
-
-      <div className="activity-rail-group activity-rail-group--platform">
-        <button
-          type="button"
-          className={`activity-rail-item${pluginAuthorActive ? ' active' : ''}`}
-          onClick={openPluginAuthor}
-          title={t('sidebar.pluginAuthor')}
-          aria-label={t('sidebar.pluginAuthor')}
-          data-rail-action="plugin-author"
-        >
-          <span className="activity-rail-item-ic" aria-hidden><Wrench size={22} strokeWidth={1.7} /></span>
-          <span className="activity-rail-item-lb">{t('sidebar.pluginAuthor')}</span>
-        </button>
-        <button
-          type="button"
-          className="activity-rail-item"
-          onClick={openPluginStore}
-          title={t('sidebar.pluginStore')}
-          aria-label={t('sidebar.pluginStore')}
-          data-rail-action="plugin-store"
-        >
-          <span className="activity-rail-item-ic" aria-hidden><Store size={22} strokeWidth={1.7} /></span>
-          <span className="activity-rail-item-lb">{t('sidebar.pluginStore')}</span>
-        </button>
-      </div>
     </nav>
   );
 }

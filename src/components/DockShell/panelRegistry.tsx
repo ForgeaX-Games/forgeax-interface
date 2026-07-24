@@ -112,6 +112,7 @@ function withBoundary(scope: string, render: () => ReactNode): () => ReactNode {
 // `ep:`); a panel absent here simply renders without a tour marker.
 const EP_TOUR_IDS: Record<string, string | undefined> = {
   hierarchy: 'hierarchy',
+  inspector: 'inspector',
   assets: 'assets',
 };
 
