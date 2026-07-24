@@ -124,10 +124,14 @@ export interface KeyboardRouterDeps {
   renameAsset: (guid: string, packPath: string) => void;
   /** Asset: select all assets in the active browser (CB-scoped, wired by CB). */
   selectAllAssets: () => void;
-  /** Folder: get current folder selection paths (D3b). */
+  /** Folder: get current folder selection paths (D3b, legacy). */
   getFolderSelection?: () => { path: string }[];
-  /** Folder: delete the given folders (D3b). */
+  /** Plan-E: get typed path selection (folders + files with their kind). */
+  getPathSelection?: () => { path: string; kind: 'dir' | 'file' }[];
+  /** Folder: delete the given folders (D3b, legacy). */
   deleteFolders?: (folders: { path: string }[]) => void;
+  /** Plan-E: delete typed path items (dispatches correct op per kind). */
+  deletePathItems?: (items: { path: string; kind: 'dir' | 'file' }[]) => void;
   /** Editor history actions, injected so the interface stays editor-agnostic. */
   undo: () => void;
   redo: () => void;
@@ -159,24 +163,37 @@ export function getKeyboardRouterDeps(): KeyboardRouterDeps | null {
 function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
 
-  // Triple-domain Delete (AC-C2): folder → asset → entity.
-  // Entity+play early-returns (edit-rejected-in-play).
+  // Plan-E Delete: delete ALL selected items (folders/files + assets) in one
+  // pass; entity is the fallback when nothing else is selected. This replaces
+  // the domain-exclusive routing that broke when unified multi-select polluted
+  // lastSelectionDomain. The domain is still consulted as a HINT for the
+  // entity-only fallback, but asset + folder/file selections are checked
+  // unconditionally so mixed-select Delete works.
   const routeDelete = (): boolean => {
-    const domain = deps.getLastSelectionDomain() ?? 'entity';
-    if (domain === 'folder') {
+    let acted = false;
+
+    // 1. Delete selected folder/file paths (typed: dir → deleteDirectory, file → deleteSourceFile).
+    const pathItems = deps.getPathSelection?.();
+    if (pathItems && pathItems.length > 0) {
+      deps.deletePathItems?.(pathItems);
+      acted = true;
+    } else {
+      // Legacy fallback: getFolderSelection (untyped paths, treated as dirs).
       const folders = deps.getFolderSelection?.();
-      if (folders && folders.length > 0) { deps.deleteFolders?.(folders); return true; }
-      return false;
+      if (folders && folders.length > 0) { deps.deleteFolders?.(folders); acted = true; }
     }
-    if (domain === 'asset') {
-      const assets = deps.getAssetSelection();
-      if (assets.length > 0) { deps.deleteAssets(assets); return true; }
-      return false;
+
+    // 2. Delete selected assets (engine pack entries → destroyAsset).
+    const assets = deps.getAssetSelection();
+    if (assets.length > 0) { deps.deleteAssets(assets); acted = true; }
+
+    // 3. Entity fallback: only when no asset/folder/file was selected.
+    if (!acted) {
+      if (deps.isPlayMode()) return false;
+      const ids = deps.getEntitySelection();
+      if (ids.length > 0) { deps.deleteEntities(ids); return true; }
     }
-    if (deps.isPlayMode()) return false; // let the key fall through in play
-    const ids = deps.getEntitySelection();
-    if (ids.length > 0) { deps.deleteEntities(ids); return true; }
-    return false;
+    return acted;
   };
   const routeF2 = (): boolean => {
     const domain = deps.getLastSelectionDomain() ?? 'entity';
