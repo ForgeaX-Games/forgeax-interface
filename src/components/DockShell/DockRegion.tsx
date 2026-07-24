@@ -42,7 +42,53 @@ import { useHost } from '../../core/app-shell';
 import { pingAnchorRelayout } from '../../lib/surfaceAnchors';
 import { buildDefault } from './builtinWorkbenches';
 import { getDockResetEpoch } from './dockResetEpoch';
+import { sanitizeRetiredDockLayout } from './sanitizeDockLayout';
 import './DockShell.css';
+
+// Strip panels whose `contentComponent` is not in the known component set.
+// Prevents dockview's `fromJSON` from throwing when a saved layout references
+// a component that no longer exists (retired keys, unloaded wb:* plugins, etc.).
+function stripUnknownPanels(
+  layout: SerializedDockview,
+  knownKeys: ReadonlySet<string>,
+): SerializedDockview | null {
+  const panels = (layout as { panels?: Record<string, { contentComponent?: string }> }).panels;
+  if (!panels) return layout;
+  const unknownIds = new Set<string>();
+  for (const [id, spec] of Object.entries(panels)) {
+    const cc = spec?.contentComponent ?? id;
+    if (!knownKeys.has(cc)) unknownIds.add(id);
+  }
+  if (unknownIds.size === 0) return layout;
+  const cleanPanels: Record<string, unknown> = {};
+  for (const [id, spec] of Object.entries(panels)) {
+    if (!unknownIds.has(id)) cleanPanels[id] = spec;
+  }
+  if (Object.keys(cleanPanels).length === 0) return null;
+  type GridNode = { type?: string; data?: unknown; size?: number };
+  const stripGrid = (node: unknown): unknown | null => {
+    if (!node || typeof node !== 'object') return node;
+    const n = node as GridNode;
+    if (n.type === 'leaf') {
+      const d = n.data as { views?: string[]; activeView?: string; id?: string } | undefined;
+      if (!d?.views) return node;
+      const kept = d.views.filter((v) => !unknownIds.has(v));
+      if (kept.length === 0) return null;
+      const activeView = d.activeView && kept.includes(d.activeView) ? d.activeView : kept[0];
+      return { ...n, data: { ...d, views: kept, activeView } };
+    }
+    if (n.type === 'branch' && Array.isArray(n.data)) {
+      const children = (n.data as unknown[]).map(stripGrid).filter((c) => c !== null);
+      if (children.length === 0) return null;
+      return { ...n, data: children };
+    }
+    return node;
+  };
+  const grid = (layout as { grid?: { root?: unknown } }).grid;
+  const root = grid?.root ? stripGrid(grid.root) : grid?.root;
+  if (!root) return null;
+  return { ...layout, grid: { ...layout.grid, root }, panels: cleanPanels } as SerializedDockview;
+}
 
 /** Clear chrome collapse + rebuild this region's default dock layout. */
 function rebuildRegionDefault(
@@ -310,6 +356,10 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       ),
     ])),
   }), [busExtensions, editorPanelIds]);
+  // Mirror the component keys into a ref so layout restore callbacks (registered
+  // once with [] deps) can validate saved layouts against the CURRENT set.
+  const componentKeysRef = useRef<ReadonlySet<string>>(new Set(Object.keys(components)));
+  useEffect(() => { componentKeysRef.current = new Set(Object.keys(components)); }, [components]);
   const preFullscreen = useRef<{ tools: boolean; chat: boolean } | null>(null);
   // Track the workspace id that is currently rendered in the dock so we can
   // save its layout before switching. Lives outside onReady so useEffect cleanup
@@ -430,7 +480,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       const tryRestore = (raw: string | null, wsId: string = activeId): boolean => {
         if (!raw) return false;
         try {
-          const parsed = JSON.parse(raw) as { panels?: Record<string, unknown> };
+          let parsed = JSON.parse(raw) as SerializedDockview & { panels?: Record<string, unknown> };
           if (!isValidLayout(parsed, wsId)) {
             // Evict the bad layout so it doesn't come back on next load.
             try {
@@ -442,8 +492,15 @@ export function DockRegion({ region }: { region: DockRegionId }) {
             } catch { /* noop */ }
             return false;
           }
+          // Rewrite retired viewport keys (edit/preview → viewport).
+          parsed = sanitizeRetiredDockLayout(parsed) as typeof parsed;
+          // Strip panels whose contentComponent is not registered — prevents
+          // dockview from throwing when a saved layout references a component
+          // that no longer exists (unloaded wb:* plugins, stale ids, etc.).
+          const cleaned = stripUnknownPanels(parsed as SerializedDockview, componentKeysRef.current);
+          if (!cleaned) return false;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          api.fromJSON(parsed as any);
+          api.fromJSON(cleaned as any);
           // Drop any restored panels that no longer belong to THIS region
           // (panelLocations overrides may have re-homed them since the save).
           closeStrayPanels(api);
@@ -588,12 +645,21 @@ export function DockRegion({ region }: { region: DockRegionId }) {
             try { removeWorkbenchLayout(newId); } catch { /* noop */ }
             // fall through to buildDefault
           } else {
-            api.fromJSON(saved);
-            // Drop restored panels that no longer belong to THIS region.
-            closeStrayPanels(api);
-            const anchor = newId === 'ai' ? 'main' : null;
-          if (!anchor || api.getPanel(anchor)) { syncTitles(); return; }
-            // anchor missing — fall through to buildDefault
+            // Sanitize retired keys (edit/preview → viewport) and strip panels
+            // whose contentComponent is not registered in the current components map.
+            let sanitized: SerializedDockview | null = sanitizeRetiredDockLayout(saved);
+            sanitized = stripUnknownPanels(sanitized, componentKeysRef.current);
+            if (!sanitized) {
+              try { removeWorkbenchLayout(newId); } catch { /* noop */ }
+              // fall through to buildDefault
+            } else {
+              api.fromJSON(sanitized);
+              // Drop restored panels that no longer belong to THIS region.
+              closeStrayPanels(api);
+              const anchor = newId === 'ai' ? 'main' : null;
+              if (!anchor || api.getPanel(anchor)) { syncTitles(); return; }
+              // anchor missing — fall through to buildDefault
+            }
           }
         } catch { /* fall through */ }
       }
@@ -719,7 +785,12 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       const saved = loadWorkbenchLayout(activeId);
       if (!saved) return;
       try {
-        api.fromJSON(saved);
+        const cleaned = stripUnknownPanels(
+          sanitizeRetiredDockLayout(saved),
+          componentKeysRef.current,
+        );
+        if (!cleaned) return;
+        api.fromJSON(cleaned);
         // Drop restored panels that no longer belong to THIS region.
         closeStrayPanels(api);
       } catch { /* fall through — keep current layout */ }
@@ -740,7 +811,12 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       const saved = loadWorkbenchLayout(activeId);
       if (!saved) return;
       try {
-        api.fromJSON(saved);
+        const cleaned = stripUnknownPanels(
+          sanitizeRetiredDockLayout(saved),
+          componentKeysRef.current,
+        );
+        if (!cleaned) return;
+        api.fromJSON(cleaned);
         closeStrayPanels(api);
       } catch { /* noop */ }
     });

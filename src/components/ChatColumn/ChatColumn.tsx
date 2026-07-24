@@ -40,7 +40,7 @@ export function ChatColumn(): ReactElement | null {
 
   if (!hasChat || collapsed) return null;
   return (
-    <aside className="studio-chat-col" data-fx-slot="ChatColumn" style={{ width }}>
+    <aside className="studio-chat-col" data-fx-slot="ChatColumn" data-tour-id="chat" style={{ width }}>
       <div
         className="fx-chat-resizer"
         role="separator"
