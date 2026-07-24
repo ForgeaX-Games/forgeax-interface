@@ -984,23 +984,20 @@ export const useShellStore = create<AppState>((set, get) => ({
   },
 
   switchGame: async (slug) => {
-    // 一条机制,GameSwitcher.onPick 与新建 game 共用:pin → 设 server active game(使
-    // 后续新建 session 绑到该 game)→ 按 game 收口刷新列表 → 落最近活跃一条/空则新建。
-    get().setPinnedSlug(slug);
+    // Activate the game on the server FIRST (triggers engine Vite restart),
+    // then wait for the engine to settle BEFORE updating pinnedSlug. This
+    // prevents EditRealm from remounting ViewportComponent while the engine
+    // is still mid-restart (which causes 502 on pack-index / asset fetches).
     try {
       await getWorkbenchClient().activateGame(slug);
     } catch (e) {
-      // pin 已切了 preview/agents,但 server 没记下 active game —— 显式报出而非默默
-      // 让 session scope 错位。仍继续刷新(server 端 fallback 会按旧 active game 收口)。
       void alertDialog({
         title: t('gameSwitcher.activateFailedTitle'),
         body: t('gameSwitcher.activateFailedBody', { slug, message: (e as Error).message }),
       });
     }
-    // Wait for the engine to settle after the game-rescan vite restart.
-    // Without this, the viewport remount races the engine restart and
-    // pack-index/asset fetches hit 502, leaving the viewport blank.
     await waitForEngineSettled(slug);
+    get().setPinnedSlug(slug);
     await get().refreshSessions();
     const tabs = get().tabs;
     if (tabs.length === 0) {
