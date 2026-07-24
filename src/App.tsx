@@ -30,7 +30,6 @@ import { DialogHost } from './lib/dialog';
 import { SlotDebugOverlay, isSlotDebugEnabled } from './components/SlotDebugOverlay';
 import { bootStageAppMounted } from './boot/driver';
 import { useGlobalShortcuts } from './lib/global-shortcuts';
-import { loadWorkbenchList, subscribeWorkbenchList, subscribeCurrentProject } from './lib/workbenches';
 import { useShellStore } from './store';
 import { bootstrapAppHost, type AppHostBootstrapOverrides, type AppHostBootstrapResult } from './appHostBootstrap';
 import { HostProvider } from './core/app-shell';
@@ -59,24 +58,6 @@ export function App({ overrides }: AppProps = {}): React.ReactElement | null {
   const shellHidden = onboardingPhase === 'welcome' || onboardingPhase === 'project';
 
   const [boot, setBoot] = useState<AppHostBootstrapResult | null>(null);
-
-  // Keep store.mode in sync with the active workbench (the dock's source of
-  // truth). They persist separately and can desync on boot / project switch —
-  // that mismatch made the AI 'main' panel render the editor viewport (mode
-  // ='scene') even though the dock was the AI layout, so switching plugins
-  // appeared to "stay on the editor". Re-derive mode on every workbench/project
-  // change so the two never drift.
-  useEffect(() => {
-    const sync = () => {
-      const desired = loadWorkbenchList().activeId === 'scene' ? 'scene' : 'ai';
-      const store = useShellStore.getState();
-      if (store.mode !== desired) store.setMode(desired);
-    };
-    sync();
-    const unsubList = subscribeWorkbenchList(sync);
-    const unsubProject = subscribeCurrentProject(() => sync());
-    return () => { unsubList(); unsubProject(); };
-  }, []);
 
   useEffect(() => {
     let disposed = false;

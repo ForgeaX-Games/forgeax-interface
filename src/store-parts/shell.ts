@@ -1,5 +1,4 @@
 import { getWindowManager, surfaceKey, type SurfaceDescriptor } from '../lib/platform';
-import { bootAppMode } from '../lib/workbenches';
 import type { AppState } from '../store';
 import { loadSettingsSection, saveSettingsSection } from './persistence';
 
@@ -13,8 +12,6 @@ export function createShellState(
   get: GetAppState,
 ): Pick<
   AppState,
-  | 'mode'
-  | 'setMode'
   | 'workbenchTab'
   | 'setWorkbenchTab'
   | 'workbenchExpandedExtensionId'
@@ -51,14 +48,11 @@ export function createShellState(
   | 'toggleChatpanel'
 > {
   return {
-    mode: bootAppMode(),
-    setMode: (m) => set({ mode: m }),
     workbenchTab: 'agents',
     setWorkbenchTab: (t) => set({ workbenchTab: t }),
     workbenchExpandedExtensionId: null,
     setWorkbenchExpandedExtensionId: (id) => set({ workbenchExpandedExtensionId: id }),
     openWorkbench: ({ tab, expandedExtensionId }) => set((s) => ({
-      mode: 'ai',
       workbenchTab: tab ?? s.workbenchTab,
       workbenchExpandedExtensionId: expandedExtensionId !== undefined
         ? expandedExtensionId

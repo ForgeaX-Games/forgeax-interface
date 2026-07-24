@@ -7,6 +7,7 @@ import { useSurface, type UISurfaceActionDef } from '../../lib/surface';
 import { extensionRendersInMainArea } from '../MainArea/WorkbenchExtensionHost';
 import { iconForWorkbenchModule } from '../../lib/workbench-module-icons';
 import { setActiveWorkbench } from '../../lib/workbenches';
+import { useActiveWorkbench } from '../../lib/useWorkbench';
 import { useTranslation } from '@/i18n';
 import './ActivityRail.css';
 
@@ -65,7 +66,7 @@ const HOST_SIDEBAR_SCHEMA = {
   type: 'object',
   properties: {
     workbenchTab: { type: 'string', description: 'Currently active workbench tab id (e.g. agents, wb:character)' },
-    mode: { type: 'string', enum: ['scene', 'ai', 'bus'] },
+    mode: { type: 'string', enum: ['scene', 'ai'] },
     entries: {
       type: 'array',
       items: {
@@ -82,15 +83,16 @@ const HOST_SIDEBAR_SCHEMA = {
 
 interface HostSidebarSnapshot {
   workbenchTab: string;
-  mode: 'scene' | 'ai' | 'bus';
+  mode: 'scene' | 'ai';
   entries: Array<{ id: string; label: string; kind: 'builtin' | 'bus' }>;
 }
 
 export function ActivityRail() {
   const { t } = useTranslation();
   const workbenchTab = useShellStore((s) => s.workbenchTab);
-  const mode = useShellStore((s) => s.mode);
-  const setMode = useShellStore((s) => s.setMode);
+  // "mode" is derived from the active workspace (SSOT lives in workbenches.ts).
+  // scene workspace → 'scene', every other workspace → 'ai'. No separate store field.
+  const mode: 'scene' | 'ai' = useActiveWorkbench()?.id === 'scene' ? 'scene' : 'ai';
   const expandedExtensionId = useShellStore((s) => s.workbenchExpandedExtensionId);
 
   const [busExtensions, setBusExtensions] = useState<ExtensionInfo[] | null>(null);
@@ -183,12 +185,14 @@ export function ActivityRail() {
         argsSchema: {
           type: 'object',
           required: ['mode'],
-          properties: { mode: { type: 'string', enum: ['scene', 'ai', 'bus'] } },
+          properties: { mode: { type: 'string', enum: ['scene', 'ai'] } },
         },
         run: (raw) => {
           const a = (raw ?? {}) as { mode?: unknown };
-          if (a.mode === 'scene' || a.mode === 'ai' || a.mode === 'bus') {
-            useShellStore.getState().setMode(a.mode);
+          // "mode" maps 1:1 to a workspace id; switching the active workspace is
+          // the single write (mode is derived from it).
+          if (a.mode === 'scene' || a.mode === 'ai') {
+            setActiveWorkbench(a.mode);
           }
         },
       },
@@ -200,7 +204,7 @@ export function ActivityRail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workbenchTab, mode, entriesSlim]);
 
-  const openEditor = () => { setActiveWorkbench('scene'); setMode('scene'); };
+  const openEditor = () => { setActiveWorkbench('scene'); };
   const openAgents = () => { void railSurface.dispatch('selectTab', { tab: 'agents' }); };
   const openPlugin = (id: string) => { void railSurface.dispatch('selectTab', { tab: id }); };
   const openPluginAuthor = () => {

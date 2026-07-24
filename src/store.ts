@@ -17,7 +17,6 @@ import {
   saveProviderOverride,
 } from './store-parts/persistence';
 import { getWindowManager, surfaceKey, type SurfaceDescriptor } from './lib/platform';
-import { bootAppMode } from './lib/workbenches';
 import { STORAGE_KEYS } from './lib/storageKeys';
 import { getLastModel } from './lib/model-prefs';
 import { resolveKernelForAgent } from './lib/agent-cli-provider';
@@ -38,14 +37,6 @@ export {
   type HistoryRecord,
   type CleanPackageResult,
 } from './store-parts/workbench-client';
-
-// P2.6d — 'bus' joins as a top-level mode for the Bus admin panel.
-// Mirrors the Viewport / Workbench switch in the TopBar; rendered by MainArea.
-// 2026-06-30: 'preview'/'play' removed; 'edit' retained as the 2x2 viewport workspace (OOS-5).
-// 2026-07-07 (T3): AI workbench mode id renamed 'workbench' → 'ai'.
-// 2026-07-07 (T4): AI workbench tools-rail panel id renamed 'workbench' → 'tools'.
-// 2026-07-08 (v9): Scene workbench mode id renamed 'edit' → 'scene' (id/name align).
-export type AppMode = 'scene' | 'ai' | 'bus';
 
 // ③ PreviewFile 已移到 @forgeax/ai-workbench/file-preview（L1 不再持有文件预览态）。
 
@@ -300,10 +291,6 @@ export function tabLabel(tab: Pick<ChatTab, 'sid' | 'displayName'>): string {
 }
 
 export interface AppState {
-  // ── UI mode ──
-  mode: AppMode;
-  setMode: (m: AppMode) => void;
-
   // P2.6a — widened from a closed union to `string` because the Sidebar TOOLS
   // row now mixes built-in tabs (`agents`/`files`) with bus-sourced workbench
   // plugin ids (e.g. `wb:character`, `wb:skill`). The set is open and grows

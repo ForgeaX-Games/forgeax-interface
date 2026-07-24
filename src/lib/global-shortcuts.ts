@@ -413,13 +413,6 @@ export function buildShortcuts(): ShortcutDef[] {
     // now indexes into loadWorkbenchList().list so custom workbenches are
     // reachable by ordinal, matching Blender's workspace-tab shortcut
     // ergonomic and VSCode's Ctrl+N-tab switcher.
-    //
-    // Mode side-effect: we can't call setMode directly here — the derivation
-    // 'scene' vs 'ai' lives in modeForWorkbench() in WorkbenchSwitcher.tsx. To
-    // avoid a shortcuts → component import cycle, we mirror the same rule
-    // inline (only 'scene' id → 'scene' mode; every other id → 'ai' mode).
-    // WorkbenchSwitcher subscribes to workbench-list changes and re-renders,
-    // but AppMode is a store field — someone has to write it.
     ...([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((n): ShortcutDef => ({
       combo: `Ctrl+Shift+${n}`,
       group: 'mode',
@@ -430,7 +423,6 @@ export function buildShortcuts(): ShortcutDef[] {
         const wb = list[n - 1];
         if (!wb) return false; // no Nth workbench — let default browser behavior through
         setActiveWorkbench(wb.id);
-        store().setMode(wb.id === 'scene' ? 'scene' : 'ai');
         return true;
       },
     })),

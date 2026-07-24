@@ -12,7 +12,7 @@
 // static imports keep the concept count lower.
 
 import type { AppExtension } from '../app-shell/types';
-import { useShellStore, type AppMode } from '../../store';
+import { useShellStore } from '../../store';
 import { setActiveWorkbench } from '../../lib/workbenches';
 import { bumpDockResetEpoch } from '../../components/DockShell/dockResetEpoch';
 import { isPanelVisible } from '../../components/DockShell/DockRegion';
@@ -32,10 +32,9 @@ export const builtinCommandsExtension: AppExtension = {
       id: 'app.set_mode',
       title: '切换主模式 (scene / ai)',
       execute: (args) => {
-        const mode = (args as { mode?: AppMode })?.mode;
+        const mode = (args as { mode?: 'scene' | 'ai' })?.mode;
         if (mode !== 'scene' && mode !== 'ai') throw new Error('app.set_mode: mode must be scene | ai');
         setActiveWorkbench(mode);
-        getState().setMode(mode);
         return { status: 'completed' as const, mode };
       },
     }));

@@ -605,79 +605,103 @@ export function DockRegion({ region }: { region: DockRegionId }) {
     }
   }, [panelLocations, titleFor, region]);
 
-  // Workspace switch subscription — in a useEffect so React properly cleans it
-  // up on unmount / HMR remount (prevents stale listeners accumulating).
+  // Reconcile the dock to a target workspace id. Idempotent: no-op when the dock
+  // already renders `newId` (guarded on prevWorkspaceIdRef — the workspace the
+  // dock is ACTUALLY showing). Saves the outgoing workspace's layout, then
+  // restores the target's saved layout or builds its default. Single source of
+  // the switch logic, shared by every trigger below.
+  const applyWorkspace = useCallback((api: DockviewApi, newId: string): void => {
+    if (newId === prevWorkspaceIdRef.current) return;
+    saveWorkbenchLayout(prevWorkspaceIdRef.current, api.toJSON());
+    prevWorkspaceIdRef.current = newId;
+    // The layout is being completely replaced — reset toggle-hidden tracking so
+    // sidebar/chat collapse effects start fresh for the new workspace.
+    hiddenByToggleRef.current.clear();
+    const syncTitles = (): void => {
+      const titleIds = new Set([
+        ...Object.keys(BASE_PANEL_TITLE),
+        ...editorPanelIdsRef.current.map((id) => `ep:${id}`),
+        ...Object.keys(panelsRef.current ?? {}),
+      ]);
+      for (const id of titleIds) {
+        try { api.getPanel(id)?.api.setTitle(titleFor(id)); } catch { /* noop */ }
+      }
+    };
+    const saved = loadWorkbenchLayout(newId);
+    if (saved) {
+      try {
+        // Validate raw JSON before loading — avoids flashing the wrong layout.
+        const isCoreWs = newId === 'scene' || newId === 'ai';
+        const savedPanels = (saved as { panels?: Record<string, unknown> }).panels ?? {};
+        const savedPanelIds = Object.keys(savedPanels);
+        const hasStaleEpPanels = !isCoreWs
+          ? savedPanelIds.some((k) => k.startsWith('ep:'))
+          : savedPanelIds.some((k) => (
+            k.startsWith('ep:') && !editorPanelIdsRef.current.includes(k.slice(3))
+          ));
+        const missingMain = newId === 'ai' && !savedPanels['main'];
+        if (hasStaleEpPanels || missingMain) {
+          try { removeWorkbenchLayout(newId); } catch { /* noop */ }
+          // fall through to buildDefault
+        } else {
+          // Sanitize retired keys (edit/preview → viewport) and strip panels
+          // whose contentComponent is not registered in the current components map.
+          let sanitized: SerializedDockview | null = sanitizeRetiredDockLayout(saved);
+          sanitized = stripUnknownPanels(sanitized, componentKeysRef.current);
+          if (!sanitized) {
+            try { removeWorkbenchLayout(newId); } catch { /* noop */ }
+            // fall through to buildDefault
+          } else {
+            api.fromJSON(sanitized);
+            // Drop restored panels that no longer belong to THIS region.
+            closeStrayPanels(api);
+            const anchor = newId === 'ai' ? 'main' : null;
+            if (!anchor || api.getPanel(anchor)) { syncTitles(); return; }
+            // anchor missing — fall through to buildDefault
+          }
+        }
+      } catch { /* fall through */ }
+    }
+    try { api.clear(); } catch { /* noop */ }
+    buildDefault(
+      api,
+      newId,
+      isMemberRef.current,
+      builtinWorkbenchLayoutsRef.current?.[newId],
+    );
+    syncTitles();
+    // No injected chat surface — re-apply chat closure on workspace switch
+    // because buildDefault re-mounts a chat panel for several layouts.
+    if (hideChatRef.current) {
+      try { api.getPanel('chat')?.api.close(); } catch { /* noop */ }
+    }
+  }, [titleFor, closeStrayPanels]);
+
+  // Dock layout is a DERIVED view of the active workspace id (workbenches.ts is
+  // the SSOT). Reconcile whenever that id changes — including when it changes
+  // because the project id resolved AFTER the dock first mounted (onReady may
+  // build under the transient 'default' project → 'scene' seed, then the real
+  // project resolves to 'ai'). This effect is LEVEL-triggered by React
+  // (useActiveWorkbench → useSyncExternalStore), so it can never miss the edge
+  // the way the imperative subscriptions below can during a StrictMode remount.
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    const id = activeWorkbench?.id;
+    if (id) applyWorkspace(api, id);
+  }, [activeWorkbench?.id, applyWorkspace]);
+
+  // Workspace switch subscription — the synchronous edge trigger (fires inside
+  // notify() before React re-renders). Routes through the same applyWorkspace,
+  // which no-ops if the reactive effect already reconciled.
   useEffect(() => {
     return subscribeWorkbenchList(() => {
       const api = apiRef.current;
       if (!api) return;
-      const { activeId: newId } = loadWorkbenchList();
-      if (newId === prevWorkspaceIdRef.current) return;
-      saveWorkbenchLayout(prevWorkspaceIdRef.current, api.toJSON());
-      prevWorkspaceIdRef.current = newId;
-      // The layout is being completely replaced — reset toggle-hidden tracking so
-      // sidebar/chat collapse effects start fresh for the new workspace.
-      hiddenByToggleRef.current.clear();
-      const syncTitles = (): void => {
-        const titleIds = new Set([
-          ...Object.keys(BASE_PANEL_TITLE),
-          ...editorPanelIdsRef.current.map((id) => `ep:${id}`),
-          ...Object.keys(panelsRef.current ?? {}),
-        ]);
-        for (const id of titleIds) {
-          try { api.getPanel(id)?.api.setTitle(titleFor(id)); } catch { /* noop */ }
-        }
-      };
-      const saved = loadWorkbenchLayout(newId);
-      if (saved) {
-        try {
-          // Validate raw JSON before loading — avoids flashing the wrong layout.
-          const isCoreWs = newId === 'scene' || newId === 'ai';
-          const savedPanels = (saved as { panels?: Record<string, unknown> }).panels ?? {};
-          const savedPanelIds = Object.keys(savedPanels);
-          const hasStaleEpPanels = !isCoreWs
-            ? savedPanelIds.some((k) => k.startsWith('ep:'))
-            : savedPanelIds.some((k) => (
-              k.startsWith('ep:') && !editorPanelIdsRef.current.includes(k.slice(3))
-            ));
-          const missingMain = newId === 'ai' && !savedPanels['main'];
-          if (hasStaleEpPanels || missingMain) {
-            try { removeWorkbenchLayout(newId); } catch { /* noop */ }
-            // fall through to buildDefault
-          } else {
-            // Sanitize retired keys (edit/preview → viewport) and strip panels
-            // whose contentComponent is not registered in the current components map.
-            let sanitized: SerializedDockview | null = sanitizeRetiredDockLayout(saved);
-            sanitized = stripUnknownPanels(sanitized, componentKeysRef.current);
-            if (!sanitized) {
-              try { removeWorkbenchLayout(newId); } catch { /* noop */ }
-              // fall through to buildDefault
-            } else {
-              api.fromJSON(sanitized);
-              // Drop restored panels that no longer belong to THIS region.
-              closeStrayPanels(api);
-              const anchor = newId === 'ai' ? 'main' : null;
-              if (!anchor || api.getPanel(anchor)) { syncTitles(); return; }
-              // anchor missing — fall through to buildDefault
-            }
-          }
-        } catch { /* fall through */ }
-      }
-      try { api.clear(); } catch { /* noop */ }
-      buildDefault(
-        api,
-        newId,
-        isMemberRef.current,
-        builtinWorkbenchLayoutsRef.current?.[newId],
-      );
-      syncTitles();
-      // No injected chat surface — re-apply chat closure on workspace switch
-      // because buildDefault re-mounts a chat panel for several layouts.
-      if (hideChatRef.current) {
-        try { api.getPanel('chat')?.api.close(); } catch { /* noop */ }
-      }
+      applyWorkspace(api, loadWorkbenchList().activeId);
     });
-  }, []);
+  }, [applyWorkspace]);
+
 
   // Re-title every live panel when the language changes. dockview stores each
   // tab's title imperatively (set at restore/build time), so a locale switch
@@ -797,8 +821,12 @@ export function DockRegion({ region }: { region: DockRegionId }) {
     });
   }, [closeStrayPanels, editorPanelIds, layoutKey, region]);
 
-  // Re-apply the active workspace layout when the project id becomes known
-  // after boot (belt+suspenders for the early-bootstrap path in main.tsx).
+  // Reconcile the dock when the project id resolves after boot. onReady may have
+  // built the layout under the transient 'default' project (→ 'scene' seed); the
+  // real project's activeId ('ai') only becomes readable once setCurrentProject
+  // fires. Route through applyWorkspace so it reliably rebuilds (with a
+  // buildDefault fallback) instead of the old fromJSON-only patch that silently
+  // no-op'd when no saved layout existed and never updated prevWorkspaceIdRef.
   const prevProjectIdRef = useRef(getCurrentProject());
   useEffect(() => {
     if (region !== 'DockShell') return;
@@ -807,20 +835,9 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       prevProjectIdRef.current = projId;
       const api = apiRef.current;
       if (!api) return;
-      const { activeId } = loadWorkbenchList();
-      const saved = loadWorkbenchLayout(activeId);
-      if (!saved) return;
-      try {
-        const cleaned = stripUnknownPanels(
-          sanitizeRetiredDockLayout(saved),
-          componentKeysRef.current,
-        );
-        if (!cleaned) return;
-        api.fromJSON(cleaned);
-        closeStrayPanels(api);
-      } catch { /* noop */ }
+      applyWorkspace(api, loadWorkbenchList().activeId);
     });
-  }, [closeStrayPanels, region]);
+  }, [applyWorkspace, region]);
 
   // Reopen a panel that was closed (× on its tab) so closing one is never a
   // dead end. Re-added to the right of whatever's there.
