@@ -159,7 +159,7 @@
       },
       "cli": {
         "title": "本地 CLI",
-        "hint": "检测本地已安装的 claude-code / codex / cursor-agent / codebuddy，并可发 1-token Test 测延迟。",
+        "hint": "检测本地已安装的 claude-code / codex / cursor-agent / codebuddy / kimi-code，并可发 1-token Test 测延迟。",
         "healthy": "健康",
         "unavailable": "不可用",
         "useReason": "该 CLI 当前不可用，无法设为使用"
@@ -501,6 +501,7 @@
     "cliDescCodex": "OpenAI Codex CLI",
     "cliDescCursor": "Cursor Agent CLI",
     "cliDescCodebuddy": "a peer agent CLI Code CLI",
+    "cliDescKimiCode": "月之暗面 Kimi Code CLI",
     "cliBusPillTitle": "bus extension: {{extension}} · 单击在 Bus 详情查看 →",
     "interruptTitle": "打断当前回复并立即发送（steer）",
     "queueSendTitle": "排队发送 — 当前回复结束后依次执行（[Enter]）",
