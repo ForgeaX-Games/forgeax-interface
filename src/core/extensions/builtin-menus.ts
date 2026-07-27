@@ -62,7 +62,7 @@ export const builtinMenusExtension: AppExtension = {
       { id: 'file.newProject', menu: 'file', group: 'project', order: 10,
         labelKey: 'menu.file.newProject', commandId: 'game.new', icon: 'file-plus' },
       { id: 'file.openProject', menu: 'file', group: 'project', order: 20,
-        labelKey: 'menu.file.openProject', commandId: 'project.open', icon: 'folder-open' },
+        labelKey: 'menu.file.openProject', commandId: 'game.open', icon: 'folder-open' },
       { id: 'file.openRecent', menu: 'file', group: 'project', order: 30,
         labelKey: 'menu.file.openRecent', icon: 'clock',
         // Dynamic submenu: recent games (mtime-desc). Label uses the raw game
