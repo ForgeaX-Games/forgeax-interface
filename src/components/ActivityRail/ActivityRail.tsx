@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Box, Bot } from 'lucide-react';
 import { useShellStore } from '../../store';
-import { listExtensions, type ExtensionInfo } from '../../lib/extension-api';
+import { listExtensions, pickLang, type ExtensionInfo } from '../../lib/extension-api';
 import { useSurface, type UISurfaceActionDef } from '../../lib/surface';
 import { extensionRendersInMainArea } from '../MainArea/WorkbenchExtensionHost';
 import { iconForWorkbenchModule } from '../../lib/workbench-module-icons';
@@ -17,12 +17,13 @@ import './ActivityRail.css';
 // Switching logic reuses the shipped store transitions (setActiveWorkbench +
 // openWorkbench), same path the workbench.open_plugin action uses.
 //
-// Plugin grouping/ordering/labels follow the product spec (curated below), NOT
-// manifest position/displayName: three categories (3D / 2D / 通用) in this order,
-// group-internal order = the spec row order, and each item's label is the spec's
-// short name. Only spec'd plugins appear (matched by slug = manifest.id minus the
-// `@forgeax-extension/` prefix); `hidden` manifests still show if spec'd
-// (e.g. wb-lowpoly-obj). Un-spec'd workbench plugins are intentionally omitted.
+// Plugin grouping/ordering follow the product spec (curated below): three
+// categories (3D / 2D / General) in this order; group-internal order = the spec
+// row order. Labels come from each plugin's manifest displayName via pickLang
+// (zh short name / en formal name). Only spec'd plugins appear (matched by slug
+// = manifest.id minus the `@forgeax-extension/` / `@forgeax-plugin/` prefix);
+// `hidden` manifests still show if spec'd (e.g. wb-lowpoly-obj). Un-spec'd
+// workbench plugins are intentionally omitted.
 
 interface RailItem {
   id: string; // wb:<workbench.id> — the tab id openWorkbench expects
@@ -39,22 +40,6 @@ const RAIL_CATEGORIES: ReadonlyArray<{ category: string; slugs: readonly string[
   { category: '2D', slugs: ['wb-character', 'wb-items', 'wb-anim', 'wb-2d-scene-asset-generator'] },
   { category: 'general', slugs: ['wb-ui', 'wb-narrative', 'wb-reel', 'wb-game-video', 'wb-bgm', 'wb-scene-generator'] },
 ];
-// Product spec: slug → localized short-name key.
-const RAIL_LABEL_KEYS: Record<string, string> = {
-  'wb-skill': 'sidebar.plugins.skill',
-  'wb-gen3d': 'sidebar.plugins.gen3d',
-  'wb-3d-lowpoly': 'sidebar.plugins.lowpoly3d',
-  'wb-character': 'sidebar.plugins.character',
-  'wb-items': 'sidebar.plugins.items',
-  'wb-anim': 'sidebar.plugins.animation',
-  'wb-2d-scene-asset-generator': 'sidebar.plugins.sceneAssets2d',
-  'wb-ui': 'sidebar.plugins.ui',
-  'wb-narrative': 'sidebar.plugins.narrative',
-  'wb-reel': 'sidebar.plugins.reel',
-  'wb-game-video': 'sidebar.plugins.gameVideo',
-  'wb-bgm': 'sidebar.plugins.audio',
-  'wb-scene-generator': 'sidebar.plugins.sceneGenerator',
-};
 
 function slugOf(manifestId: string): string {
   return manifestId.replace(/^@forgeax-extension\//, '').replace(/^@forgeax-plugin\//, '');
@@ -87,7 +72,8 @@ interface HostSidebarSnapshot {
 }
 
 export function ActivityRail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const workbenchTab = useShellStore((s) => s.workbenchTab);
   // "mode" is derived from the active workspace (SSOT lives in workbenches.ts).
   // scene workspace → 'scene', every other workspace → 'ai'. No separate store field.
@@ -129,18 +115,17 @@ export function ActivityRail() {
           .map((slug): RailItem | null => {
             const m = bySlug.get(slug);
             if (!m) return null;
-            const labelKey = RAIL_LABEL_KEYS[slug];
             return {
               id: `wb:${m.workbench?.id ?? slug}`,
               slug,
-              label: labelKey ? t(labelKey) : slug,
+              label: pickLang(m.displayName, locale, slug),
               manifest: m,
             };
           })
           .filter((x): x is RailItem => x !== null),
       }))
       .filter((g) => g.items.length > 0);
-  }, [busExtensions, t]);
+  }, [busExtensions, locale]);
   // Flat list (spec order) for the surface snapshot + keyboard nav + tab lookup.
   const railEntries = useMemo(() => railGroups.flatMap((g) => g.items), [railGroups]);
   const railEntriesRef = useRef(railEntries);
