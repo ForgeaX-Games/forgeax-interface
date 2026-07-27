@@ -666,7 +666,22 @@
     "openInBusDetail": "在 Bus 详情查看 →",
     "pluginAuthor": "插件制作",
     "pluginStore": "插件商店",
-    "editor": "编辑器"
+    "editor": "编辑器",
+    "plugins": {
+      "skill": "技能特效",
+      "gen3d": "3D角色",
+      "lowpoly3d": "3D低多边形",
+      "character": "角色编辑",
+      "items": "道具图标",
+      "animation": "动画设计",
+      "sceneAssets2d": "2D场景资产",
+      "ui": "UI设计",
+      "narrative": "叙事设计",
+      "reel": "影游工坊",
+      "gameVideo": "视频游戏",
+      "audio": "音乐音效",
+      "sceneGenerator": "场景生成"
+    }
   },
   "trust": {
     "import": {

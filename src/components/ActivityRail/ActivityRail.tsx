@@ -37,23 +37,23 @@ interface RailItem {
 const RAIL_CATEGORIES: ReadonlyArray<{ category: string; slugs: readonly string[] }> = [
   { category: '3D', slugs: ['wb-skill', 'wb-gen3d', 'wb-3d-lowpoly'] },
   { category: '2D', slugs: ['wb-character', 'wb-items', 'wb-anim', 'wb-2d-scene-asset-generator'] },
-  { category: '通用', slugs: ['wb-ui', 'wb-narrative', 'wb-reel', 'wb-game-video', 'wb-bgm', 'wb-scene-generator'] },
+  { category: 'general', slugs: ['wb-ui', 'wb-narrative', 'wb-reel', 'wb-game-video', 'wb-bgm', 'wb-scene-generator'] },
 ];
-// Product spec: slug → short display name (产品规范名称).
-const RAIL_LABELS: Record<string, string> = {
-  'wb-skill': '技能特效',
-  'wb-gen3d': '3D角色',
-  'wb-3d-lowpoly': '3D低多边形',
-  'wb-character': '角色编辑',
-  'wb-items': '道具图标',
-  'wb-anim': '动画设计',
-  'wb-2d-scene-asset-generator': '2D场景资产',
-  'wb-ui': 'UI设计',
-  'wb-narrative': '叙事设计',
-  'wb-reel': '影游工坊',
-  'wb-game-video': '视频游戏',
-  'wb-bgm': '音乐音效',
-  'wb-scene-generator': '场景生成',
+// Product spec: slug → localized short-name key.
+const RAIL_LABEL_KEYS: Record<string, string> = {
+  'wb-skill': 'sidebar.plugins.skill',
+  'wb-gen3d': 'sidebar.plugins.gen3d',
+  'wb-3d-lowpoly': 'sidebar.plugins.lowpoly3d',
+  'wb-character': 'sidebar.plugins.character',
+  'wb-items': 'sidebar.plugins.items',
+  'wb-anim': 'sidebar.plugins.animation',
+  'wb-2d-scene-asset-generator': 'sidebar.plugins.sceneAssets2d',
+  'wb-ui': 'sidebar.plugins.ui',
+  'wb-narrative': 'sidebar.plugins.narrative',
+  'wb-reel': 'sidebar.plugins.reel',
+  'wb-game-video': 'sidebar.plugins.gameVideo',
+  'wb-bgm': 'sidebar.plugins.audio',
+  'wb-scene-generator': 'sidebar.plugins.sceneGenerator',
 };
 
 function slugOf(manifestId: string): string {
@@ -129,12 +129,18 @@ export function ActivityRail() {
           .map((slug): RailItem | null => {
             const m = bySlug.get(slug);
             if (!m) return null;
-            return { id: `wb:${m.workbench?.id ?? slug}`, slug, label: RAIL_LABELS[slug] ?? slug, manifest: m };
+            const labelKey = RAIL_LABEL_KEYS[slug];
+            return {
+              id: `wb:${m.workbench?.id ?? slug}`,
+              slug,
+              label: labelKey ? t(labelKey) : slug,
+              manifest: m,
+            };
           })
           .filter((x): x is RailItem => x !== null),
       }))
       .filter((g) => g.items.length > 0);
-  }, [busExtensions]);
+  }, [busExtensions, t]);
   // Flat list (spec order) for the surface snapshot + keyboard nav + tab lookup.
   const railEntries = useMemo(() => railGroups.flatMap((g) => g.items), [railGroups]);
   const railEntriesRef = useRef(railEntries);

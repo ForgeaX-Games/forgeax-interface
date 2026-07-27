@@ -666,7 +666,22 @@
     "openInBusDetail": "View in Bus detail →",
     "pluginAuthor": "Plugin Author",
     "pluginStore": "Plugin Store",
-    "editor": "Editor"
+    "editor": "Editor",
+    "plugins": {
+      "skill": "Skill VFX",
+      "gen3d": "3D Character",
+      "lowpoly3d": "3D Low Poly",
+      "character": "Character Editor",
+      "items": "Items & Icons",
+      "animation": "Animation",
+      "sceneAssets2d": "2D Scene Assets",
+      "ui": "UI Design",
+      "narrative": "Narrative",
+      "reel": "Cinematic Studio",
+      "gameVideo": "Video Game",
+      "audio": "Music & SFX",
+      "sceneGenerator": "Scene Generator"
+    }
   },
   "trust": {
     "import": {
