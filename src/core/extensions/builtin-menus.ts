@@ -173,7 +173,7 @@ export const builtinMenusExtension: AppExtension = {
       // reload: `editor.reloadPreview` currently only emits `preview:reload` on
       // the bus with no consumer wired — clicking would silently no-op (a
       // mock-success path, forbidden by the no-silent-fallback rule). Leave the
-      // menu item DISABLED (no commandId) until a listener lands in an L2 owner.
+      // menu item DISABLED (no commandId) until a listener lands in a standalone-application owner.
       { id: 'build.reload', menu: 'build', group: 'run', order: 40,
         labelKey: 'menu.build.reload', icon: 'refresh-cw' },
 

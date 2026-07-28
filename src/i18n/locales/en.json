@@ -709,7 +709,7 @@
     "conflicts": {
       "title": "Conflicts",
       "hint": "Same id already exists locally",
-      "entry": "already at {{layer}} v{{oldVersion}} → new pack v{{newVersion}}"
+      "entry": "already at {{origin}} v{{oldVersion}} → new pack v{{newVersion}}"
     },
     "warnings": {
       "title": "Warnings",
@@ -718,10 +718,10 @@
     "install": {
       "title": "Install",
       "hint": "Copy to destRoot/.forgeax/extensions/<id>/ · auto reload",
-      "destRootL1Placeholder": "Usually: ~ (writes to ~/.forgeax/extensions/)",
-      "destRootL2Placeholder": "Current project root",
-      "layerL1": "L1 · user level",
-      "layerL2": "L2 · project level",
+      "userRootPlaceholder": "Usually: ~ (writes to ~/.forgeax/extensions/)",
+      "projectRootPlaceholder": "Current project root",
+      "originUser": "User-installed · ~/.forgeax",
+      "originProject": "Project-specific · current project",
       "unsignedAck": "I understand this pack is unsigned and I take responsibility for its source",
       "button": "Install",
       "inProgress": "Installing…"
@@ -740,19 +740,19 @@
   "author": {
     "fork": {
       "title": "Fork extension",
-      "hint": "Copy an existing extension to L1/L2, then chat-driven vibe-edit",
+      "hint": "Copy an existing extension into your user or project extension directory, then chat-driven vibe-edit",
       "sourceLabel": "Source",
       "selectPlaceholder": "— select —",
       "newIdLabel": "New id",
-      "destLayerLabel": "Target layer",
-      "layerL1": "L1 · ~/.forgeax (recommended)",
-      "layerL2": "L2 · project-level",
+      "destinationOriginLabel": "Destination",
+      "originUser": "User-installed · ~/.forgeax (recommended)",
+      "originProject": "Project-specific",
       "copying": "Copying…",
       "refresh": "Refresh list",
       "refreshTitle": "Re-fetch /api/extensions/manifests",
       "doneBadge": "Forked ✓",
       "doneHelp": "Auto-reloaded — the new version should appear in the sidebar.",
-      "note": "Fork only copies the source directory (incl. prompt / handlers / config). manifest.id is rewritten, displayName gets a \"(mine)\" suffix. L1 has higher priority than L0; the fork immediately replaces the original in the sidebar."
+      "note": "Fork only copies the source directory (incl. prompt / handlers / config). manifest.id is rewritten, displayName gets a \"(mine)\" suffix. A user-installed copy takes precedence over the built-in copy, so the fork immediately replaces the original in the sidebar."
     },
     "record": {
       "title": "Record as skill",

@@ -342,13 +342,13 @@ export function DockRegion({ region }: { region: DockRegionId }) {
   const hideChatRef = useRef<boolean>(hideChatPanel);
   useEffect(() => { hideChatRef.current = hideChatPanel; }, [hideChatPanel]);
   // Active bus workbench plugins — used to populate the "插件面板" layout section.
-  // The plugin bus is owned by `cli` (后L2 Agent engine, /api/bus → getEventBus),
-  // NOT by platform-io (后L1). If the host did not inject chat, the standalone
+  // The plugin bus is owned by the orchestrator agent engine (`/api/bus` → `getEventBus`),
+  // NOT by the platform-io backend foundation. If the host did not inject chat, the standalone
   // shell has no agent engine, so there is never a bus to probe.
   // Skip the fetch entirely in that mode: firing it would guarantee a 404 (red in
   // the console) for a capability standalone intentionally doesn't have. (bus-api
   // still degrades gracefully if it IS hit; this just avoids the pointless wire
-  // request — §4 前L2 不连后L2.)
+  // request — the standalone frontend application does not reach the backend agent engine here.)
   const [busExtensions, setBusExtensions] = useState<ExtensionInfo[]>([]);
   useEffect(() => {
     if (hideChatPanel) return; // no injected chat/agent engine → no plugin bus
