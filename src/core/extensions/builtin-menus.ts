@@ -54,15 +54,15 @@ export const builtinMenusExtension: AppExtension = {
         labelKey: 'menu.brand.checkUpdate', icon: 'refresh-cw' },
 
       // ─── FILE ─────────────────────────────────────────────────────────────
-      // 新建项目 → new-game dialog (game.new). 打开项目 → the workspace modal's
-      // "打开已有目录" tab (project.open → openProjectModal('open') = FsBrowser).
+      // 新建项目 → new-game dialog (game.new). 打开项目 → pick and link an
+      // existing game directory (game.open-directory → FsBrowser).
       // 打开最近 → a hover submenu of recent games (dynamicChildren, derived from
       // the recent-games cache by mtime); each row switches to that game via
       // game.pick. 关闭项目 stays unimplemented (disabled).
       { id: 'file.newProject', menu: 'file', group: 'project', order: 10,
         labelKey: 'menu.file.newProject', commandId: 'game.new', icon: 'file-plus' },
       { id: 'file.openProject', menu: 'file', group: 'project', order: 20,
-        labelKey: 'menu.file.openProject', commandId: 'project.open', icon: 'folder-open' },
+        labelKey: 'menu.file.openProject', commandId: 'game.open-directory', icon: 'folder-open' },
       { id: 'file.openRecent', menu: 'file', group: 'project', order: 30,
         labelKey: 'menu.file.openRecent', icon: 'clock',
         // Dynamic submenu: recent games (mtime-desc). Label uses the raw game

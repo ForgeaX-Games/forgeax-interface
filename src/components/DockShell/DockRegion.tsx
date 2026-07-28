@@ -41,6 +41,7 @@ import { STORAGE_KEYS } from '../../lib/storageKeys';
 import { useHost } from '../../core/app-shell';
 import { pingAnchorRelayout } from '../../lib/surfaceAnchors';
 import { buildDefault } from './builtinWorkbenches';
+import { shouldApplyHydratedWorkbenchLayout } from './workspace-hydration';
 import { getDockResetEpoch } from './dockResetEpoch';
 import { sanitizeRetiredDockLayout } from './sanitizeDockLayout';
 import './DockShell.css';
@@ -847,17 +848,32 @@ export function DockRegion({ region }: { region: DockRegionId }) {
   // storage or on a fresh machine). Then apply the active workspace's layout if
   // the dock is ready and localStorage was empty before init.
   useEffect(() => {
+    let cancelled = false;
     const { activeId } = loadWorkbenchList();
+    const started = {
+      projectId: getCurrentProject(),
+      activeWorkbenchId: activeId,
+    };
     const hadActiveLayout = region === 'DockShell'
       ? !!loadWorkbenchLayout(activeId)
       : !!localStorage.getItem(layoutKey(activeId));
     void initWorkbenchLayouts(new Set(editorPanelIds)).then(() => {
+      if (cancelled) return;
       if (hadActiveLayout) return; // localStorage already had data — nothing to apply
       // Tour/layout reset already seeded the default — don't rehydrate a stale
       // project-scoped / server layout over it.
       if (appliedResetEpochRef.current > 0) return;
       const api = apiRef.current;
       if (!api) return;
+      const current = {
+        projectId: getCurrentProject(),
+        activeWorkbenchId: loadWorkbenchList().activeId,
+      };
+      if (!shouldApplyHydratedWorkbenchLayout(
+        started,
+        current,
+        prevWorkspaceIdRef.current,
+      )) return;
       const saved = loadWorkbenchLayout(activeId);
       if (!saved) return;
       try {
@@ -871,6 +887,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
         closeStrayPanels(api);
       } catch { /* fall through — keep current layout */ }
     });
+    return () => { cancelled = true; };
   }, [closeStrayPanels, editorPanelIds, layoutKey, region]);
 
   // Reconcile the dock when the project id resolves after boot. onReady may have

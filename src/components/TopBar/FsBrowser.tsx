@@ -1,10 +1,8 @@
-// FsBrowser — server-side directory picker. Used by NewProjectModal's
-// "打开已有目录" tab to let the user pick an existing system directory as a
-// ForgeaX workspace.
+// FsBrowser — server-side directory picker. Used by File → Open Project to
+// pick an existing game directory outside the current instance root.
 //
-// Folder-only navigation (the server endpoint only returns dirs). Submitting
-// posts to /api/projects/open which optionally scaffolds .forgeax/games/_default/
-// so the preview iframe has something to render for non-game workspaces.
+// Folder-only navigation (the server endpoint only returns dirs). The caller
+// links the selected directory through /api/workbench/games/link.
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUp, FolderOpen, Folder, Home, Loader2 } from 'lucide-react';
@@ -30,7 +28,7 @@ interface BrowseResp {
 
 export interface FsBrowserProps {
   initialDir?: string;
-  onPick: (absPath: string, initIfMissing: boolean) => void | Promise<void>;
+  onPick: (absPath: string) => void | Promise<void>;
   onCancel: () => void;
   busy?: boolean;
   externalError?: string | null;
@@ -44,7 +42,6 @@ export function FsBrowser({ initialDir = '~', onPick, onCancel, busy, externalEr
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [initIfMissing, setInitIfMissing] = useState(true);
 
   const load = useCallback(async (target: string) => {
     setLoading(true);
@@ -111,7 +108,7 @@ export function FsBrowser({ initialDir = '~', onPick, onCancel, busy, externalEr
 
   const onPickClick = () => {
     if (!data) return;
-    void onPick(data.dir, initIfMissing);
+    void onPick(data.dir);
   };
 
   return (
@@ -170,14 +167,6 @@ export function FsBrowser({ initialDir = '~', onPick, onCancel, busy, externalEr
       </div>
 
       <div className="fsb-footer">
-        <label className="fsb-check">
-          <input
-            type="checkbox"
-            checked={initIfMissing}
-            onChange={(e) => setInitIfMissing(e.target.checked)}
-          />
-          <span>{t('fsBrowser.initWorkspaceWhenNoGame')}</span>
-        </label>
         {externalError && <div className="fsb-ext-err">{externalError}</div>}
         <div className="fsb-actions">
           <button className="tb-modal-btn" onClick={onCancel} disabled={busy}>{t('common.cancel')}</button>

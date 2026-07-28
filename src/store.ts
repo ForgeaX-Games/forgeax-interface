@@ -498,13 +498,11 @@ export interface AppState {
   setOverlayParam: (param: string | null) => void;
   closeOverlay: () => void;
 
-  // ── New/Open-project modal (workspace) ──
-  //  The ProjectSwitcher dropdown was removed from the TopBar; 新建/打开 now
-  //  live in the File menu. This drives the hosted <NewProjectModal>.
-  //  null = closed; 'new' | 'open' = which tab.
-  projectModalTab: 'new' | 'open' | null;
-  openProjectModal: (tab: 'new' | 'open') => void;
-  closeProjectModal: () => void;
+  // ── Open-game-directory modal ──
+  //  File → 打开项目 links an existing game directory into this Studio instance.
+  gameDirectoryModalOpen: boolean;
+  openGameDirectoryModal: () => void;
+  closeGameDirectoryModal: () => void;
 
   // ── Game switcher / new-game modal (driven from the File menu) ──
   //  The File menu's 新建项目 / 打开项目 / 打开最近 now open GAME flows (a project

@@ -854,7 +854,8 @@
     "displayNameLabel": "显示名（可选）",
     "displayNamePlaceholder": "留空用 id",
     "creating": "创建中...",
-    "create": "创建"
+    "create": "创建",
+    "openGameDirectory": "打开游戏目录"
   },
   "dashboard": {
     "busKindRegistering": "{{kind}} · 扩展登记中…",
@@ -1289,10 +1290,9 @@
     "browse": "浏览…（打开系统文件夹选择器）",
     "addrHint": "输入路径后按回车跳转",
     "emptyDir": "空目录",
-    "initWorkspaceWhenNoGame": "无 game 时初始化默认 workspace",
     "selectDir": "选择 {{dir}}",
     "processing": "处理中…",
-    "selectThisDir": "选择此目录"
+    "selectThisDir": "打开此游戏目录"
   },
   "subAgent": {
     "status": {
@@ -1465,7 +1465,15 @@
     "noEntryPrefix": "扩展",
     "noEntryMiddle": "没有",
     "noEntrySuffix": "入口。",
-    "iframeLoadFailed": "iframe 加载失败：{{error}}"
+    "iframeLoadFailed": "iframe 加载失败：{{error}}",
+    "videoGameInitChecking": "正在检查当前游戏…",
+    "videoGameInitTitle": "当前游戏尚未创建视频游戏",
+    "videoGameInitBody": "创建后会注入视频游戏蓝图和模板素材，并将当前游戏切换为视频游戏类型。",
+    "videoGameInitCancel": "返回编辑器",
+    "videoGameInitConfirm": "创建视频游戏",
+    "videoGameInitializing": "正在创建并注入素材…",
+    "videoGameInitFailed": "创建失败：{{error}}",
+    "videoGameInitContinueInMain": "请在主区确认是否创建"
   },
   "themes": {
     "classicLime": {
