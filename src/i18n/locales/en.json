@@ -667,6 +667,17 @@
     "pluginAuthor": "Plugin Author",
     "pluginStore": "Plugin Store",
     "editor": "Editor",
+    "morePlugins": "More plugins",
+    "morePluginsHint": "Open more plugins menu",
+    "searchPlugins": "Search plugins…",
+    "noMatchingPlugins": "No matching plugins",
+    "pinPlugin": "Pin to sidebar",
+    "unpinPlugin": "Unpin from sidebar",
+    "categories": {
+      "3D": "3D",
+      "2D": "2D",
+      "general": "General"
+    },
     "plugins": {
       "skill": "Skill VFX",
       "gen3d": "3D Character",
@@ -1275,7 +1286,8 @@
   },
   "fsBrowser": {
     "parentDir": "Parent directory",
-    "go": "Go",
+    "browse": "Browse… (open the system folder picker)",
+    "addrHint": "Type a path and press Enter to jump",
     "emptyDir": "Empty directory",
     "initWorkspaceWhenNoGame": "Initialize default workspace when no game exists",
     "selectDir": "Select {{dir}}",

@@ -667,6 +667,17 @@
     "pluginAuthor": "插件制作",
     "pluginStore": "插件商店",
     "editor": "编辑器",
+    "morePlugins": "更多插件",
+    "morePluginsHint": "打开更多插件菜单",
+    "searchPlugins": "搜索插件…",
+    "noMatchingPlugins": "没有匹配的插件",
+    "pinPlugin": "置顶到侧栏",
+    "unpinPlugin": "取消置顶",
+    "categories": {
+      "3D": "3D",
+      "2D": "2D",
+      "general": "通用"
+    },
     "plugins": {
       "skill": "技能特效",
       "gen3d": "3D角色",
@@ -1275,7 +1286,8 @@
   },
   "fsBrowser": {
     "parentDir": "上一级",
-    "go": "跳转",
+    "browse": "浏览…（打开系统文件夹选择器）",
+    "addrHint": "输入路径后按回车跳转",
     "emptyDir": "空目录",
     "initWorkspaceWhenNoGame": "无 game 时初始化默认 workspace",
     "selectDir": "选择 {{dir}}",
