@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Box, Bot, MoreHorizontal, Pin, Search } from 'lucide-react';
 import { useShellStore } from '../../store';
-import { listExtensions, pickLang, type ExtensionInfo } from '../../lib/extension-api';
+import { extensionIdSlug, listExtensions, pickLang, type ExtensionInfo } from '../../lib/extension-api';
 import { useSurface, type UISurfaceActionDef } from '../../lib/surface';
 import { extensionRendersInMainArea } from '../MainArea/WorkbenchExtensionHost';
 import { iconForWorkbenchModule } from '../../lib/workbench-module-icons';
@@ -42,10 +42,6 @@ const RAIL_CATEGORIES: ReadonlyArray<{ category: '3D' | '2D' | 'general'; slugs:
 
 /** First-run seed so upgrading users keep today's rail contents until they unpin. */
 const DEFAULT_PINNED_SLUGS: readonly string[] = RAIL_CATEGORIES.flatMap((g) => g.slugs);
-
-function slugOf(manifestId: string): string {
-  return manifestId.replace(/^@forgeax-extension\//, '').replace(/^@forgeax-plugin\//, '');
-}
 
 function readPinnedSlugs(): string[] {
   try {
@@ -131,7 +127,7 @@ export function ActivityRail() {
   // Full catalog groups (installed ∩ spec). Used by More menu + AI surface.
   const catalogGroups = useMemo(() => {
     const bySlug = new Map<string, ExtensionInfo>();
-    for (const m of busExtensions ?? []) bySlug.set(slugOf(m.id), m);
+    for (const m of busExtensions ?? []) bySlug.set(extensionIdSlug(m.id), m);
     return RAIL_CATEGORIES
       .map(({ category, slugs }) => ({
         category,
