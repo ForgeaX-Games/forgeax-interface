@@ -17,6 +17,11 @@ import { useHost } from '../../core/app-shell';
 import { applyModelRoute } from '../../lib/model-route';
 import { listModelsWithLive } from '../../lib/model-config';
 import { fetchCliProviders, type CliProviderInfo } from '../../lib/cli-providers';
+import { FsBrowser } from '../TopBar/FsBrowser';
+import '../TopBar/FsBrowser.css';
+// FsBrowser's footer buttons are .tb-modal-btn — declare that dependency here
+// instead of inheriting it from TopBar, which is unmounted during onboarding.
+import '../TopBar/TopBar.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TourOverlay, type TourStep } from '../TourOverlay';
 import { APP_EVENTS } from '../../lib/storageKeys';
@@ -31,20 +36,6 @@ import { isUserExistingGame, resolveProjectName, toGameSlug } from './project-na
 import { latchTourShellDefaults, prepareTourShell } from './prepareTourShell';
 import { loadWorkbenchList, subscribeWorkbenchList } from '../../lib/workbenches';
 import './Onboarding.css';
-
-/** Native OS folder dialog via the local Studio server (same machine as the UI). */
-async function pickDirectoryNative(): Promise<string | null> {
-  const r = await fetch('/api/fs/pick-directory', { method: 'POST' });
-  const j = (await r.json().catch(() => null)) as {
-    ok?: boolean;
-    cancelled?: boolean;
-    path?: string;
-    error?: string;
-  } | null;
-  if (j?.cancelled) return null;
-  if (!r.ok || !j?.ok || !j.path) throw new Error(j?.error ?? `HTTP ${r.status}`);
-  return j.path;
-}
 
 type CheckResult = '' | 'ok' | 'fail';
 // A local-CLI driver id. Not a closed union: the connectable set is whatever
@@ -180,6 +171,7 @@ export function OnboardingController() {
 
   // ── project runtime: project = one game directory ──
   const [projName, setProjName] = useState('');
+  const [fsOpen, setFsOpen] = useState(false);
   const [tmplOpen, setTmplOpen] = useState(false);
   const [templates, setTemplates] = useState<TemplateInfo[] | null>(null);
   const [tmplSlug, setTmplSlug] = useState<string | null>(null);
@@ -460,16 +452,6 @@ export function OnboardingController() {
     }
   }, [execIntent, existingGames, t]);
 
-  const pickOpenDir = useCallback(async () => {
-    try {
-      const path = await pickDirectoryNative();
-      if (!path) return;
-      await startAction({ kind: 'open', path });
-    } catch (e) {
-      setProjErr((e as Error).message);
-    }
-  }, [startAction]);
-
   const onLang = (next: Locale) => { setLang(next); changeLanguage(next); };
 
   // Steps trace the default Scene layout in do-a-game order: content browser →
@@ -572,7 +554,7 @@ export function OnboardingController() {
                 err={projErr}
                 onNew={() => void startAction({ kind: 'new', name: projName })}
                 onTemplate={() => { setTmplSlug(null); setTmplOpen(true); }}
-                onOpen={() => void pickOpenDir()}
+                onOpen={() => setFsOpen(true)}
                 existingGames={existingGames}
                 onOpenExisting={(slug) => void openExisting(slug)}
               />
@@ -615,6 +597,25 @@ export function OnboardingController() {
                 onConfirm={() => { if (tmplSlug) { setTmplOpen(false); void startAction({ kind: 'template', name: projName, template: tmplSlug }); } }}
           busy={projBusy}
         />
+      )}
+
+      {/* Browses the SERVER's filesystem (GET /api/fs/browse) — that is the machine
+          a game directory actually lives on, and a headless or remote Studio host has
+          no OS dialog to open. Picking commits immediately (link + enter home);
+          failures surface on the project card, so the modal closes first. */}
+      {phase === 'project' && fsOpen && (
+        <div className="fx-ob-modal-scrim" onClick={(e) => { if (e.target === e.currentTarget) setFsOpen(false); }}>
+          <div className="fx-ob-modal">
+            <div className="fx-ob-modal-inner">
+              <h3 className="fx-ob-h3">{t('onboarding.project.openTitle')}</h3>
+              <FsBrowser
+                initialDir="~"
+                onPick={(absPath) => { setFsOpen(false); void startAction({ kind: 'open', path: absPath }); }}
+                onCancel={() => setFsOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -815,9 +816,7 @@ function ProjectView(props: {
               <div
                 key={g.slug}
                 className="fx-ob-card"
-                // flexShrink 0: .fx-ob-card has overflow:hidden → flex min-size 0,
-                // so the maxHeight'd column would crush rows to ~0 instead of scrolling.
-                style={{ cursor: props.busy ? 'default' : 'pointer', flexShrink: 0 }}
+                style={{ cursor: props.busy ? 'default' : 'pointer' }}
                 onClick={() => { if (!props.busy) props.onOpenExisting(g.slug); }}
               >
                 <div className="fx-ob-card-cb">
