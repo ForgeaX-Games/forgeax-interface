@@ -1,8 +1,7 @@
-// FsBrowser — server-side directory picker. Used by File → Open Project to
-// pick an existing game directory outside the current instance root.
+// FsBrowser — server-side directory picker for an existing game directory.
 //
 // Folder-only navigation (the server endpoint only returns dirs). The caller
-// links the selected directory through /api/workbench/games/link.
+// binds the selected directory as the active game.
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUp, FolderOpen, Folder, Home, Loader2 } from 'lucide-react';
