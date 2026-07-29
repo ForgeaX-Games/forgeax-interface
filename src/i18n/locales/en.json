@@ -1441,15 +1441,7 @@
     "noEntryPrefix": "Extension",
     "noEntryMiddle": "has no",
     "noEntrySuffix": "entry.",
-    "iframeLoadFailed": "iframe failed to load: {{error}}",
-    "videoGameInitChecking": "Checking the current game…",
-    "videoGameInitTitle": "This game has no video game yet",
-    "videoGameInitBody": "Creating it injects the video-game blueprint and template media, then marks the current game as a video game.",
-    "videoGameInitCancel": "Back to editor",
-    "videoGameInitConfirm": "Create video game",
-    "videoGameInitializing": "Creating and injecting media…",
-    "videoGameInitFailed": "Creation failed: {{error}}",
-    "videoGameInitContinueInMain": "Confirm creation in the main panel"
+    "iframeLoadFailed": "iframe failed to load: {{error}}"
   },
   "themes": {
     "classicLime": {

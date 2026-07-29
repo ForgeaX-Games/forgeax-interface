@@ -1441,15 +1441,7 @@
     "noEntryPrefix": "扩展",
     "noEntryMiddle": "没有",
     "noEntrySuffix": "入口。",
-    "iframeLoadFailed": "iframe 加载失败：{{error}}",
-    "videoGameInitChecking": "正在检查当前游戏…",
-    "videoGameInitTitle": "当前游戏尚未创建视频游戏",
-    "videoGameInitBody": "创建后会注入视频游戏蓝图和模板素材，并将当前游戏切换为视频游戏类型。",
-    "videoGameInitCancel": "返回编辑器",
-    "videoGameInitConfirm": "创建视频游戏",
-    "videoGameInitializing": "正在创建并注入素材…",
-    "videoGameInitFailed": "创建失败：{{error}}",
-    "videoGameInitContinueInMain": "请在主区确认是否创建"
+    "iframeLoadFailed": "iframe 加载失败：{{error}}"
   },
   "themes": {
     "classicLime": {
