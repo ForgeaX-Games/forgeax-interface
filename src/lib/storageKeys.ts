@@ -112,6 +112,8 @@ export const APP_EVENTS = {
   dockLayoutToggle: 'forgeax:shell:dock-layout-toggle',
   dockReset: 'forgeax:shell:dock-reset',
   animHandoff: 'forgeax:anim-handoff',
+  /** Viewport run axis changed. detail: { running: boolean }. */
+  viewportRunChanged: 'forgeax:viewport-run-changed',
   /** Open (or focus, if already open) a dock panel by id. detail: { id: string } */
   openPanel: 'forgeax:shell:open-panel',
   /** Focus a dock panel by id ONLY if it already exists (no reopen / no force-insert). detail: { id: string } */
