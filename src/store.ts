@@ -881,8 +881,20 @@ export const useShellStore = create<AppState>((set, get) => ({
     _initSessionsPending = (async () => {
       const { fetchSessionList, createSession, connectForgeaXWs } = getSessionClient();
       try {
-        // 列表恒按当前 game 收口（pinnedSlug；null 时 server 回落 active game）。
+        // The server active game is the durable startup binding. A local pin is
+        // only a client-side cache of the last selection; if the server was
+        // started with a different active-game.json, keeping the stale pin
+        // silently opens the wrong project (often an old untitled game).
         let scope = get().pinnedSlug ?? undefined;
+        if (hasWorkbenchClient()) {
+          const activeSlug = await getWorkbenchClient().getActiveSlug()
+            .then((r) => r.activeSlug)
+            .catch(() => null);
+          if (activeSlug && activeSlug !== scope) {
+            get().setPinnedSlug(activeSlug);
+            scope = activeSlug;
+          }
+        }
         let metas = await fetchSessionList(scope);
         if (metas.length === 0 && scope && hasWorkbenchClient()) {
           // 收口为空且带着本地 pin —— pin 可能已陈旧（game 被删/改名后 localStorage
