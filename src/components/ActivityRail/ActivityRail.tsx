@@ -12,6 +12,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTranslation } from '@/i18n';
 import './ActivityRail.css';
+import {
+  mergeWorkbenchCatalogSources,
+  sharedWorkbenchSelection,
+  useSharedWorkbenchCatalog,
+} from '../../workbench/catalog';
 
 // Shell-level persistent left activity bar. Lives in `.studio-body` as fixed
 // chrome OUTSIDE dockview:
@@ -28,7 +33,8 @@ interface RailItem {
   category: '3D' | '2D' | 'general';
   label: string;
   description: string;
-  manifest: ExtensionInfo;
+  manifest: ExtensionInfo | null;
+  hostExtensionId?: string;
 }
 
 // Product spec: category → ordered plugin slugs.
@@ -98,6 +104,8 @@ export function ActivityRail() {
   const workbenchTab = useShellStore((s) => s.workbenchTab);
   // "mode" is derived from the active workspace (SSOT lives in workbenches.ts).
   const mode: 'scene' | 'ai' = useActiveWorkbench()?.id === 'scene' ? 'scene' : 'ai';
+  const pinnedSlug = useShellStore((s) => s.pinnedSlug);
+  const hostCatalog = useSharedWorkbenchCatalog(pinnedSlug);
 
   const [busExtensions, setBusExtensions] = useState<ExtensionInfo[] | null>(null);
   const [pinnedSlugs, setPinnedSlugs] = useState<string[]>(() => readPinnedSlugs());
@@ -127,30 +135,31 @@ export function ActivityRail() {
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, []);
 
-  // Full catalog groups (installed ∩ spec). Used by More menu + AI surface.
+  // Full catalog groups (shared Host ∪ legacy Bus, intersected with product
+  // spec). Used by More menu + AI surface.
   const catalogGroups = useMemo(() => {
-    const bySlug = new Map<string, ExtensionInfo>();
-    for (const m of busExtensions ?? []) bySlug.set(extensionIdSlug(m.id), m);
     return RAIL_CATEGORIES
       .map(({ category, slugs }) => ({
         category,
-        items: slugs
-          .map((slug): RailItem | null => {
-            const m = bySlug.get(slug);
-            if (!m) return null;
+        items: mergeWorkbenchCatalogSources(
+          slugs,
+          busExtensions ?? [],
+          (manifest) => extensionIdSlug(manifest.id),
+          hostCatalog.entries,
+        ).map(({ slug, legacy: manifest, host }): RailItem => {
             return {
-              id: `wb:${m.workbench?.id ?? slug}`,
+              id: `wb:${manifest?.workbench?.id ?? slug}`,
               slug,
               category,
-              label: pickLang(m.displayName, locale, slug),
-              description: pickLang(m.description, locale, ''),
-              manifest: m,
+              label: manifest ? pickLang(manifest.displayName, locale, slug) : host!.title,
+              description: manifest ? pickLang(manifest.description, locale, '') : '',
+              manifest,
+              ...(host ? { hostExtensionId: host.extensionId } : {}),
             };
-          })
-          .filter((x): x is RailItem => x !== null),
+          }),
       }))
       .filter((g) => g.items.length > 0);
-  }, [busExtensions, locale]);
+  }, [busExtensions, hostCatalog.entries, locale]);
 
   const allEntries = useMemo(() => catalogGroups.flatMap((g) => g.items), [catalogGroups]);
 
@@ -213,7 +222,9 @@ export function ActivityRail() {
           const manifest = entry?.manifest ?? null;
           useShellStore.getState().openWorkbench({
             tab: a.tab,
-            expandedExtensionId: manifest && extensionRendersInMainArea(manifest) ? manifest.id : null,
+            expandedExtensionId: entry?.hostExtensionId
+              ? sharedWorkbenchSelection(entry.hostExtensionId)
+              : (manifest && extensionRendersInMainArea(manifest) ? manifest.id : null),
           });
         },
       },
@@ -307,7 +318,8 @@ export function ActivityRail() {
         <div className="activity-rail-group" data-category="pinned">
           {pinnedEntries.map((item, flatIdx) => {
             const active = mode === 'ai' && workbenchTab === item.id;
-            const Icon = iconForWorkbenchModule({ workbenchId: item.id, label: item.label, extensionId: item.manifest.id });
+            const extensionId = item.hostExtensionId ?? item.manifest?.id ?? item.slug;
+            const Icon = iconForWorkbenchModule({ workbenchId: item.id, label: item.label, extensionId });
             return (
               <Tooltip key={item.id}>
                 <TooltipTrigger asChild>
@@ -321,7 +333,7 @@ export function ActivityRail() {
                     aria-selected={active}
                     tabIndex={active ? 0 : -1}
                     aria-label={item.label}
-                    data-extension-id={item.manifest.id}
+                    data-extension-id={extensionId}
                   >
                     <span className="activity-rail-item-ic" aria-hidden><Icon size={22} strokeWidth={1.7} /></span>
                     <span className="activity-rail-item-lb">{item.label}</span>
@@ -405,7 +417,7 @@ export function ActivityRail() {
                     const Icon = iconForWorkbenchModule({
                       workbenchId: item.id,
                       label: item.label,
-                      extensionId: item.manifest.id,
+                      extensionId: item.hostExtensionId ?? item.manifest?.id ?? item.slug,
                     });
                     return (
                       <div

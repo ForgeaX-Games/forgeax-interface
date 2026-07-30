@@ -175,6 +175,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: SERVER, changeOrigin: true },
       '/ws': { target: SERVER_WS, ws: true, changeOrigin: true },
+      '/__workbench__': { target: SERVER, changeOrigin: true },
       // Engine vite has `base: '/preview/'`, so ALL its asset/dep URLs are
       // already prefixed. One proxy catches everything (forgeax/engine/*,
       // games/*, node_modules/.vite/deps/*, @vite, @id, @fs) and the

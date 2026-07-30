@@ -9,6 +9,7 @@ import { getWindowManager, surfaceKey, type SurfaceDescriptor } from '../../lib/
 import { iconForWorkbenchModule } from '../../lib/workbench-module-icons';
 import { KeepAliveExtensionIframes } from './KeepAliveExtensionIframes';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
+import { sharedWorkbenchSelectionExtensionId } from '../../workbench/catalog';
 
 /**
  * Always-mounted overlay that owns the *center* (MainArea) standalone-plugin
@@ -30,7 +31,12 @@ export function CenterExtensionLayer(): ReactElement {
   const locale = i18n.language;
   const { slots, workbenchPanels } = usePanelRenderers();
   const CornerAgentPicker = slots?.CornerAgentPicker;
-  const expandedExtensionId = useShellStore((s) => s.workbenchExpandedExtensionId);
+  const selectedExtensionId = useShellStore((s) => s.workbenchExpandedExtensionId);
+  // Shared Host pages own their own keep-alive frames and must never enter the
+  // legacy Bus manifest/iframe path underneath.
+  const expandedExtensionId = sharedWorkbenchSelectionExtensionId(selectedExtensionId)
+    ? null
+    : selectedExtensionId;
   const setExpandedExtensionId = useShellStore((s) => s.setWorkbenchExpandedExtensionId);
   const floatingSurfaces = useShellStore((s) => s.floatingSurfaces);
   const detachSurface = useShellStore((s) => s.detachSurface);
