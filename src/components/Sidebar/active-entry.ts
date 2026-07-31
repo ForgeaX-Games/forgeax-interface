@@ -1,5 +1,3 @@
-import { sharedWorkbenchOwnsSurface } from '../../workbench/catalog';
-
 export interface SidebarEntry {
   id: string;
 }
@@ -10,9 +8,7 @@ export interface SidebarEntry {
 export function resolveSidebarActiveEntry<T extends SidebarEntry>(
   entries: readonly T[],
   workbenchTab: string,
-  workbenchExpandedExtensionId: string | null = null,
 ): T | undefined {
-  if (sharedWorkbenchOwnsSurface(workbenchExpandedExtensionId)) return undefined;
   const selected = entries.find((entry) => entry.id === workbenchTab);
   if (selected) return selected;
   if (workbenchTab !== 'agents') return undefined;

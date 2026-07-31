@@ -44,7 +44,6 @@ import { buildDefault } from './builtinWorkbenches';
 import { shouldApplyHydratedWorkbenchLayout } from './workspace-hydration';
 import { getDockResetEpoch } from './dockResetEpoch';
 import { sanitizeRetiredDockLayout } from './sanitizeDockLayout';
-import { shouldHideToolsPanel } from './tools-panel-visibility';
 import './DockShell.css';
 
 // Strip panels whose `contentComponent` is not in the known component set.
@@ -336,17 +335,8 @@ export function DockRegion({ region }: { region: DockRegionId }) {
   const reopenRef = useRef<(id: string) => void>(() => {});
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed);
-  const workbenchExpandedExtensionId = useShellStore((s) => s.workbenchExpandedExtensionId);
   const chatpanelCollapsed = useShellStore((s) => s.chatpanelCollapsed);
   const fullscreen = useShellStore((s) => s.fullscreen);
-  const toolsPanelHidden = shouldHideToolsPanel(
-    sidebarCollapsed,
-    workbenchExpandedExtensionId,
-  );
-  const sidebarCollapsedRef = useRef(sidebarCollapsed);
-  sidebarCollapsedRef.current = sidebarCollapsed;
-  const toolsPanelHiddenRef = useRef(toolsPanelHidden);
-  toolsPanelHiddenRef.current = toolsPanelHidden;
   // Mirror chat availability into a ref so onReady (memoised with [] deps to
   // satisfy dockview's once-per-mount contract) and async restore branches
   // can read the latest value without re-binding.
@@ -596,22 +586,6 @@ export function DockRegion({ region }: { region: DockRegionId }) {
     ]);
     for (const id of titleIds) {
       try { api.getPanel(id)?.api.setTitle(titleFor(id)); } catch { /* noop */ }
-    }
-
-    // A shared workbench can already be selected before dockview becomes ready.
-    // Apply the same ownership rule after restore/build so the legacy tools
-    // panel cannot flash or retain width during that initial selection.
-    const toolsPanel = api.getPanel('tools');
-    if (toolsPanel) {
-      if (sidebarCollapsedRef.current) {
-        hiddenByToggleRef.current.add('tools');
-        try { toolsPanel.api.close(); } catch { /* noop */ }
-      } else {
-        const shouldBeVisible = !toolsPanelHiddenRef.current;
-        if (toolsPanel.api.group.api.isVisible !== shouldBeVisible) {
-          try { toolsPanel.api.group.api.setVisible(shouldBeVisible); } catch { /* noop */ }
-        }
-      }
     }
   }, []);
 
@@ -950,27 +924,23 @@ export function DockRegion({ region }: { region: DockRegionId }) {
   // the latest `reopen` without needing a deps re-registration.
   reopenRef.current = reopen;
 
-  // Bridge legacy collapse state and shared-surface ownership to the dock.
-  // User collapse keeps its existing close/reopen semantics. Shared ownership
-  // only toggles group visibility, retaining the panel's persisted position
-  // across selection changes and reloads.
+  // Bridge the legacy collapse toggles (TopBar / shortcuts) to the dock.
+  // Collapse = close that panel and remember it was hidden by the toggle.
+  // Expand = only reopen if it was the toggle that hid it (not the user's own ×).
+  // This prevents "close fails" where a manually-closed panel would reopen on toggle.
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
     const p = api.getPanel('tools');
     if (sidebarCollapsed) {
       if (p) { hiddenByToggleRef.current.add('tools'); p.api.close(); }
-    } else if (toolsPanelHidden) {
-      if (p?.api.group.api.isVisible) p.api.group.api.setVisible(false);
     } else {
-      if (p && !p.api.group.api.isVisible) {
-        p.api.group.api.setVisible(true);
-      } else if (!p && hiddenByToggleRef.current.has('tools')) {
+      if (!p && hiddenByToggleRef.current.has('tools')) {
         hiddenByToggleRef.current.delete('tools');
         reopen('tools');
       }
     }
-  }, [reopen, sidebarCollapsed, toolsPanelHidden]);
+  }, [sidebarCollapsed, reopen]);
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;

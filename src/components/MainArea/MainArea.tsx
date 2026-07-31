@@ -2,9 +2,6 @@ import { useActiveWorkbench } from '../../lib/useWorkbench';
 import { ViewportPanel } from './SurfacePanels';
 import { CenterExtensionLayer } from './CenterExtensionLayer';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
-import { SharedWorkbenchHostLayer } from '../../workbench/WorkbenchHostSurface';
-import { useShellStore } from '../../store';
-import { sharedWorkbenchSelectionExtensionId } from '../../workbench/catalog';
 import './MainArea.css';
 
 // 2026-05-17 — Bus mode tab + BusAdminPanel render here removed.
@@ -16,8 +13,6 @@ export function MainArea() {
   // MainArea body is the standalone @forgeax/ai-workbench application injected via the
   // slots.MainAreaBody slot (R4); interface holds no @forgeax/ai-workbench import.
   const MainAreaBody = usePanelRenderers().slots?.MainAreaBody;
-  const selectedExtensionId = useShellStore((state) => state.workbenchExpandedExtensionId);
-  const sharedWorkbenchActive = sharedWorkbenchSelectionExtensionId(selectedExtensionId) !== null;
   // The 'main' dock panel exists ONLY in the AI workbench layout (Scene uses a
   // separate 'viewport' panel), so its body is always AI content. The
   // `activeId === 'scene'` ViewportPanel branch is only a fallback for
@@ -26,7 +21,7 @@ export function MainArea() {
   const activeId = useActiveWorkbench()?.id;
   return (
     <main className="main-area">
-      {MainAreaBody && !sharedWorkbenchActive ? (
+      {MainAreaBody ? (
         <div data-fx-slot="MainAreaBody" style={{ display: 'contents' }}>
           <MainAreaBody />
         </div>
@@ -36,7 +31,6 @@ export function MainArea() {
           viewport↔workbench and tab switches instead of cold-restarting. It
           self-hides when no standalone plugin is expanded. */}
       <CenterExtensionLayer />
-      <SharedWorkbenchHostLayer />
     </main>
   );
 }
