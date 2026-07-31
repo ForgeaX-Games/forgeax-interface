@@ -6,6 +6,7 @@ import {
   resolveWorkbenchGameId,
   sharedWorkbenchSelection,
   sharedWorkbenchSelectionExtensionId,
+  sharedWorkbenchOwnsSurface,
 } from './catalog';
 
 describe('shared workbench catalog', () => {
@@ -78,5 +79,13 @@ describe('shared workbench catalog', () => {
     expect(selection).toBe('shared-workbench:@forgeax/wb-game-video');
     expect(sharedWorkbenchSelectionExtensionId(selection)).toBe('@forgeax/wb-game-video');
     expect(sharedWorkbenchSelectionExtensionId('@forgeax/wb-game-video')).toBeNull();
+  });
+
+  test('gives shared Host selections exclusive ownership of their surface', () => {
+    expect(sharedWorkbenchOwnsSurface(
+      sharedWorkbenchSelection('@forgeax/wb-game-video'),
+    )).toBe(true);
+    expect(sharedWorkbenchOwnsSurface('@forgeax/wb-game-video')).toBe(false);
+    expect(sharedWorkbenchOwnsSurface(null)).toBe(false);
   });
 });

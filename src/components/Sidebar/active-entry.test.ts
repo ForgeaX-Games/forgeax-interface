@@ -14,4 +14,12 @@ describe('resolveSidebarActiveEntry', () => {
   test('resolves the selected entry once its manifest arrives', () => {
     expect(resolveSidebarActiveEntry(entries, 'wb:video')).toEqual(entries[1]);
   });
+
+  test('does not resolve a legacy entry while the shared Host owns the surface', () => {
+    expect(resolveSidebarActiveEntry(
+      entries,
+      'wb:video',
+      'shared-workbench:@forgeax/wb-game-video',
+    )).toBeUndefined();
+  });
 });

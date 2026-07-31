@@ -50,6 +50,11 @@ export function sharedWorkbenchSelectionExtensionId(selection: string | null): s
     : null;
 }
 
+/** A shared Host selection owns every pane declared by its catalog surface. */
+export function sharedWorkbenchOwnsSurface(selection: string | null): boolean {
+  return sharedWorkbenchSelectionExtensionId(selection) !== null;
+}
+
 export async function resolveWorkbenchGameId(
   pinnedSlug?: string | null,
   fetcher: WorkbenchFetch = fetch,

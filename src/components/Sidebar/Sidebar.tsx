@@ -10,6 +10,7 @@ import { KeepAliveExtensionIframes } from '../MainArea/KeepAliveExtensionIframes
 import { iconForWorkbenchModule } from '../../lib/workbench-module-icons';
 import { useTranslation } from '@/i18n';
 import { resolveSidebarActiveEntry } from './active-entry';
+import { sharedWorkbenchOwnsSurface } from '../../workbench/catalog';
 import './Sidebar.css';
 
 // Sidebar is now the CONTENT host of the AI workbench's Tools panel: it renders
@@ -47,6 +48,7 @@ export function Sidebar() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const workbenchTab = useShellStore((s) => s.workbenchTab);
+  const workbenchExpandedExtensionId = useShellStore((s) => s.workbenchExpandedExtensionId);
   const setWorkbenchTab = useShellStore((s) => s.setWorkbenchTab);
   const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useShellStore((s) => s.toggleSidebar);
@@ -96,6 +98,7 @@ export function Sidebar() {
   );
 
   const entries: Entry[] = useMemo(() => [...BUILTINS, ...busEntries], [busEntries]);
+  const sharedWorkbenchOwnsSidebar = sharedWorkbenchOwnsSurface(workbenchExpandedExtensionId);
   // Keep workbenchTab valid: if it points at a plugin no longer present (and is
   // not the builtin 'agents' tab), fall back to the first plugin.
   useEffect(() => {
@@ -107,8 +110,8 @@ export function Sidebar() {
   }, [busEntries, busExtensions, entries, setWorkbenchTab, workbenchTab]);
 
   const activeEntry = useMemo(
-    () => resolveSidebarActiveEntry(entries, workbenchTab),
-    [entries, workbenchTab],
+    () => resolveSidebarActiveEntry(entries, workbenchTab, workbenchExpandedExtensionId),
+    [entries, workbenchExpandedExtensionId, workbenchTab],
   );
   // The left-pane standalone plugin to show right now (or null). Fed to the
   // keep-alive overlay so switching wb tabs only flips visibility instead of
@@ -185,44 +188,46 @@ export function Sidebar() {
               <ExtensionPlaceholder entry={activeEntry} siblingCount={busEntries.length} />
             )
           ) : null}
-          {/* Keep-alive overlay for left-pane standalone plugins. Always mounted
-              (Sidebar is persistent) so visited left-pane iframes survive tab
-              switches; only visibility flips. */}
-          <div
-            className={`ws-pane-keepalive${leftPaneActiveExtension ? ' active' : ''}`}
-            style={leftPaneActiveExtension ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
-            aria-hidden={leftPaneActiveExtension ? undefined : true}
-          >
-            {(() => {
-              if (!leftPaneActiveExtension || !getWindowManager().canDetach()) return null;
-              const desc: SurfaceDescriptor = { kind: 'plugin', id: leftPaneActiveExtension.id, pane: 'left' };
-              const floating = !!floatingSurfaces[surfaceKey(desc)];
-              const label = pickLang(leftPaneActiveExtension.displayName, locale, leftPaneActiveExtension.id);
-              return floating ? (
-                <div className="ws-pane-floating">
-                  <span>{t('sidebar.inSeparateWindow')}</span>
-                  <button className="ws-pane-window-toggle" onClick={() => void redockSurface(desc)} title={t('sidebar.redockToMainWindow')}>
-                    <PictureInPicture2 size={12} />
+          {/* Keep legacy left-pane iframes alive across legacy tab switches.
+              A shared Host selection unmounts this stack because that Host owns
+              its complete declared surface. */}
+          {!sharedWorkbenchOwnsSidebar && (
+            <div
+              className={`ws-pane-keepalive${leftPaneActiveExtension ? ' active' : ''}`}
+              style={leftPaneActiveExtension ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+              aria-hidden={leftPaneActiveExtension ? undefined : true}
+            >
+              {(() => {
+                if (!leftPaneActiveExtension || !getWindowManager().canDetach()) return null;
+                const desc: SurfaceDescriptor = { kind: 'plugin', id: leftPaneActiveExtension.id, pane: 'left' };
+                const floating = !!floatingSurfaces[surfaceKey(desc)];
+                const label = pickLang(leftPaneActiveExtension.displayName, locale, leftPaneActiveExtension.id);
+                return floating ? (
+                  <div className="ws-pane-floating">
+                    <span>{t('sidebar.inSeparateWindow')}</span>
+                    <button className="ws-pane-window-toggle" onClick={() => void redockSurface(desc)} title={t('sidebar.redockToMainWindow')}>
+                      <PictureInPicture2 size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="ws-pane-window-toggle floating-trigger"
+                    onClick={() => void detachSurface(desc, { title: label })}
+                    title={t('sidebar.popOutToSeparateWindow')}
+                  >
+                    <ExternalLink size={12} />
                   </button>
+                );
+              })()}
+              {leftPaneActiveExtension && dockedExtensions.has(leftPaneActiveExtension.id) ? (
+                <div className="ws-pane-floating">
+                  <span>{t('sidebar.inDockPanel')}</span>
                 </div>
               ) : (
-                <button
-                  className="ws-pane-window-toggle floating-trigger"
-                  onClick={() => void detachSurface(desc, { title: label })}
-                  title={t('sidebar.popOutToSeparateWindow')}
-                >
-                  <ExternalLink size={12} />
-                </button>
-              );
-            })()}
-            {leftPaneActiveExtension && dockedExtensions.has(leftPaneActiveExtension.id) ? (
-              <div className="ws-pane-floating">
-                <span>{t('sidebar.inDockPanel')}</span>
-              </div>
-            ) : (
-              <KeepAliveExtensionIframes pane="left" activeExtension={leftPaneActiveExtension} floatingKeys={floatingSurfaces} />
-            )}
-          </div>
+                <KeepAliveExtensionIframes pane="left" activeExtension={leftPaneActiveExtension} floatingKeys={floatingSurfaces} />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </aside>
