@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, ExternalLink, PictureInPicture2 } from 'lucide-react';
+import { ExternalLink, PictureInPicture2 } from 'lucide-react';
 import { useShellStore } from '../../store';
 import { emitDeepLink } from '../../lib/deep-link-bus';
 import { getWindowManager, surfaceKey, type SurfaceDescriptor } from '../../lib/platform';
@@ -48,8 +48,6 @@ export function Sidebar() {
   const locale = i18n.language;
   const workbenchTab = useShellStore((s) => s.workbenchTab);
   const setWorkbenchTab = useShellStore((s) => s.setWorkbenchTab);
-  const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed);
-  const toggleSidebar = useShellStore((s) => s.toggleSidebar);
   const floatingSurfaces = useShellStore((s) => s.floatingSurfaces);
   const detachSurface = useShellStore((s) => s.detachSurface);
   const redockSurface = useShellStore((s) => s.redockSurface);
@@ -120,28 +118,8 @@ export function Sidebar() {
     [activeEntry],
   );
 
-  // ── Collapsed state: 36px strip (just the expand button) ────────────────
-  if (sidebarCollapsed) {
-    return (
-      <aside className="sidebar sidebar-collapsed">
-        <div className="sb-toolbar-collapsed">
-          <button className="sb-icon-btn" onClick={toggleSidebar} title={t('sidebar.expandSidebar')} aria-label={t('sidebar.expandSidebar')}>
-            <PanelLeftOpen size={16} />
-          </button>
-        </div>
-      </aside>
-    );
-  }
-
-  // ── Expanded state: collapse affordance + active tab content ────────────
   return (
     <aside className="sidebar thin-scrollbar">
-      <div className="sb-toolbar sb-toolbar--end">
-        <button className="sb-icon-btn" onClick={toggleSidebar} title={t('sidebar.collapseSidebar')} aria-label={t('sidebar.collapseSidebar')}>
-          <PanelLeftClose size={16} />
-        </button>
-      </div>
-
       <div className="ss-section workbench">
         <div key={activeEntry?.id ?? 'empty'} className="ws-active-content rail-panel">
           {activeEntry?.kind === 'builtin' ? (

@@ -92,7 +92,7 @@ export function CenterExtensionLayer(): ReactElement {
     : false;
 
   // Plugin header (product prototype `pl-head`): icon + name + description +
-  // 「插件 · 主窗口」tag + a ✕ that closes back to the workbench (临时关闭).
+  // a ✕ that closes back to the workbench (临时关闭).
   const headManifest = resolved;
   const headTitle = headManifest ? pickLang(headManifest.displayName, locale, expandedExtensionId ?? '') : (expandedExtensionId ?? '');
   const headSub = headManifest ? pickLang(headManifest.description, locale, '') : '';
@@ -145,21 +145,22 @@ export function CenterExtensionLayer(): ReactElement {
             <div className="fx-plugin-head-title" title={headTitle}>{headTitle}</div>
             {headSub ? <div className="fx-plugin-head-sub" title={headSub}>{headSub}</div> : null}
           </div>
-          <span className="fx-plugin-head-tag">{t('centerExtension.pluginMainWindow')}</span>
-          {CornerAgentPicker
-            ? <div data-fx-slot="CornerAgentPicker" style={{ display: 'contents' }}>
-                <CornerAgentPicker preferredAgentExtensionId={activeExtension?.workbench?.preferredAgent} />
-              </div>
-            : null}
-          {windowToggle}
-          <button
-            className="fx-plugin-head-close"
-            onClick={() => setExpandedExtensionId(null)}
-            title={t('centerExtension.close')}
-            aria-label={t('centerExtension.close')}
-          >
-            <X size={14} />
-          </button>
+          <div className="fx-plugin-head-actions">
+            {CornerAgentPicker
+              ? <div data-fx-slot="CornerAgentPicker" style={{ display: 'contents' }}>
+                  <CornerAgentPicker preferredAgentExtensionId={activeExtension?.workbench?.preferredAgent} />
+                </div>
+              : null}
+            {windowToggle}
+            <button
+              className="fx-plugin-head-close"
+              onClick={() => setExpandedExtensionId(null)}
+              title={t('centerExtension.close')}
+              aria-label={t('centerExtension.close')}
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       )}
       <div className="fx-center-plugin-body">
