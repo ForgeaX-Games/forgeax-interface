@@ -18,7 +18,7 @@
     "./components/DockShell/panelRenderers": "./src/components/DockShell/panelRenderers.ts",
     "./components/ErrorBoundary": "./src/components/ErrorBoundary.tsx",
     "./components/MainArea/WorkbenchPluginHost": "./src/components/MainArea/WorkbenchPluginHost.tsx",
-    "./components/DockShell/WbExtensionDockPanel": "./src/components/DockShell/WbExtensionDockPanel.tsx",
+    "./components/DockShell/WorkbenchExtensionPanel": "./src/components/DockShell/WorkbenchExtensionPanel.tsx",
     "./components/ModelPicker": "./src/components/ModelPicker/index.ts",
     "./components/Resize/ResizeHandle": "./src/components/Resize/ResizeHandle.tsx",
     "./components/SettingsPrimitives": "./src/components/SettingsPrimitives.tsx",
