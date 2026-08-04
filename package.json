@@ -40,6 +40,7 @@
     "./lib/composer-bridge": "./src/lib/composer-bridge.ts",
     "./lib/dashboard-api": "./src/lib/dashboard-api.ts",
     "./lib/deep-link-bus": "./src/lib/deep-link-bus.ts",
+    "./lib/editor-facts-bus": "./src/lib/editor-facts-bus.ts",
     "./lib/dialog": "./src/lib/dialog.tsx",
     "./lib/file-activity-stream": "./src/lib/file-activity-stream.ts",
     "./lib/global-shortcuts": "./src/lib/global-shortcuts.ts",

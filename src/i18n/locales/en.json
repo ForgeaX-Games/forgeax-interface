@@ -1194,6 +1194,11 @@
     "fullscreenTitle": "UI render crashed",
     "fullscreenHint": "The React UI threw while rendering. Try \"Retry\" first; if that fails, \"Reload this region\"; if it still errors, \"Reload Studio\". The desktop app has no address bar, so you must recover with the buttons below."
   },
+  "footerPanel": {
+    "info": "Info",
+    "checkpoints": "Checkpoints",
+    "events": "Events"
+  },
   "infoPanel": {
     "clickToCopy": "Click to copy",
     "repeatedTimes": "Repeated {{count}} times",

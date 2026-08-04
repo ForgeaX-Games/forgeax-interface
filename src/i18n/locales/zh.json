@@ -1194,6 +1194,11 @@
     "fullscreenTitle": "界面渲染崩溃",
     "fullscreenHint": "React 界面渲染时抛错。先试「重试」；不行再「重载此区域」；仍异常则「重新加载 Studio」。桌面 app 无地址栏，必须用下面的按钮恢复。"
   },
+  "footerPanel": {
+    "info": "信息",
+    "checkpoints": "检查点",
+    "events": "事件"
+  },
   "infoPanel": {
     "clickToCopy": "点击复制此条 / Click to copy",
     "repeatedTimes": "重复 {{count}} 次",

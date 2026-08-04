@@ -15,7 +15,6 @@ import { MainArea } from '../MainArea/MainArea';
 import { FilesPanel } from '../Sidebar/FilesPanel';
 import { ConsolePanel } from '../MainArea/ConsolePanel';
 import { TelemetryViewer } from '../MainArea/TelemetryViewer';
-import { InfoPanel } from '../StatusBar/InfoPanel';
 import { RecoveryBoundary } from '../ErrorBoundary';
 // Editor panel bodies resolve through the runtime PanelRenderers context so
 // interface stays editor-agnostic (no `@forgeax/editor*` import).
@@ -89,9 +88,9 @@ export const OPTIONAL_PANELS: PanelDef[] = [
   // unified store.telemetry slice (node WS `{type:'telemetry'}` + iframe
   // `VAG_TELEMETRY`). See MainArea/TelemetryViewer.tsx.
   { id: 'telemetry', title: 'Telemetry', group: 'optional', canPopOut: true, render: () => <TelemetryViewer /> },
-  // Blender-INFO-style health/log feed — the same store the bottom HealthStatusBar
-  // peeks at, full-height with click-to-copy + repeat-fold (×N).
-  { id: 'info', title: 'Info', group: 'optional', canPopOut: true, render: () => <InfoPanel /> },
+  // 'info' (Blender-INFO-style health/log feed) moved to the bottom drawer
+  // (ADR-0030 §2.3) — see core/extensions/chrome-drawer.tsx. It is no longer a
+  // dock panel: it registers a launcher tab at the bottom that expands upward.
 ];
 
 // ── derived lookup maps (DockShell consumes these; never edit by hand) ────────
