@@ -22,6 +22,7 @@ import { useActiveWorkbench, useWorkbenchActions } from '../../lib/useWorkbench'
 import { registerDockviewApi } from './dockviewRegistry';
 import { handleCrossInstanceDrop, type CrossInstanceDropEvent } from './crossInstanceDrop';
 import { buildTabContextMenuItems } from './tabContextMenu';
+import { isDockTitleHidden, setDockTitleHidden } from './dockTitle';
 import { AuxBarResizer } from './AuxBarResizer';
 import { useAuxBarWidth } from './useAuxBarWidth';
 import {
@@ -1300,11 +1301,17 @@ export function DockRegion({ region }: { region: DockRegionId }) {
         // on <DockviewReact/>; we return a mix of built-in ids ('close',
         // 'closeOthers', 'separator') and custom `{ label, action }` items.
         // See ./tabContextMenu.ts for the pure builder + tests.
-        getTabContextMenuItems={(params: { panel: { id: string } }) =>
+        getTabContextMenuItems={(params) =>
           buildTabContextMenuItems(
             region,
             params.panel.id,
             (id, r) => moveTo(id, r),
+            {
+              groupPanelCount: params.group.panels.length,
+              titleHidden: isDockTitleHidden(params.group.element),
+              onHideTitle: () => setDockTitleHidden(params.group.element, true),
+              onShowTitle: () => setDockTitleHidden(params.group.element, false),
+            },
           )
         }
         // rightHeaderActionsComponent removed — the pop-out ⧉ button was

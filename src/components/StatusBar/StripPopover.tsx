@@ -16,6 +16,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -50,6 +51,13 @@ export function StripPopover({
   const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null);
   const Icon = icon ? LucideIcons[icon as keyof typeof LucideIcons] : undefined;
 
+  const closeOnEscape = (event: ReactKeyboardEvent): void => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    setOpen(false);
+  };
+
   // Anchor the card centered over the chip, clamped to the viewport, sitting
   // just above it (fixed `bottom` measured from the chip's top — grows upward).
   const place = useCallback(() => {
@@ -73,16 +81,11 @@ export function StripPopover({
       if (popRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
     document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {
       document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
@@ -98,6 +101,7 @@ export function StripPopover({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={closeOnEscape}
       >
         {Icon ? <Icon size={12} className="sb-chip-icon" /> : null}
         {label != null ? <span className="sb-chip-label">{label}</span> : null}
@@ -109,6 +113,7 @@ export function StripPopover({
             className="fx-strip-pop"
             role="dialog"
             style={pos ? { left: pos.left, bottom: pos.bottom } : { left: -9999, bottom: 0 }}
+            onKeyDown={closeOnEscape}
           >
             <div className="fx-strip-pop-h">
               {title}

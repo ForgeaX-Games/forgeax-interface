@@ -20,6 +20,7 @@ import { RecoveryBoundary } from '../ErrorBoundary';
 // interface stays editor-agnostic (no `@forgeax/editor*` import).
 import { usePanelRenderers } from './panelRenderers';
 import { DockPanelHost } from './DockPanelHost';
+import { withDockTitleRestore } from './dockTitle';
 
 // Agents panel body — injected by studio from `@forgeax/ai-workbench`.
 // When absent (interface-alone / standalone editor) render a neutral placeholder
@@ -140,7 +141,7 @@ function tourWrap(tourId: string | undefined, render: () => ReactNode): () => Re
 export const BASE_PANEL_COMPONENTS: Record<string, (props: IDockviewPanelProps) => ReactNode> =
   Object.fromEntries(ALL_PANELS.map((p) => [
     p.id,
-    withBoundary(`panel:${p.id}`, tourWrap(p.tourId, p.render)),
+    withDockTitleRestore(withBoundary(`panel:${p.id}`, tourWrap(p.tourId, p.render))),
   ]));
 
 /** Static titles for interface-owned panels only. */
@@ -154,7 +155,7 @@ export function buildEditorPanelComponents(
 ): Record<string, (props: IDockviewPanelProps) => ReactNode> {
   return Object.fromEntries(editorPanelIds.map((id) => [
     `ep:${id}`,
-    withBoundary(`ep:${id}`, tourWrap(EP_TOUR_IDS[id], () => <DockPanelHost id={id} />)),
+    withDockTitleRestore(withBoundary(`ep:${id}`, tourWrap(EP_TOUR_IDS[id], () => <DockPanelHost id={id} />))),
   ]));
 }
 
