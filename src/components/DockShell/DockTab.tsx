@@ -12,6 +12,12 @@
 // whole tab stays draggable/clickable), a Lucide `X` close glyph (design-system
 // on-brand, avoids a deep `dockview/.../svg` import), and a Lucide `Pin` that
 // takes the X's place on edge-strip tabs (see `useEdgePin` below).
+//
+// CLOSE BUTTON: React synthetic events and native mousedown/click are
+// unreliable here because calling preventDefault() on pointerdown (needed to
+// prevent tab activation) suppresses subsequent mousedown/click per the W3C
+// Pointer Events spec. We bypass React entirely and handle close directly on
+// a native `pointerdown` listener via ref+useEffect.
 import {
   useCallback,
   useEffect,
@@ -103,15 +109,31 @@ export function DockTab({
   const Icon = iconForDockPanel(api.id);
   const { isEdge, pinned } = useEdgePin(api);
   const isMiddleMouseButton = useRef(false);
+  const closeRef = useRef<HTMLDivElement>(null);
 
-  const onClose = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      if (closeActionOverride) closeActionOverride();
-      else api.close();
-    },
-    [api, closeActionOverride],
-  );
+  // Native DOM listener on the close button — bypasses React event delegation
+  // which is unreliable inside dockview's vanilla-JS portal container.
+  // Must handle close on `pointerdown` because calling preventDefault() on
+  // pointerdown suppresses subsequent mousedown/click (W3C Pointer Events spec).
+  useEffect(() => {
+    const el = closeRef.current;
+    if (!el) return;
+
+    const onPointerDownClose = (ev: globalThis.PointerEvent): void => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      try {
+        if (closeActionOverride) closeActionOverride();
+        else api.close();
+      } catch { /* panel may already be disposed */ }
+    };
+
+    el.addEventListener('pointerdown', onPointerDownClose);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDownClose);
+    };
+  }, [api, closeActionOverride]);
+
   const onBtnPointerDown = useCallback((event: PointerEvent) => event.preventDefault(), []);
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -124,11 +146,12 @@ export function DockTab({
     (event: PointerEvent<HTMLDivElement>) => {
       if (isMiddleMouseButton.current && event.button === 1 && !hideClose) {
         isMiddleMouseButton.current = false;
-        onClose(event);
+        if (closeActionOverride) closeActionOverride();
+        else api.close();
       }
       onPointerUp?.(event);
     },
-    [onPointerUp, onClose, hideClose],
+    [onPointerUp, api, closeActionOverride, hideClose],
   );
   const handlePointerLeave = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -167,7 +190,7 @@ export function DockTab({
             <Pin className="fx-edge-pin-icon" size={12} aria-hidden />
           </div>
         ) : (
-          <div className="dv-default-tab-action" onPointerDown={onBtnPointerDown} onClick={onClose}>
+          <div ref={closeRef} className="dv-default-tab-action">
             <X size={14} aria-hidden />
           </div>
         ))}
