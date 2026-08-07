@@ -107,7 +107,7 @@ export function registerBuiltinActions(): void {
     id: 'workbench.list_plugins',
     title: '列出工作台插件',
     description:
-      'List installed workbench plugins (id, name, description). Use this to tell the user what workbench tools exist and what each does, then guide them with workbench.open_plugin. Returns { count, plugins:[{id,name,description}] }. A plugin shows on the rail only when its manifest declares an activity AND the user has pinned it; the pin half is per-user localStorage, so this list cannot tell you what the rail currently shows. The workbench grid always lists every installed plugin, so do NOT claim a plugin is unreachable.',
+      'List installed workbench plugins (id, name, description). Use this to tell the user what workbench tools exist and what each does, then guide them with workbench.open_plugin. Returns { count, plugins:[{id,name,description}] }.',
     capability: 'read',
     firstClass: true,
     surface: 'ui',
