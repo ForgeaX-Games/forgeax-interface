@@ -9,9 +9,9 @@ import {
 } from 'react';
 import {
   AtSign,
-  BookOpen,
   ChevronsRight,
   Copy,
+  Crosshair,
   File,
   FolderSearch,
   Minus,
@@ -39,7 +39,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { PageRulesDialog } from './PageRulesDialog';
 import './PageTabStrip.css';
 
 // Lucide glyphs for controller-contributed menu items (kebab name → component),
@@ -47,6 +46,7 @@ import './PageTabStrip.css';
 const MENU_ICON: Record<string, LucideIcon> = {
   copy: Copy,
   'folder-search': FolderSearch,
+  crosshair: Crosshair,
   'at-sign': AtSign,
   save: Save,
 };
@@ -95,7 +95,6 @@ export function PageTabStrip(): ReactElement | null {
   const dragKeyRef = useRef<string | null>(null);
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
   const [overflowing, setOverflowing] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; key: string } | null>(null);
   // Dirty state lives outside the page snapshot — a registered probe (e.g. the
   // Material Instance staging buffer) owns it, so re-render on its signal.
@@ -213,7 +212,7 @@ export function PageTabStrip(): ReactElement | null {
           ref={listRef}
           className="page-tab-list"
           role="tablist"
-          aria-label="Open pages"
+          aria-label={t('pageTabs.openPages')}
           onPointerMove={handlePointerMove}
         >
           {instances.map((page) => {
@@ -263,7 +262,7 @@ export function PageTabStrip(): ReactElement | null {
                   <span
                     className="page-tab__close no-motion-lift"
                     role="button"
-                    aria-label={`Close ${title}`}
+                    aria-label={t('pageTabs.closeTab', { title })}
                     data-page-close={page.encodedKey}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -282,13 +281,13 @@ export function PageTabStrip(): ReactElement | null {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="page-tab-btn page-tab-new no-motion-lift" title="New page" aria-label="New page">
+            <button type="button" className="page-tab-btn page-tab-new no-motion-lift" title={t('pageTabs.newPage')} aria-label={t('pageTabs.newPage')}>
               <Plus className="page-tab-btn__icon" aria-hidden />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[200px]">
             {openableTypes.length === 0 ? (
-              <DropdownMenuItem disabled>No openable page types</DropdownMenuItem>
+              <DropdownMenuItem disabled>{t('pageTabs.noOpenableTypes')}</DropdownMenuItem>
             ) : (
               openableTypes.map((t) => {
                 const Icon = iconForPage({ typeId: t.typeId });
@@ -307,7 +306,7 @@ export function PageTabStrip(): ReactElement | null {
           {overflowing && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="page-tab-btn no-motion-lift" title="All pages">
+                <button type="button" className="page-tab-btn no-motion-lift" title={t('pageTabs.allPages')}>
                   <ChevronsRight className="page-tab-btn__icon" aria-hidden />
                   <span>{instances.length}</span>
                 </button>
@@ -330,15 +329,6 @@ export function PageTabStrip(): ReactElement | null {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <button
-            type="button"
-            className="page-tab-btn page-tab-rules no-motion-lift"
-            title="Tab rules manual"
-            onClick={() => setRulesOpen(true)}
-          >
-            <BookOpen className="page-tab-btn__icon" aria-hidden />
-            <span>页签规则</span>
-          </button>
         </div>
       </div>
 
@@ -354,7 +344,7 @@ export function PageTabStrip(): ReactElement | null {
           <DropdownMenuContent align="start" className="min-w-[186px]" onContextMenu={(e) => e.preventDefault()}>
             <DropdownMenuItem disabled={!menuPage.closable} onSelect={() => closeKey(menu.key)}>
               <X aria-hidden />
-              关闭
+              {t('pageTabs.context.close')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
@@ -363,7 +353,7 @@ export function PageTabStrip(): ReactElement | null {
               }}
             >
               <Minus aria-hidden />
-              关闭其他
+              {t('pageTabs.context.closeOthers')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
@@ -371,14 +361,12 @@ export function PageTabStrip(): ReactElement | null {
               }}
             >
               <ChevronsRight aria-hidden />
-              关闭右侧全部
+              {t('pageTabs.context.closeToRight')}
             </DropdownMenuItem>
             {renderMenuItems(menuItems)}
           </DropdownMenuContent>
         )}
       </DropdownMenu>
-
-      <PageRulesDialog open={rulesOpen} onOpenChange={setRulesOpen} />
     </div>
   );
 }
