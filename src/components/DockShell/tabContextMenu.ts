@@ -79,7 +79,11 @@ export function buildTabContextMenuItems(
     }
   }
 
-  if (titleOptions?.groupPanelCount === 1) {
+  // Title-bar hiding is a primary-dock affordance only: a panel parked on a
+  // left/right side strip renders through the collapsed edge chrome, which has
+  // no title bar to hide — so suppress the option there (offering it did
+  // nothing but confuse). Bottom/AuxBar keep their existing behavior.
+  if (titleOptions?.groupPanelCount === 1 && !sideEdge?.onSideEdge) {
     const titleHidden = titleOptions.titleHidden === true;
     const action = titleHidden ? titleOptions.onShowTitle : titleOptions.onHideTitle;
     if (action) {

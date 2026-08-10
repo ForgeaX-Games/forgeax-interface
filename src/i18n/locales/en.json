@@ -189,6 +189,20 @@
       "additionalTokenCost": "Uses a small number of additional tokens",
       "additionalTokenHint": "{{kernel}} memory extraction uses a small number of additional tokens. Turn it off here if you do not need it."
     },
+    "kernelPermissions": {
+      "title": "Permission gear per kernel",
+      "hint": "Every kernel starts in \"{{mode}}\" by default. This only sets the baseline; permissions.deny rules and hook gates still apply.",
+      "followDefault": "Follow default ({{mode}})",
+      "singleGearHint": "{{kernel}} supports only this gear — that is its real headless capability. Narrow it with deny rules or hooks instead.",
+      "denyStillApplies": "Even at full access, deny rules, protected paths and PreToolUse hooks still block operations.",
+      "mode": {
+        "gated": "Ask each time",
+        "autoEdits": "Auto edits",
+        "planning": "Read-only planning",
+        "unrestricted": "Full access (dangerous)"
+      },
+      "riskyGearHint": "Below full access, {{kernel}} may hang waiting for approval on turns carrying project MCP — a real limitation of that kernel; we no longer silently raise the gear for you."
+    },
     "env": {
       "saved": "Wrote {{count}} variable(s) to .env (takes effect after restarting the stack)"
     },

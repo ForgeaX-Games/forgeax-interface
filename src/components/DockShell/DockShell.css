@@ -523,7 +523,7 @@
 }
 .dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open > .dv-content-container {
   top: var(--fx-edge-drawer-top);
-  height: var(--fx-edge-drawer-width, 300px);
+  height: var(--fx-edge-drawer-height, 300px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.22);
 }
 .dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-animating > .dv-content-container {
@@ -532,7 +532,7 @@
 .dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container {
   top: auto;
   bottom: var(--fx-edge-drawer-bottom);
-  height: var(--fx-edge-drawer-width, 300px);
+  height: var(--fx-edge-drawer-height, 300px);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.30), 0 -1px 3px rgba(0, 0, 0, 0.22);
 }
 .dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-animating > .dv-content-container {
