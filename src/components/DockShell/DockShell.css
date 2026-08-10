@@ -588,6 +588,12 @@
    position: relative anchors the .fx-auxbar-resizer absolutely at the left edge. */
 .fx-dockregion-AuxBar { flex: 0 0 auto; position: relative; }
 
+/* ChatDock — the fixed-width chat column right of the ActivityRail. Same
+   fixed-basis override as AuxBar so the inline width from useChatWidth wins
+   instead of splitting space with DockShell (which keeps .fx-dockwrap's
+   flex:1). Left border restores the separator the old .studio-chat-col drew. */
+.fx-dockregion-ChatDock { flex: 0 0 auto; position: relative; border-left: 1px solid var(--color-border-default); }
+
 /* While dragging a dockview TAB/GROUP (fx-dock-dragging is scoped to tab-strip
    drags in DockRegion — NOT in-panel HTML5 drags like Hierarchy rows), make the
    hovered panel body transparent to the native drag so dockview's own drop

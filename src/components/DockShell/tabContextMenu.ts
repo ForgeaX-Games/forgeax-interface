@@ -98,5 +98,16 @@ export function buildTabContextMenuItems(
       );
     }
   }
+
+  // Chat lives in its own ChatDock column by default. Once it has been dragged
+  // out into another region, offer a one-click "show in default position" that
+  // sends it home. Suppressed while chat is already in ChatDock (nothing to
+  // reset), so the item only appears where it does something.
+  if (panelId === 'chat' && region !== 'ChatDock') {
+    items.push('separator', {
+      label: panelT('dockShell.chatToDefault'),
+      action: () => moveTo('chat', 'ChatDock'),
+    });
+  }
   return items;
 }

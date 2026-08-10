@@ -13,6 +13,26 @@
     "today": "今天",
     "yesterday": "昨天"
   },
+  "statusBar": {
+    "diagnostics": {
+      "title": "诊断",
+      "tooltip": "诊断 · 设备与运行时状态",
+      "checking": "检测中…",
+      "webgpuUnavailable": "WebGPU 不可用",
+      "unknownDevice": "未知设备",
+      "cores": "核",
+      "device": "设备",
+      "memory": "内存",
+      "unavailable": "不可用",
+      "engine": "引擎",
+      "processMemory": "进程内存",
+      "uptime": "运行时长",
+      "wsConnections": "WS 连接",
+      "project": "项目",
+      "scene": "当前场景",
+      "assets": "资产"
+    }
+  },
   "onboarding": {
     "step": {
       "welcome": "欢迎 · 语言 · 连接模型",
@@ -1169,6 +1189,7 @@
     "browserFullscreen": "浏览器全屏(PPT 放映式)· 浏览器原生 fullscreen API(连标签栏 / 地址栏一起消失)",
     "toggleSidebar": "切换左侧 Sidebar(工作台栏)",
     "toggleChatPanel": "切换右侧 ChatPanel",
+    "revealChat": "切换 chat(隐藏则调出 / 非默认位则归位 / 默认位则关闭)",
     "toggleDashboard": "切换 Dashboard 总览面板",
     "toggleSettings": "打开 / 关闭 Settings 浮层",
     "openChangelog": "Settings → Changelog(版本迭代记录)",
@@ -1258,6 +1279,7 @@
     "moveToSide": "移动到侧边",
     "moveOffSide": "移出侧边",
     "moveToPrimaryDock": "移回主停靠区",
+    "chatToDefault": "在默认位置显示",
     "tabContext": {
       "close": "关闭",
       "closeOthers": "关闭其他"

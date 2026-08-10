@@ -13,6 +13,26 @@
     "today": "Today",
     "yesterday": "Yesterday"
   },
+  "statusBar": {
+    "diagnostics": {
+      "title": "Diagnostics",
+      "tooltip": "Diagnostics · device and runtime status",
+      "checking": "Checking…",
+      "webgpuUnavailable": "WebGPU unavailable",
+      "unknownDevice": "Unknown device",
+      "cores": "cores",
+      "device": "Device",
+      "memory": "Memory",
+      "unavailable": "Unavailable",
+      "engine": "Engine",
+      "processMemory": "Process memory",
+      "uptime": "Uptime",
+      "wsConnections": "WS connections",
+      "project": "Project",
+      "scene": "Current scene",
+      "assets": "Assets"
+    }
+  },
   "onboarding": {
     "step": {
       "welcome": "Welcome · Language · Connect",
@@ -1169,6 +1189,7 @@
     "browserFullscreen": "Browser fullscreen (presentation style) · native browser fullscreen API (tab bar / address bar disappear too)",
     "toggleSidebar": "Toggle left Sidebar (workbench bar)",
     "toggleChatPanel": "Toggle right ChatPanel",
+    "revealChat": "Toggle chat (reveal / send home / close)",
     "toggleDashboard": "Toggle Dashboard overview panel",
     "toggleSettings": "Open / close Settings overlay",
     "openChangelog": "Settings → Changelog (version history)",
@@ -1258,6 +1279,7 @@
     "moveToSide": "Move to Side",
     "moveOffSide": "Move off Side",
     "moveToPrimaryDock": "Move to Primary Dock",
+    "chatToDefault": "Show in Default Position",
     "tabContext": {
       "close": "Close",
       "closeOthers": "Close Others"
