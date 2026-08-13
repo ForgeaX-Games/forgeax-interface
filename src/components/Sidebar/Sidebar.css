@@ -740,14 +740,9 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   font-size: 11px;
   color: var(--text-muted);
 }
-/* ── P4.1 fp-types — file extension family legend strip below fp-header.
- * Six families: code (lime · ts/tsx/js/...) · json (cyan) · text (gold ·
- * md/txt) · image (pink · png/jpg/svg/...) · audio (purple · mp3/wav) ·
- * other (gray). Each chip is a button; click expands ancestors + scrolls
- * the first matching file into view and runs a 1.5s flash ring (same
- * pattern as AgentsPanel ap-tribes P4.0). Palette intentionally distinct
- * from the 6-tribe role family so the player doesn't confuse "this file
- * is text" with "this agent is narrative". 0 store / 0 server change.
+/* ── fp-types — shared ten-family file taxonomy legend below fp-header.
+ * Family identity comes from file-family.ts; visual identity comes from the
+ * --fx-family-* token and is shared with chat asset references.
  */
 .fp-types {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
@@ -826,25 +821,31 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   color: rgba(255,255,255,0.85);
   font-variant-numeric: tabular-nums;
 }
-/* Family palettes (chip dot + hover tint). Lime/cyan/gold/pink/violet/gray. */
-.fp-type-dot.fam-code  { background: var(--primary); box-shadow: none; }
-.fp-type-chip.fam-code:hover  { background: rgba(212,255,72,0.13); border-color: rgba(212,255,72,0.48); box-shadow: none; }
-.fp-type-chip.fam-code:focus-visible  { box-shadow: 0 0 0 2px rgba(212,255,72,0.55); }
-.fp-type-dot.fam-json  { background: var(--color-kind-cli-provider); box-shadow: none; }
-.fp-type-chip.fam-json:hover  { background: rgba(109,211,255,0.13); border-color: rgba(109,211,255,0.48); box-shadow: none; }
-.fp-type-chip.fam-json:focus-visible  { box-shadow: 0 0 0 2px rgba(109,211,255,0.55); }
-.fp-type-dot.fam-text  { background: var(--prim-color-yellow-300); box-shadow: none; }
-.fp-type-chip.fam-text:hover  { background: rgba(255,214,106,0.13); border-color: rgba(255,214,106,0.48); box-shadow: none; }
-.fp-type-chip.fam-text:focus-visible  { box-shadow: 0 0 0 2px rgba(255,214,106,0.55); }
-.fp-type-dot.fam-image { background: var(--color-role-design); box-shadow: none; }
-.fp-type-chip.fam-image:hover { background: rgba(255,109,181,0.13); border-color: rgba(255,109,181,0.48); box-shadow: none; }
-.fp-type-chip.fam-image:focus-visible { box-shadow: 0 0 0 2px rgba(255,109,181,0.55); }
-.fp-type-dot.fam-audio { background: var(--prim-color-purple-300); box-shadow: none; }
-.fp-type-chip.fam-audio:hover { background: rgba(180,139,255,0.13); border-color: rgba(180,139,255,0.48); box-shadow: none; }
-.fp-type-chip.fam-audio:focus-visible { box-shadow: 0 0 0 2px rgba(180,139,255,0.55); }
-.fp-type-dot.fam-other { background: var(--prim-color-neutral-350); box-shadow: none; }
-.fp-type-chip.fam-other:hover { background: rgba(156,163,175,0.13); border-color: rgba(156,163,175,0.45); box-shadow: none; }
-.fp-type-chip.fam-other:focus-visible { box-shadow: 0 0 0 2px rgba(156,163,175,0.55); }
+/* Family palettes — one token per taxonomy key, shared by dots, rows, and
+ * interaction states. */
+.fp-type-chip,
+.fp-row.file {
+  --fp-family-color: var(--fx-family-data);
+}
+.fp-type-chip.fam-code, .fp-row.file.fam-code { --fp-family-color: var(--fx-family-code); }
+.fp-type-chip.fam-config, .fp-row.file.fam-config { --fp-family-color: var(--fx-family-config); }
+.fp-type-chip.fam-doc, .fp-row.file.fam-doc { --fp-family-color: var(--fx-family-doc); }
+.fp-type-chip.fam-scene, .fp-row.file.fam-scene { --fp-family-color: var(--fx-family-scene); }
+.fp-type-chip.fam-pack, .fp-row.file.fam-pack { --fp-family-color: var(--fx-family-pack); }
+.fp-type-chip.fam-meta, .fp-row.file.fam-meta { --fp-family-color: var(--fx-family-meta); }
+.fp-type-chip.fam-image, .fp-row.file.fam-image { --fp-family-color: var(--fx-family-image); }
+.fp-type-chip.fam-audio, .fp-row.file.fam-audio { --fp-family-color: var(--fx-family-audio); }
+.fp-type-chip.fam-model, .fp-row.file.fam-model { --fp-family-color: var(--fx-family-model); }
+.fp-type-chip.fam-data, .fp-row.file.fam-data { --fp-family-color: var(--fx-family-data); }
+.fp-type-dot { background: var(--fp-family-color, var(--fx-family-data)); }
+.fp-type-chip:hover {
+  background: color-mix(in srgb, var(--fp-family-color) 13%, transparent);
+  border-color: color-mix(in srgb, var(--fp-family-color) 48%, transparent);
+  box-shadow: none;
+}
+.fp-type-chip:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--fp-family-color) 55%, transparent);
+}
 
 /* fp-row.file flash ring — used when a fp-types chip click jumps to the
  * first file of that family. Transient (1.5s) and family-tinted: the
@@ -857,18 +858,20 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   35%  { box-shadow: 0 0 0 3px rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); }
   100% { box-shadow: 0 0 0 0 rgba(255,255,255,0);     background: transparent; }
 }
-.fp-row.file.fam-code.is-flash  { animation-name: fp-row-flash-code; }
-.fp-row.file.fam-json.is-flash  { animation-name: fp-row-flash-json; }
-.fp-row.file.fam-text.is-flash  { animation-name: fp-row-flash-text; }
-.fp-row.file.fam-image.is-flash { animation-name: fp-row-flash-image; }
-.fp-row.file.fam-audio.is-flash { animation-name: fp-row-flash-audio; }
-.fp-row.file.fam-other.is-flash { animation-name: fp-row-flash-other; }
-@keyframes fp-row-flash-code  { 0% { box-shadow: 0 0 0 0 rgba(212,255,72,0.65);  background: rgba(212,255,72,0.16);  } 35% { box-shadow: 0 0 0 3px rgba(212,255,72,0.22);  background: rgba(212,255,72,0.07);  } 100% { box-shadow: 0 0 0 0 rgba(212,255,72,0);  background: transparent; } }
-@keyframes fp-row-flash-json  { 0% { box-shadow: 0 0 0 0 rgba(109,211,255,0.65); background: rgba(109,211,255,0.16); } 35% { box-shadow: 0 0 0 3px rgba(109,211,255,0.22); background: rgba(109,211,255,0.07); } 100% { box-shadow: 0 0 0 0 rgba(109,211,255,0); background: transparent; } }
-@keyframes fp-row-flash-text  { 0% { box-shadow: 0 0 0 0 rgba(255,214,106,0.65); background: rgba(255,214,106,0.16); } 35% { box-shadow: 0 0 0 3px rgba(255,214,106,0.22); background: rgba(255,214,106,0.07); } 100% { box-shadow: 0 0 0 0 rgba(255,214,106,0); background: transparent; } }
-@keyframes fp-row-flash-image { 0% { box-shadow: 0 0 0 0 rgba(255,109,181,0.65); background: rgba(255,109,181,0.16); } 35% { box-shadow: 0 0 0 3px rgba(255,109,181,0.22); background: rgba(255,109,181,0.07); } 100% { box-shadow: 0 0 0 0 rgba(255,109,181,0); background: transparent; } }
-@keyframes fp-row-flash-audio { 0% { box-shadow: 0 0 0 0 rgba(180,139,255,0.65); background: rgba(180,139,255,0.16); } 35% { box-shadow: 0 0 0 3px rgba(180,139,255,0.22); background: rgba(180,139,255,0.07); } 100% { box-shadow: 0 0 0 0 rgba(180,139,255,0); background: transparent; } }
-@keyframes fp-row-flash-other { 0% { box-shadow: 0 0 0 0 rgba(156,163,175,0.55); background: rgba(156,163,175,0.14); } 35% { box-shadow: 0 0 0 3px rgba(156,163,175,0.18); background: rgba(156,163,175,0.06); } 100% { box-shadow: 0 0 0 0 rgba(156,163,175,0); background: transparent; } }
+@keyframes fp-row-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--fp-family-color) 65%, transparent);
+    background: color-mix(in srgb, var(--fp-family-color) 16%, transparent);
+  }
+  35% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-family-color) 22%, transparent);
+    background: color-mix(in srgb, var(--fp-family-color) 7%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background: transparent;
+  }
+}
 .fp-row {
   width: 100%;
   display: flex; align-items: center; gap: 4px;

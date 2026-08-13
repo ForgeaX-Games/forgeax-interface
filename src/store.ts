@@ -55,7 +55,19 @@ export interface ToolCall {
   name: string;
   args: unknown;
   status: 'running' | 'done' | 'error';
+  /**
+   * The external CLI permission bridge owns this AskUserQuestion interaction.
+   * It is rendered by PermissionPrompt, not by the native ask_user card.
+   * Keeping the provenance on the call makes live, replay and multi-tab
+   * projections agree without guessing from provider names or result text.
+   */
+  permissionPrompt?: boolean;
+  /** Display text; may be truncated and must not carry protocol data. */
   result?: string;
+  /** Complete structured tool result for protocol consumers. */
+  resultData?: unknown;
+  /** Complete display text when `result` was truncated. */
+  fullResultContent?: string;
   error?: string;
   // Snapshot of m.text.length when this tool-call event arrived. Lets the UI
   // render tool chips inline at their chronological position in the response
@@ -168,7 +180,12 @@ export interface SubAgentRun {
  */
 export type ChatSegment =
   | { kind: 'text'; ts: number; text: string }
-  | { kind: 'thinking'; ts: number; text: string }
+  /**
+   * Thinking is not user-visible by default.  A provider/host must explicitly
+   * mark a segment as `public_summary` before the Chat app may project it into
+   * the process trace.  Missing/unknown visibility is intentionally fail-closed.
+   */
+  | { kind: 'thinking'; ts: number; text: string; visibility?: 'public_summary' | 'private_reasoning' }
   | { kind: 'tool'; ts: number; tool: ToolCall };
 
 /** System message visual categories — matches ink-renderer's SystemLine.
@@ -216,6 +233,8 @@ export interface ChatMessage {
   /** checkpoint 回退点外键(role='user' 才有;server /messages 注入并回传)。
    *  有它且 server 侧存在对应 checkpoint 记录时,气泡 hover 出「回到这里」。 */
   msgId?: string;
+  /** Stable host turn identity. Legacy WAL rows may omit it. */
+  turnId?: string;
   text: string;
   /** role='user' — pasted / picked attachments shown in the bubble (images inline). */
   attachments?: ChatAttachment[];
@@ -251,6 +270,12 @@ export interface ChatMessage {
   /** Wall-clock duration (ms) of this turn — populated from SSE 'done' when
    *  provider includes duration_ms. Falls back to local elapsed otherwise. */
   durationMs?: number;
+  /** Distinguishes a user stop/cancel from a provider/tool error for process UI. */
+  turnAborted?: boolean;
+  /** Host-owned artifact resolved after the turn's final settle. */
+  artifact?: import('@forgeax/types/artifact-summary').ArtifactSummary;
+  /** Persisted artifact resolution anchor used to keep late recovery ordered. */
+  artifactAnchorSeq?: number;
 }
 
 /**
@@ -1162,6 +1187,7 @@ export const useShellStore = create<AppState>((set, get) => ({
     // 事件触发 getOrInit),只增不删 → 每个关闭的 session 永久滞留一个条目。随 tab
     // 一起摘除(与 closeThreadHistoryTails 同为 per-sid 模块清理)。
     void import('./lib/file-activity-stream').then((m) => m.dropFileActivitySession(sid));
+    void import('./lib/permission-stream').then((m) => m.dropPermissionSession(sid));
 
     // 2. 真删盘 —— DELETE /api/sessions/:sid。失败也照常往下走（盘上残留比 UI
     //    幽灵 tab 还在更可接受），错误吐到控制台。

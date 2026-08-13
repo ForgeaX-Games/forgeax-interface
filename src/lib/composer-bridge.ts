@@ -503,20 +503,127 @@ export function buildComponentPill(p: { entityId?: number; entityName: string; c
 interface ComposerInsertBridge {
   pendingInsert: PillPayload | null;
   queue: PillPayload[];
+  pendingText: ComposerTextRequest | null;
+  textQueue: ComposerTextRequest[];
+  composerRevision: number;
+  lastRecommendationId: string | null;
+  seenRecommendations: Record<string, number>;
   request: (p: PillPayload) => void;
+  requestText: (request: ComposerTextRequest) => void;
+  advanceTextRevision: () => void;
   clear: () => void;
+  clearText: () => void;
+}
+
+export type ComposerTextMode = 'append' | 'replace';
+
+export interface ComposerTextRequest {
+  text: string;
+  mode: ComposerTextMode;
+  /** Stable identity of a recommendation action. */
+  recommendationId?: string;
+  /** Assigned by the bridge; useful for telemetry and deterministic tests. */
+  composerRevision?: number;
+}
+
+export interface ComposerTextBridgeState {
+  pendingText: ComposerTextRequest | null;
+  textQueue: ComposerTextRequest[];
+  composerRevision: number;
+  lastRecommendationId: string | null;
+  seenRecommendations: Record<string, number>;
+}
+
+/** Queue a text request while keeping repeated recommendation clicks idempotent.
+ * This pure transition is shared by the Zustand bridge and its regression tests;
+ * the Composer advances the revision separately for genuine manual edits.
+ */
+export function enqueueComposerTextRequest(
+  state: ComposerTextBridgeState,
+  request: ComposerTextRequest,
+): ComposerTextBridgeState {
+  let revision = state.composerRevision;
+  let seen = state.seenRecommendations;
+  if (request.mode === 'append' && request.recommendationId) {
+    // Repeated clicks on the same action within one composer revision are
+    // idempotent. Selecting a different recommendation starts a new
+    // recommendation revision, so A → B → A remains an intentional choice.
+    if (state.lastRecommendationId === request.recommendationId
+        && seen[request.recommendationId] === revision) return state;
+    if (state.lastRecommendationId !== request.recommendationId) {
+      revision += 1;
+      seen = {};
+    }
+    seen = { ...seen, [request.recommendationId]: revision };
+  }
+  const next = { ...request, composerRevision: revision };
+  return {
+    textQueue: [...state.textQueue, next],
+    pendingText: state.textQueue.length === 0 ? next : state.pendingText,
+    composerRevision: revision,
+    lastRecommendationId: request.recommendationId ?? state.lastRecommendationId,
+    seenRecommendations: seen,
+  };
+}
+
+/** Append a suggestion only when the current draft does not already contain it.
+ *
+ * Suggestions are intentionally appended so a user can queue more than one
+ * next step. Re-clicking the same suggestion, however, should be idempotent;
+ * otherwise the composer grows a duplicate line on every click.
+ */
+export function appendComposerTextOnce(current: string, addition: string): string {
+  const normalizedAddition = addition.replace(/\r\n?/g, '\n').trim();
+  if (!normalizedAddition) return current;
+
+  const normalizedCurrent = current.replace(/\r\n?/g, '\n');
+  const comparableCurrent = normalizedCurrent.trim();
+  const hasSameLine = normalizedCurrent
+    .split('\n')
+    .some((line) => line.trim() === normalizedAddition);
+  const hasSameBlock = comparableCurrent === normalizedAddition
+    || comparableCurrent.startsWith(`${normalizedAddition}\n`)
+    || comparableCurrent.endsWith(`\n${normalizedAddition}`)
+    || comparableCurrent.includes(`\n${normalizedAddition}\n`);
+
+  if (hasSameLine || hasSameBlock) return current;
+  return `${current}${current ? '\n' : ''}${addition}`;
+}
+
+/** Append one recommendation line without inspecting old draft text.  The
+ * recommendation bridge owns idempotency; text-level de-duplication would make
+ * a deliberate A -> B -> A sequence impossible. */
+export function appendComposerText(current: string, addition: string): string {
+  const normalized = addition.replace(/\r\n?/g, '\n').trim();
+  if (!normalized) return current;
+  return `${current}${current ? '\n' : ''}${normalized}`;
 }
 
 const useComposerInsertBridge = create<ComposerInsertBridge>((set) => ({
   pendingInsert: null,
   queue: [],
+  pendingText: null,
+  textQueue: [],
+  composerRevision: 0,
+  lastRecommendationId: null,
+  seenRecommendations: {},
   request: (p) => set((s) => ({
     queue: [...s.queue, p],
     pendingInsert: s.queue.length === 0 ? p : s.pendingInsert,
   })),
+  requestText: (request) => set((s) => enqueueComposerTextRequest(s, request)),
+  advanceTextRevision: () => set((s) => ({
+    composerRevision: s.composerRevision + 1,
+    lastRecommendationId: null,
+    seenRecommendations: {},
+  })),
   clear: () => set((s) => {
     const q = s.queue.slice(1);
     return { queue: q, pendingInsert: q[0] ?? null };
+  }),
+  clearText: () => set((s) => {
+    const q = s.textQueue.slice(1);
+    return { textQueue: q, pendingText: q[0] ?? null };
   }),
 }));
 
@@ -533,4 +640,29 @@ export function useComposerPendingInsert(): PillPayload | null {
 /** Drop the consumed pill and advance the queue. */
 export function clearComposerPendingInsert(): void {
   useComposerInsertBridge.getState().clear();
+}
+
+/** Publish plain text into the composer without changing pill semantics. */
+export function requestComposerText(
+  text: string,
+  mode: ComposerTextMode = 'append',
+  recommendationId?: string,
+): void {
+  if (!text) return;
+  useComposerInsertBridge.getState().requestText({ text, mode, recommendationId });
+}
+
+/** React hook — the next pending plain-text request. */
+export function useComposerPendingText(): ComposerTextRequest | null {
+  return useComposerInsertBridge((s) => s.pendingText);
+}
+
+/** Drop the consumed text request and advance the text queue. */
+export function clearComposerPendingText(): void {
+  useComposerInsertBridge.getState().clearText();
+}
+
+/** Mark a manual edit/send/clear boundary in the recommendation stream. */
+export function advanceComposerTextRevision(): void {
+  useComposerInsertBridge.getState().advanceTextRevision();
 }

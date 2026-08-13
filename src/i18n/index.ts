@@ -78,7 +78,9 @@ function isLocale(v: unknown): v is Locale {
   return typeof v === 'string' && SUPPORTED_LOCALES.some((l) => l.code === v);
 }
 
-/** Read the persisted locale (no side effects). New installs start in English. */
+/** Read the persisted locale (no side effects). Falls back to the configured
+ *  product default on first run (no stored value). English is the source UI;
+ *  an explicit user selection is persisted and continues to win. */
 function readPersisted(): Locale {
   if (typeof window === 'undefined') return DEFAULT_LOCALE;
   try {

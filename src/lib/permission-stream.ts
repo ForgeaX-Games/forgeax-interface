@@ -32,20 +32,94 @@ export interface PendingPermission {
   canRemember?: boolean;
 }
 
+export interface ResolvedPermission {
+  sid: string;
+  reqId: string;
+  toolName: string;
+  questions: Array<{ question: string; values: string[] }>;
+}
+
 const _state = new Map<string, PendingPermission>();
+const _resolved = new Map<string, ResolvedPermission>();
 const _listeners = new Set<() => void>();
+
+/** Permission side-channel providers use their own spelling for the same
+ * AskUserQuestion contract. Keep this tiny normalizer in the shared interface
+ * layer so the prompt and its WAL replay agree without importing chat UI code. */
+export function isAskUserToolName(toolName: string): boolean {
+  const bare = toolName.replace(/^(mcp__fxt__|fxt__)/, '');
+  return bare === 'AskUserQuestion' || bare === 'ask_user';
+}
 
 function notify(): void {
   for (const l of _listeners) l();
+}
+
+function questionList(input: unknown): Array<{ question: string }> {
+  if (!input || typeof input !== 'object') return [];
+  const questions = (input as { questions?: unknown }).questions;
+  if (!Array.isArray(questions)) return [];
+  return questions.flatMap((question): Array<{ question: string }> => {
+    if (!question || typeof question !== 'object') return [];
+    const text = (question as { question?: unknown }).question;
+    return typeof text === 'string' && text ? [{ question: text }] : [];
+  });
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .flatMap(([key, item]) => typeof item === 'string' ? [[key, item] as const] : []));
+}
+
+function valuesRecord(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .flatMap(([key, item]) => {
+      if (!Array.isArray(item)) return [];
+      const values = item.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+      return values.length ? [[key, values] as const] : [];
+    }));
+}
+
+function resolvedFrom(
+  sid: string,
+  reqId: string,
+  toolName: string,
+  input: unknown,
+  answers: unknown,
+  answerValues: unknown,
+): ResolvedPermission | null {
+  if (!isAskUserToolName(toolName)) return null;
+  const questions = questionList(input);
+  const structured = valuesRecord(answerValues);
+  const legacy = stringRecord(answers);
+  const rows = questions.map(({ question }) => {
+    const values = structured[question] ?? (legacy[question]
+      ? legacy[question].split(',').map((value) => value.trim()).filter(Boolean)
+      : []);
+    return { question, values };
+  });
+  return rows.some((row) => row.values.length > 0)
+    ? { sid, reqId, toolName, questions: rows }
+    : null;
 }
 
 function dispatchPermission(evt: SessionEvent): void {
   const t = evt.event.type;
   if (t !== 'permission:request' && t !== 'permission:resolved') return;
   const sid = evt.sid;
-  const p = (evt.event.payload ?? {}) as Partial<PendingPermission> & { reqId?: string };
+  const p = (evt.event.payload ?? {}) as Partial<PendingPermission> & {
+    reqId?: string;
+    answers?: unknown;
+    answerValues?: unknown;
+  };
   if (typeof p.reqId !== 'string') return;
   if (t === 'permission:request') {
+    // A new request starts a fresh interaction. The single notify below is
+    // enough for both clearing the old resolved summary and publishing the
+    // new pending card.
+    _resolved.delete(sid);
     _state.set(sid, {
       reqId: p.reqId,
       toolName: typeof p.toolName === 'string' ? p.toolName : 'tool',
@@ -56,6 +130,16 @@ function dispatchPermission(evt: SessionEvent): void {
       ...((p as { canRemember?: unknown }).canRemember === true ? { canRemember: true } : {}),
     });
   } else {
+    const current = _state.get(sid);
+    const resolved = resolvedFrom(
+      sid,
+      p.reqId,
+      typeof p.toolName === 'string' ? p.toolName : current?.toolName ?? '',
+      p.input ?? current?.input,
+      p.answers,
+      p.answerValues,
+    );
+    if (resolved) _resolved.set(sid, resolved);
     // resolved — clear only if it's the same request still showing.
     if (_state.get(sid)?.reqId === p.reqId) _state.delete(sid);
   }
@@ -81,6 +165,55 @@ export function usePendingPermission(sid: string | null): PendingPermission | nu
   );
 }
 
+/** React hook — the latest resolved CLI AskUserQuestion summary for `sid`. */
+export function useResolvedPermission(sid: string | null): ResolvedPermission | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => (sid ? _resolved.get(sid) ?? null : null),
+    () => null,
+  );
+}
+
+/** Non-React read used by replay/integration tests and host diagnostics. */
+export function getResolvedPermission(sid: string): ResolvedPermission | null {
+  return _resolved.get(sid) ?? null;
+}
+
+/** Optimistically retain a confirmed multi-question answer until the durable
+ * permission:resolved event arrives. The server event remains the replay SSOT. */
+export function recordResolvedPermission(
+  sid: string,
+  resolved: Omit<ResolvedPermission, 'sid'>,
+): void {
+  _resolved.set(sid, { sid, ...resolved });
+  notify();
+}
+
+/** Feed permission events recovered from a session ledger into the same
+ * reducer used by live WS frames. This keeps a resolved Ask collapsed after a
+ * refresh without making React state the source of truth. */
+export function replayPermissionEvents(
+  sid: string,
+  events: Array<{ type?: string; source?: string; ts?: number; payload?: unknown }>,
+): void {
+  for (const event of events) {
+    if (event.type !== 'permission:request' && event.type !== 'permission:resolved') continue;
+    const payload = event.payload && typeof event.payload === 'object'
+      ? event.payload as Record<string, unknown>
+      : {};
+    dispatchPermission({
+      type: 'session-event',
+      sid,
+      event: {
+        source: event.source ?? 'replay',
+        type: event.type,
+        payload,
+        ts: event.ts ?? 0,
+      },
+    });
+  }
+}
+
 /** Optimistically clear the local card (called right after POSTing a reply, so
  *  the UI dismisses immediately without waiting for the permission:resolved
  *  round-trip). */
@@ -94,5 +227,6 @@ export function clearPendingPermission(sid: string, reqId: string): void {
 /** Evict on session close (mirror dropFileActivitySession — avoid retaining
  *  closed-session state). */
 export function dropPermissionSession(sid: string): void {
-  if (_state.delete(sid)) notify();
+  const changed = _state.delete(sid) || _resolved.delete(sid);
+  if (changed) notify();
 }

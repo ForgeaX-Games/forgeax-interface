@@ -28,6 +28,7 @@ import { foundationCommandsExtension } from './core/extensions/foundation-comman
 import { foundationBusExtension } from './core/extensions/foundation-bus';
 import { foundationStorageExtension } from './core/extensions/foundation-storage';
 import { builtinCommandsExtension } from './core/extensions/builtin-commands';
+import { hostCommandsExtension } from './core/extensions/host-commands';
 import { builtinMenusExtension } from './core/extensions/builtin-menus';
 import { editorCommandsExtension } from './core/extensions/editor-commands';
 import { panelsViewportExtension } from './core/extensions/panels-viewport';
@@ -132,6 +133,7 @@ export async function bootstrapAppHost(
     foundationBusExtension,
     foundationStorageExtension,
     builtinCommandsExtension,
+    hostCommandsExtension,
     builtinMenusExtension,
     editorCommandsExtension,
     panelsViewportExtension,

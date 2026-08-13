@@ -69,6 +69,10 @@ export interface AppBusEventMap extends Record<string, unknown> {
   'dock:layout-toggle':  { workbenchId?: string; rect?: { top: number; bottom: number; left: number; right: number } };
   'anim:handoff':        { fromSurface: string; toSurface: string };
   'chat:pill':           { pill: AppShellPillPayload };
+  /** Host-command handoffs; domain owners may subscribe without importing UI. */
+  'files:reveal':        { path: string };
+  'build:create':        { version: string };
+  'build:play':          { version: string };
   'iframe:navigate':     { extensionId: string; url?: string };
   'capability:added':    { capability: string; provider: string };
   'capability:removed':  { capability: string; provider: string };

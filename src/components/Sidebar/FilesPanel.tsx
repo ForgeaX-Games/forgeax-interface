@@ -9,12 +9,17 @@ import {
   FileText,
   FileImage,
   FileAudio,
+  FileArchive,
+  FileCog,
+  Box,
+  Table2,
   File as FileIcon,
 } from 'lucide-react';
 import { useShellStore } from '../../store';
 import { publish } from '../../lib/bus';
 import { useBusSnapshot } from '../../lib/use-bus-snapshot';
 import { useTranslation } from '@/i18n';
+import { FAMILY_ORDER, familyOf, type FileFamily } from '../../lib/file-family';
 
 // P4.1 — FilesPanel fp-types ext-distribution mini-strip.
 // Sibling to P4.0 AgentsPanel ap-tribes: a one-row legend above the tree
@@ -46,34 +51,18 @@ interface Node {
   children?: Node[];
 }
 
-type FileFamily = 'code' | 'json' | 'text' | 'image' | 'audio' | 'other';
-
-const FAMILY_ORDER: ReadonlyArray<{ key: FileFamily; label: string }> = [
-  { key: 'code', label: 'CODE' },
-  { key: 'json', label: 'JSON' },
-  { key: 'text', label: 'TEXT' },
-  { key: 'image', label: 'IMG' },
-  { key: 'audio', label: 'AUD' },
-  { key: 'other', label: 'ETC' },
-];
-
-function familyOf(name: string): FileFamily {
-  const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  if (['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'].includes(ext)) return 'code';
-  if (['json', 'lock'].includes(ext)) return 'json';
-  if (['md', 'markdown', 'txt', 'rst'].includes(ext)) return 'text';
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'ico'].includes(ext)) return 'image';
-  if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return 'audio';
-  return 'other';
-}
-
 function fileIconFor(name: string) {
   switch (familyOf(name)) {
     case 'code': return FileCode2;
-    case 'json': return FileJson;
-    case 'text': return FileText;
+    case 'config': return FileJson;
+    case 'doc': return FileText;
+    case 'scene': return FileCode2;
+    case 'pack': return FileArchive;
+    case 'meta': return FileCog;
     case 'image': return FileImage;
     case 'audio': return FileAudio;
+    case 'model': return Box;
+    case 'data': return Table2;
     default: return FileIcon;
   }
 }
@@ -88,11 +77,15 @@ interface FamilyAggregate {
 function aggregateFamilies(tree: Node | null): FamilyAggregate[] {
   const tally: Record<FileFamily, { count: number; firstPath: string | null }> = {
     code: { count: 0, firstPath: null },
-    json: { count: 0, firstPath: null },
-    text: { count: 0, firstPath: null },
+    config: { count: 0, firstPath: null },
+    doc: { count: 0, firstPath: null },
+    scene: { count: 0, firstPath: null },
+    pack: { count: 0, firstPath: null },
+    meta: { count: 0, firstPath: null },
     image: { count: 0, firstPath: null },
     audio: { count: 0, firstPath: null },
-    other: { count: 0, firstPath: null },
+    model: { count: 0, firstPath: null },
+    data: { count: 0, firstPath: null },
   };
   const walk = (n: Node) => {
     if (n.type === 'file') {

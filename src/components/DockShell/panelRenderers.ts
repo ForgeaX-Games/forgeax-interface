@@ -209,7 +209,9 @@ export interface PanelRenderers {
    *  simulation on the same in-process engine. Future play/debug modes would
    *  add sibling slots here. */
   surfaces?: {
-    SceneEditor?: ComponentType<{ viewportOnly?: boolean }>;
+    /** Pure renderer surface. Product controls belong to the hosting panel's
+     *  PanelShell header in both docked and detached windows. */
+    SceneEditor?: ComponentType;
   };
 
   /** Single-realm editor coordination callbacks. Interface declares only the

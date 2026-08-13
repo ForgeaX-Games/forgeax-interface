@@ -662,6 +662,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
       } catch { /* noop */ }
     }
     forceBottomCollapsedZero();
+    forceVerticalShellGapZero();
   };
 
   // Force the bottom edge's collapsed cell to ZERO height. dockview's
@@ -683,6 +684,20 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
       view.updateCollapsedSize(0, 50);
       if (view.isCollapsed) shell._middleColumn.resizeView('bottom', 0);
     } catch { /* dockview internals moved — empty band is cosmetic */ }
+  };
+
+  // The theme's 6px gap should separate core grid groups and side edge strips,
+  // but the footer-merged bottom group has no visible shell cell: its real tab
+  // strip lives in GlobalStatusBar. Dockview applies one margin to the whole
+  // vertical shell split, leaving a stray 6px band above the footer. There is no
+  // public per-axis/per-edge gap option, so zero only the shell's vertical
+  // splitview margin; the core grid and left/right shell gaps stay at 6px.
+  const forceVerticalShellGapZero = (): void => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const shell = (api as any).component?._shellManager;
+      shell?._middleColumn?.updateMargin(0);
+    } catch { /* dockview internals moved — footer gap is cosmetic */ }
   };
 
   // ── Global footer-chrome owner ───────────────────────────────────────────

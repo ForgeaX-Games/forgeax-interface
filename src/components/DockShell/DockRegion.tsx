@@ -1,7 +1,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { FloatingMenu } from '../ui/FloatingMenu';
-import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type SerializedDockview } from 'dockview';
+import {
+  DockviewReact,
+  themeAbyss,
+  type DockviewApi,
+  type DockviewReadyEvent,
+  type DockviewTheme,
+  type SerializedDockview,
+} from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import { getWindowManager, type DetachedWindowCapability } from '../../lib/platform';
 import { useTranslation, t as panelT } from '@/i18n';
@@ -24,7 +31,7 @@ import { useActiveWorkbench, useWorkbenchActions } from '../../lib/useWorkbench'
 import { registerDockviewApi } from './dockviewRegistry';
 import { handleCrossInstanceDrop, type CrossInstanceDropEvent } from './crossInstanceDrop';
 import { buildTabContextMenuItems } from './tabContextMenu';
-import { isDockTitleHidden, setDockTitleHidden } from './dockTitle';
+import { isDockTitleHidden, setDockTitleHidden, withDockTitleRestore } from './dockTitle';
 import { AuxBarResizer } from './AuxBarResizer';
 import { useAuxBarWidth } from './useAuxBarWidth';
 import { ChatDockResizer } from './ChatDockResizer';
@@ -169,6 +176,14 @@ function rebuildRegionDefault(
 
 const LS_KEY = STORAGE_KEYS.legacyDockLayout;  // legacy — only read for migration to workspace layouts
 const BASE_PANEL_COMPONENT_IDS = new Set(Object.keys(BASE_PANEL_COMPONENTS));
+
+// Group spacing is layout geometry, not decoration. Keep it in dockview's theme
+// contract so split sizing, sashes, and drag/drop overlays all account for it.
+const FORGEAX_DOCK_THEME: DockviewTheme = {
+  ...themeAbyss,
+  name: 'forgeax-abyss',
+  gap: 6,
+};
 
 // Re-export so external consumers (WorkbenchSwitcher, tests) don't need to know
 // buildDefault lives in builtinWorkbenches.ts.
@@ -466,7 +481,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
         ))
         .map((placement) => [
           placement.id,
-          () => (
+          withDockTitleRestore(() => (
             <PanelWindowingBoundary capability={resolvePanelWindowing(placement.id, {
               basePanelIds: BASE_PANEL_COMPONENT_IDS,
               baseWindowing: BASE_PANEL_WINDOWING,
@@ -487,7 +502,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
                 initialProps: placement.initialProps,
               })}
             </PanelWindowingBoundary>
-          ),
+          )),
         ]))
       : {}),
     // Canonical shell/editor placements intentionally win when a Page reuses
@@ -1465,7 +1480,8 @@ export function DockRegion({ region }: { region: DockRegionId }) {
       {region === 'AuxBar' && <AuxBarResizer />}
       {region === 'ChatDock' && <ChatDockResizer />}
       <DockviewReact
-        className="dockview-theme-abyss fx-dockshell"
+        className="fx-dockshell"
+        theme={FORGEAX_DOCK_THEME}
         components={components}
         // Custom tab renders a leading Lucide icon (iconForDockPanel) before the
         // title — applied globally so every group's tabs get it without per-panel
@@ -1474,6 +1490,7 @@ export function DockRegion({ region }: { region: DockRegionId }) {
         defaultTabComponent={DockTab}
         onReady={onReady}
         disableFloatingGroups={false}
+        hideBorders
         // Cross-instance drag & drop (§P2/T3): dockview 6.6.1 doesn't auto-move
         // panels between DockviewComponent instances. We reconcile imperatively —
         // close on source, add on target, then persist via moveTo(). Same-instance

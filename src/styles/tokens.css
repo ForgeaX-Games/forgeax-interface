@@ -260,6 +260,20 @@
   --color-kind-skill:         var(--color-role-narrative);
   --color-kind-tool:          var(--color-role-coding);
 
+  /* ── file family colors ──────────────────────────────────────────────
+     Kept in the host token entrypoint as well as @forgeax/design semantic.css
+     because the interface bundle still imports this legacy-compatible entry. */
+  --fx-family-code:   var(--prim-color-lime-400);
+  --fx-family-config: var(--prim-color-sky-400);
+  --fx-family-doc:    var(--prim-color-yellow-300);
+  --fx-family-scene:  var(--prim-color-pink-300);
+  --fx-family-pack:   var(--prim-color-purple-300);
+  --fx-family-meta:   var(--prim-color-neutral-350);
+  --fx-family-image:  var(--prim-color-pink-400);
+  --fx-family-audio:  var(--prim-color-purple-400);
+  --fx-family-model:  var(--prim-color-teal-300);
+  --fx-family-data:   var(--prim-color-orange-300);
+
   /* ── additional status ───────────────────────────────────────────── */
   --color-status-amber:        #f5b243;
   --color-status-warning-text: #ffc966;  /* connection-status warn chip text */
