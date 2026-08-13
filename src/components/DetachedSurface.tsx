@@ -17,6 +17,7 @@ import { useTranslation } from '@/i18n';
 import { useExtensionManifest } from '../lib/use-extension-manifest';
 import { StandaloneExtensionIframe } from './MainArea/StandaloneExtensionIframe';
 import { ConsolePanel } from './MainArea/ConsolePanel';
+import { TelemetryViewer } from './MainArea/TelemetryViewer';
 import { Sidebar } from './Sidebar/Sidebar';
 import { MainArea } from './MainArea/MainArea';
 import { usePanelRenderers } from './DockShell/panelRenderers';
@@ -86,6 +87,9 @@ function DetachedPanelSurface({ surface }: Props): ReactElement {
     // DockShell panels popped into their own OS window (design §0.2.2 / #10).
     case 'console':
       body = <ConsolePanel />;
+      break;
+    case 'telemetry':
+      body = <TelemetryViewer />;
       break;
     case 'tools':
       body = <Sidebar />;

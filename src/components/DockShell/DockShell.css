@@ -702,14 +702,6 @@ html.fx-dock-dragging
 /* WbPluginDockPanel — plugin as a top-level dock leaf */
 .wb-dock-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .wb-dock-standalone { position: relative; }
-.wb-dock-popout-btn {
-  position: absolute; top: 6px; right: 8px; z-index: 2;
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; padding: 2px 8px; border-radius: 4px;
-  background: var(--dv-background-color, #1b1d1f); border: 1px solid var(--dv-separator-border, #2a2d30); color: var(--color-text-secondary, #aaa);
-  cursor: pointer; opacity: 0.8;
-}
-.wb-dock-popout-btn:hover { opacity: 1; color: var(--color-text-primary, #eee); }
 .wb-dock-loading, .wb-dock-placeholder { padding: 16px; font-size: 13px; color: var(--color-text-secondary, #aaa); }
 .wb-dock-error { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .wb-dock-error button { color: inherit; border: 1px solid currentColor; border-radius: 4px; padding: 4px 10px; }

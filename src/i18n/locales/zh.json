@@ -846,8 +846,6 @@
       "expand": "展开",
       "expandAll": "展开全部"
     },
-    "windowTitle": "对话 Chat",
-    "popOut": "把对话弹出为独立窗口",
     "empty": {
       "title": "开始对话",
       "subtitle": "告诉 FORGE 你想做什么游戏 —— 例如 \"在 games/gta-2.5d/main.ts 里写一个旋转立方体\"。"
@@ -1280,7 +1278,9 @@
     "moveOffSide": "移出侧边",
     "moveToPrimaryDock": "移回主停靠区",
     "chatToDefault": "在默认位置显示",
+    "detachedWindowPlaceholder": "已在独立窗口打开",
     "tabContext": {
+      "openInNewWindow": "在独立窗口中打开",
       "close": "关闭",
       "closeOthers": "关闭其他"
     },
@@ -1407,8 +1407,6 @@
   },
   "wbExtensionDock": {
     "loadingExtension": "正在加载 {{extensionId}}…",
-    "popoutTitle": "弹出为独立 OS 窗口",
-    "popoutLabel": "独立窗口",
     "loadingExtensionGeneric": "正在加载扩展…",
     "loadingWorkbenchHost": "正在连接 Workbench 宿主…",
     "workbenchHostFailed": "Workbench 宿主加载失败：{{error}}",

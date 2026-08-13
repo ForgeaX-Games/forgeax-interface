@@ -846,8 +846,6 @@
       "expand": "Expand",
       "expandAll": "Expand all"
     },
-    "windowTitle": "Chat",
-    "popOut": "Pop out chat into a separate window",
     "empty": {
       "title": "Start a conversation",
       "subtitle": "Tell FORGE what game you want to make — e.g. \"write a spinning cube in games/gta-2.5d/main.ts\"."
@@ -1280,7 +1278,9 @@
     "moveOffSide": "Move off Side",
     "moveToPrimaryDock": "Move to Primary Dock",
     "chatToDefault": "Show in Default Position",
+    "detachedWindowPlaceholder": "Opened in a separate window",
     "tabContext": {
+      "openInNewWindow": "Open in New Window",
       "close": "Close",
       "closeOthers": "Close Others"
     },
@@ -1407,8 +1407,6 @@
   },
   "wbExtensionDock": {
     "loadingExtension": "Loading {{extensionId}}…",
-    "popoutTitle": "Pop out as a standalone OS window",
-    "popoutLabel": "Standalone window",
     "loadingExtensionGeneric": "Loading extension…",
     "loadingWorkbenchHost": "Connecting to the Workbench host…",
     "workbenchHostFailed": "Workbench host failed to load: {{error}}",
