@@ -39,6 +39,7 @@ const PROVIDER_BADGE: Record<string, ProviderBadge> = {
   'claude-code': { label: 'claude-code', color: '#cfa3ff', title: 'Anthropic claude-code CLI provider' },
   'codex':       { label: 'codex',       color: '#7be7c4', title: 'OpenAI Codex CLI provider' },
   'kimi-code':   { label: 'kimi-code',   color: '#58d8b5', title: 'Kimi Code CLI provider' },
+  'deepseek-harness': { label: 'DeepSeek Harness', color: '#4fb6a6', title: 'DeepSeek Harness CLI provider' },
 };
 
 export function providerBadgeFor(id: string): ProviderBadge {

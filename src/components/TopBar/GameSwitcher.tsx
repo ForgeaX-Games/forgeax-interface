@@ -7,7 +7,7 @@
 // `NewGameModal` + `timeSince` stay internal. The store flag `gameSwitcherOpen`
 // now means "the open-game list modal is open".
 import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useShellStore } from '../../store';
 import { getSessionClient } from '../../store-parts/session-client';
 import { getWorkbenchClient } from '../../store';
@@ -23,6 +23,64 @@ interface GameRow {
   mtime: number;
 }
 
+export function ProjectSessionRows({
+  games,
+  currentSlug,
+  onPick,
+  onNewSession,
+  onDelete,
+  labels,
+}: {
+  readonly games: readonly GameRow[];
+  readonly currentSlug: string | null;
+  readonly onPick: (slug: string) => void;
+  readonly onNewSession: (slug: string) => void;
+  readonly onDelete: (slug: string) => void;
+  readonly labels: {
+    readonly empty: string;
+    readonly switchTo: (slug: string) => string;
+    readonly newSession: (slug: string) => string;
+    readonly delete: string;
+    readonly meta: (mtime: number) => string;
+  };
+}) {
+  if (games.length === 0) return <div className="tb-game-empty">{labels.empty}</div>;
+  return games.map((game) => (
+    <div key={game.slug} className={`tb-game-row ${game.slug === currentSlug ? 'active' : ''}`} data-game-slug={game.slug}>
+      <button
+        className="tb-game-pick"
+        onClick={() => onPick(game.slug)}
+        title={labels.switchTo(game.slug)}
+      >
+        <span className="tb-game-name">{game.name}</span>
+        <span className="tb-game-meta">{labels.meta(game.mtime)}</span>
+      </button>
+      <button
+        className="tb-game-del tb-game-add-session"
+        onClick={() => onNewSession(game.slug)}
+        title={labels.newSession(game.slug)}
+        aria-label={labels.newSession(game.slug)}
+      >
+        <Plus size={13} />
+      </button>
+      <button className="tb-game-del" onClick={() => onDelete(game.slug)} title={labels.delete}>
+        <Trash2 size={11} />
+      </button>
+    </div>
+  ));
+}
+
+export async function createSessionForGame(
+  slug: string,
+  dependencies: {
+    readonly setActiveGame: (slug: string) => Promise<void>;
+    readonly createNewSession: (options: { readonly scope: string }) => Promise<unknown>;
+  },
+): Promise<boolean> {
+  await dependencies.setActiveGame(slug);
+  return Boolean(await dependencies.createNewSession({ scope: slug }));
+}
+
 // Mounted once in the shell (App.tsx). Renders the new-game dialog (game.new)
 // and the "open game" list modal (game.open), both driven by the shell store so
 // the File-menu commands can open them.
@@ -35,6 +93,7 @@ export function GameModalHost() {
   const [games, setGames] = useState<GameRow[]>([]);
   const activeGameSlug = useShellStore((s) => s.activeGameSlug);
   const setActiveGame = useShellStore((s) => s.setActiveGame);
+  const createNewSession = useShellStore((s) => s.createNewSession);
 
   const currentSlug = activeGameSlug;
 
@@ -65,6 +124,11 @@ export function GameModalHost() {
     }
   };
 
+  const onNewSession = async (slug: string) => {
+    const created = await createSessionForGame(slug, { setActiveGame, createNewSession });
+    if (created) setListOpen(false);
+  };
+
   return (
     <>
       {gameModalOpen && <NewGameModal onClose={() => { closeGameModal(); }} />}
@@ -76,28 +140,20 @@ export function GameModalHost() {
                 is absolutely positioned for the old popover and would jump to the
                 corner). The modal card supplies the chrome; rows style themselves. */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: '60vh', overflowY: 'auto', marginTop: 4 }}>
-              {games.length === 0 && (
-                <div className="tb-game-empty">{t('gameSwitcher.empty')}</div>
-              )}
-              {games.map((g) => (
-                <div key={g.slug} className={`tb-game-row ${g.slug === currentSlug ? 'active' : ''}`} data-game-slug={g.slug}>
-                  <button
-                    className="tb-game-pick"
-                    onClick={() => void onPick(g.slug)}
-                    title={t('gameSwitcher.switchToTooltip', { slug: g.slug })}
-                  >
-                    <span className="tb-game-name">{g.name}</span>
-                    <span className="tb-game-meta">{t('gameSwitcher.gameMeta', { count: g.fileCount, time: timeSince(g.mtime) })}</span>
-                  </button>
-                  <button
-                    className="tb-game-del"
-                    onClick={() => void onDelete(g.slug)}
-                    title={t('gameSwitcher.deleteTooltip')}
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                </div>
-              ))}
+              <ProjectSessionRows
+                games={games}
+                currentSlug={currentSlug}
+                onPick={(slug) => void onPick(slug)}
+                onNewSession={(slug) => void onNewSession(slug)}
+                onDelete={(slug) => void onDelete(slug)}
+                labels={{
+                  empty: t('gameSwitcher.empty'),
+                  switchTo: (slug) => t('gameSwitcher.switchToTooltip', { slug }),
+                  newSession: (slug) => t('gameSwitcher.newSessionTooltip', { slug }),
+                  delete: t('gameSwitcher.deleteTooltip'),
+                  meta: (mtime) => t('gameSwitcher.gameMeta', { time: timeSince(mtime) }),
+                }}
+              />
             </div>
           </div>
         </div>

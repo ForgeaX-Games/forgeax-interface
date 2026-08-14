@@ -173,9 +173,13 @@
         "title": "LiteLLM 代理",
         "hint": "指向你的 LiteLLM 代理：填 Base URL 与 Key。模型目录和原生 ForgeaX 内核都走它（Key 会镜像到 ANTHROPIC_*，让 forgeax-core 直连该代理）。"
       },
+      "dsh": {
+        "title": "DeepSeek Harness",
+        "hint": "配置 DeepSeek Harness 使用的 DeepSeek API Base URL 与 Key；激活前还需要在本机安装可运行的 dsh CLI。"
+      },
       "cli": {
         "title": "本地 CLI",
-        "hint": "检测本地已安装的 claude-code / codex / cursor-agent / codebuddy / kimi-code，并可发 1-token Test 测延迟。",
+        "hint": "检测本地已安装的 claude-code / codex / cursor-agent / codebuddy / kimi-code / DeepSeek Harness，并可运行 Test。",
         "healthy": "健康",
         "unavailable": "不可用",
         "useReason": "该 CLI 当前不可用，无法设为使用"
@@ -532,6 +536,7 @@
     "cliDescCursor": "Cursor Agent CLI",
     "cliDescCodebuddy": "a peer agent CLI Code CLI",
     "cliDescKimiCode": "月之暗面 Kimi Code CLI",
+    "cliDescDeepSeekHarness": "DeepSeek Harness CLI · 模型由其 profile 管理",
     "cliBusPillTitle": "bus extension: {{extension}} · 单击在 Bus 详情查看 →",
     "interruptTitle": "打断当前回复并立即发送（steer）",
     "queueSendTitle": "排队发送 — 当前回复结束后依次执行（[Enter]）",
@@ -635,7 +640,8 @@
     "newGame": "新建 game",
     "empty": "暂无 game · 点上方 + 新建",
     "switchToTooltip": "切到 games/{{slug}}/",
-    "gameMeta": "{{count}} files · {{time}}",
+    "gameMeta": "更新于 {{time}} 前",
+    "newSessionTooltip": "为 {{slug}} 新建会话",
     "deleteTooltip": "删除 game",
     "unpin": "取消固定 — 跟随最新",
     "slugError": "slug: 1-41 字符 / 小写 ASCII / 数字 / 连字符",

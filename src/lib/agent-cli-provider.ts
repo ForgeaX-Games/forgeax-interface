@@ -15,6 +15,7 @@ const PREFERRED_CLI_TO_KERNEL: Record<string, string | null> = {
   '@forgeax-plugin/cli-codex': 'codex',
   '@forgeax-plugin/cli-cursor-agent': 'cursor-agent',
   '@forgeax-plugin/cli-kimi-code': 'kimi-code',
+  '@forgeax-plugin/cli-deepseek-harness': 'deepseek-harness',
 };
 
 /** Fallback when bus is unavailable (standalone editor / boot race). */
@@ -24,6 +25,7 @@ const AGENT_KERNEL_FALLBACK: Record<string, string | null> = {
   'claude-code-default': 'claude-code',
   'cc-coder': 'claude-code',
   'kimi-code-default': 'kimi-code',
+  'deepseek-harness-default': 'deepseek-harness',
 };
 
 export function preferredCliProviderToKernel(preferred?: string | null): string | null {
@@ -31,7 +33,7 @@ export function preferredCliProviderToKernel(preferred?: string | null): string 
   if (!key) return null;
   if (key in PREFERRED_CLI_TO_KERNEL) return PREFERRED_CLI_TO_KERNEL[key] ?? null;
   // Already a kernel id (defensive).
-  if (key === 'claude-code' || key === 'codex' || key === 'cursor-agent' || key === 'codebuddy' || key === 'kimi-code') return key;
+  if (key === 'claude-code' || key === 'codex' || key === 'cursor-agent' || key === 'codebuddy' || key === 'kimi-code' || key === 'deepseek-harness') return key;
   return null;
 }
 

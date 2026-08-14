@@ -651,6 +651,7 @@
   border-radius: 4px;
 }
 .tb-game-del:hover { color: var(--color-accent-error-default); background: var(--color-interaction-error); }
+.tb-game-add-session:hover { color: var(--primary); background: rgba(212,255,72,0.08); }
 
 /* prefix tag on switcher buttons to distinguish ProjectSwitcher / GameSwitcher / SessionSwitcher */
 .tb-game-tag {

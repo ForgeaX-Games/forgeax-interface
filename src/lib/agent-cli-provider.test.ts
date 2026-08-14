@@ -13,5 +13,10 @@ describe('preferredCliProviderToKernel', () => {
   test('passes through kernel ids', () => {
     expect(preferredCliProviderToKernel('claude-code')).toBe('claude-code');
     expect(preferredCliProviderToKernel('kimi-code')).toBe('kimi-code');
+    expect(preferredCliProviderToKernel('deepseek-harness')).toBe('deepseek-harness');
+  });
+
+  test('maps the DeepSeek Harness marketplace plugin defensively', () => {
+    expect(preferredCliProviderToKernel('@forgeax-plugin/cli-deepseek-harness')).toBe('deepseek-harness');
   });
 });

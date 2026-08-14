@@ -33,7 +33,29 @@ const PROVIDER_DISPLAY: Record<string, string> = {
   "cursor-agent": "Cursor Agent",
   "codebuddy": "a peer agent CLI",
   "kimi-code": "Kimi Code",
+  "deepseek-harness": "DeepSeek Harness",
 };
+
+// `/api/cli/health` still carries legacy provider-adapter fields such as
+// `sessions` and `jsonlReplay`. Those do not mean that a neutral AgentKernel
+// supports native history resume, so rendering them as kernel capabilities is
+// misleading. Keep the UI projection to capabilities whose meaning is shared
+// by the current kernel contract; unknown/legacy fields remain server-internal.
+const DISPLAYABLE_KERNEL_CAPABILITIES = new Set([
+  'streaming',
+  'thinking',
+  'toolCalls',
+  'midTurnInject',
+  'forkExtract',
+]);
+
+export function displayableKernelCapabilities(
+  capabilities: Record<string, boolean> | undefined,
+): Record<string, boolean> {
+  return Object.fromEntries(
+    Object.entries(capabilities ?? {}).filter(([key]) => DISPLAYABLE_KERNEL_CAPABILITIES.has(key)),
+  );
+}
 
 interface RawCliHealth {
   ok?: boolean;
@@ -59,7 +81,7 @@ export async function fetchCliProviders(
     id: p.id,
     displayName: PROVIDER_DISPLAY[p.id] ?? p.id,
     health: { ok: !!p.ok, detail: p.detail },
-    capabilities: p.capabilities ?? {},
+    capabilities: displayableKernelCapabilities(p.capabilities),
   }));
   return { providers, cachedAt: Date.now() };
 }

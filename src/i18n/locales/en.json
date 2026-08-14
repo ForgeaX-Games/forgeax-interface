@@ -173,9 +173,13 @@
         "title": "LiteLLM Proxy",
         "hint": "Point at your LiteLLM proxy: set Base URL + Key. Both the model catalog and the native ForgeaX kernel route through it (the key is mirrored to ANTHROPIC_* so forgeax-core speaks to the proxy)."
       },
+      "dsh": {
+        "title": "DeepSeek Harness",
+        "hint": "Configure the DeepSeek API Base URL and Key used by DeepSeek Harness. The local dsh CLI must also be installed before it can be activated."
+      },
       "cli": {
         "title": "Local CLI",
-        "hint": "Detects installed claude-code / codex / cursor-agent / codebuddy / kimi-code and can run a 1-token Test.",
+        "hint": "Detects installed claude-code / codex / cursor-agent / codebuddy / kimi-code / DeepSeek Harness and can run a Test.",
         "healthy": "Healthy",
         "unavailable": "Unavailable",
         "useReason": "This CLI is unavailable and cannot be set as active"
@@ -532,6 +536,7 @@
     "cliDescCursor": "Cursor Agent CLI",
     "cliDescCodebuddy": "a peer agent CLI Code CLI",
     "cliDescKimiCode": "Moonshot Kimi Code CLI",
+    "cliDescDeepSeekHarness": "DeepSeek Harness CLI · model managed by its profile",
     "cliBusPillTitle": "bus extension: {{extension}} · click to view in Bus details →",
     "interruptTitle": "Interrupt the current reply and send now (steer)",
     "queueSendTitle": "Queue send — runs in order after the current reply finishes ([Enter])",
@@ -635,7 +640,8 @@
     "newGame": "New game",
     "empty": "No games yet · click + above to create",
     "switchToTooltip": "Switch to games/{{slug}}/",
-    "gameMeta": "{{count}} files · {{time}}",
+    "gameMeta": "Updated {{time}} ago",
+    "newSessionTooltip": "Create a session for {{slug}}",
     "deleteTooltip": "Delete game",
     "unpin": "Unpin — follow latest",
     "slugError": "slug: 1-41 chars / lowercase ASCII / digits / hyphens",
