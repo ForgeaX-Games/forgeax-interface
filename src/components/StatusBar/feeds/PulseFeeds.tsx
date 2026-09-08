@@ -10,12 +10,12 @@
  * color changes between kinds (teal/gold/orange/violet).
  */
 
-import { useEffect, useState } from 'react';
 import { Brain, Sparkles, Wrench, Bot } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { useShellStore } from '../../../store';
 import { emitDeepLink } from '../../../lib/deep-link-bus';
-import { listExtensions } from '../../../lib/extension-api';
+import { useSharedExtensionCounts } from '../../../lib/shell-live-data';
+import type { ExtensionStatusKind } from '../../../lib/resilient-polling';
 import type { StatusItemContribution } from '../../../core/panels';
 import { StatusChip, type ChipState } from '../StatusChip';
 
@@ -29,30 +29,20 @@ export const pulseStatusItems: readonly StatusItemContribution[] = [
   { kind: 'status-item', id: 'bus.agent', location: 'statusbar.right', priority: 40, item: { type: 'custom', render: () => <AgentPulseFeed /> } },
 ];
 
+function usePulseKind(kind: ExtensionStatusKind): { state: ChipState; count: number; ids: string[] } {
+  const snapshot = useSharedExtensionCounts();
+  if (snapshot.state === 'loading') return { state: 'loading', count: 0, ids: [] };
+  if (snapshot.state === 'down') return { state: 'down', count: 0, ids: [] };
+  const row = snapshot.value[kind];
+  return { state: row.count > 0 ? 'ok' : 'empty', count: row.count, ids: row.ids };
+}
+
 // ─── MB · model-binding kind count ────────────────────────────────────────
 
 function ModelBindingPulseFeed() {
   const { t } = useTranslation();
   const openOverlay = useShellStore((s) => s.openOverlay);
-  const [state, setState] = useState<ChipState>('loading');
-  const [count, setCount] = useState<number>(0);
-  const [ids, setIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await listExtensions('model-binding');
-        if (cancelled) return;
-        setState(r.count > 0 ? 'ok' : 'empty');
-        setCount(r.count);
-        setIds(r.items.map((p) => p.id));
-      } catch { if (!cancelled) setState('down'); }
-    };
-    void tick();
-    const id = setInterval(tick, 12000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  const { state, count, ids } = usePulseKind('model-binding');
 
   const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
   const title =
@@ -80,24 +70,7 @@ function ModelBindingPulseFeed() {
 function SkillPulseFeed() {
   const { t } = useTranslation();
   const openOverlay = useShellStore((s) => s.openOverlay);
-  const [state, setState] = useState<ChipState>('loading');
-  const [count, setCount] = useState<number>(0);
-  const [ids, setIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await listExtensions('skill');
-        if (cancelled) return;
-        setState(r.count > 0 ? 'ok' : 'empty');
-        setCount(r.count); setIds(r.items.map((p) => p.id));
-      } catch { if (!cancelled) setState('down'); }
-    };
-    void tick();
-    const id = setInterval(tick, 12000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  const { state, count, ids } = usePulseKind('skill');
 
   const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
   const title =
@@ -125,24 +98,7 @@ function SkillPulseFeed() {
 function ToolPulseFeed() {
   const { t } = useTranslation();
   const openOverlay = useShellStore((s) => s.openOverlay);
-  const [state, setState] = useState<ChipState>('loading');
-  const [count, setCount] = useState<number>(0);
-  const [ids, setIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await listExtensions('tool');
-        if (cancelled) return;
-        setState(r.count > 0 ? 'ok' : 'empty');
-        setCount(r.count); setIds(r.items.map((p) => p.id));
-      } catch { if (!cancelled) setState('down'); }
-    };
-    void tick();
-    const id = setInterval(tick, 12000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  const { state, count, ids } = usePulseKind('tool');
 
   const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
   const title =
@@ -170,24 +126,7 @@ function ToolPulseFeed() {
 function AgentPulseFeed() {
   const { t } = useTranslation();
   const openOverlay = useShellStore((s) => s.openOverlay);
-  const [state, setState] = useState<ChipState>('loading');
-  const [count, setCount] = useState<number>(0);
-  const [ids, setIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await listExtensions('agent');
-        if (cancelled) return;
-        setState(r.count > 0 ? 'ok' : 'empty');
-        setCount(r.count); setIds(r.items.map((p) => p.id));
-      } catch { if (!cancelled) setState('down'); }
-    };
-    void tick();
-    const id = setInterval(tick, 12000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  const { state, count, ids } = usePulseKind('agent');
 
   const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
   const title =

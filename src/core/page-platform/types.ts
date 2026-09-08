@@ -12,7 +12,7 @@ import type {
 } from '@forgeax/types';
 import type { SerializedDockview } from 'dockview';
 import type { ReactNode } from 'react';
-import type { DetachedWindowCapability } from '../../lib/platform';
+import type { DetachedWindowCapability } from '@forgeax/app-shell/window';
 
 export interface PanelRenderContext {
   readonly pageKey: PageKey;

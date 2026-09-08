@@ -18,7 +18,7 @@
 export interface CliProviderInfo {
   id: string;
   displayName: string;
-  health: { ok: boolean; detail?: string };
+  health: { ok: boolean; detail?: string; pending?: boolean };
   capabilities: Record<string, boolean>;
 }
 
@@ -35,6 +35,13 @@ const PROVIDER_DISPLAY: Record<string, string> = {
   "kimi-code": "Kimi Code",
   "deepseek-harness": "DeepSeek Harness",
 };
+
+/** Initial display catalog only: detection remains authoritative for availability. */
+export function pendingCliProviders(): CliProviderInfo[] {
+  return Object.entries(PROVIDER_DISPLAY).map(([id, displayName]) => ({
+    id, displayName, health: { ok: false, pending: true }, capabilities: {},
+  }));
+}
 
 // `/api/cli/health` still carries legacy provider-adapter fields such as
 // `sessions` and `jsonlReplay`. Those do not mean that a neutral AgentKernel
@@ -72,9 +79,10 @@ interface RawCliHealth {
  *  保留参数兼容旧 dashApi.providers(true) caller。 */
 export async function fetchCliProviders(
   force = false,
+  signal?: AbortSignal,
 ): Promise<{ providers: CliProviderInfo[]; cachedAt: number }> {
   void force; // R3: upstream `/api/cli/health` always lives-checks.
-  const r = await fetch("/api/cli/health");
+  const r = await fetch("/api/cli/health", { signal });
   if (!r.ok) throw new Error(`/api/cli/health ${r.status}`);
   const j = (await r.json()) as RawCliHealth;
   const providers: CliProviderInfo[] = (j.providers ?? []).map((p) => ({

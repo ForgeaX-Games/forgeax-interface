@@ -28,7 +28,7 @@ describe('ActivityRail', () => {
   it('keeps the complete plugin catalog discoverable when every activity is pinned', async () => {
     const { host, control } = createAppHost();
     const builtinOwner = '@forgeax/core';
-    const pluginOwner = '@forgeax-extension/wb-skill';
+    const pluginOwner = '@forgeax-extension/skill';
     const builtin = activity(builtinOwner, 'editor', 'Editor', {
       sourceLayer: 'builtin',
       icon: 'Box',
@@ -64,7 +64,7 @@ describe('ActivityRail', () => {
 
   it('searches the catalog and supports pin/unpin without removing discovery rows', async () => {
     const { host, control } = createAppHost();
-    const owner = '@forgeax-extension/wb-items';
+    const owner = '@forgeax-extension/items';
     const plugin = activity(owner, 'launcher', 'Items & Icons', {
       sourceLayer: 'installed',
       icon: 'Backpack',

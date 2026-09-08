@@ -1,7 +1,7 @@
 # @forgeax/design
 
 The ForgeaX/ForgeaX **design system SSOT**. React-free. Shared by the host
-(`packages/interface`) and every workbench plugin so they speak one visual
+(`packages/interface`) and every page plugin so they speak one visual
 language **without sharing a component bundle**.
 
 > This package holds *data* (tokens + a Tailwind preset + theme helpers), not

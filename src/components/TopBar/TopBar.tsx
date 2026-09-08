@@ -4,7 +4,7 @@ import { MenuBar } from '../MenuBar';
 import { AndroidPackageDialog, type AndroidPackageConfig } from './AndroidPackageDialog';
 import { IosPackageDialog, type IosPackageConfig } from './IosPackageDialog';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
-import { CircleGauge, LayoutGrid, Rocket, Settings, ShieldAlert, Check, X, Globe, Monitor, Laptop, Smartphone, Apple, ChevronDown, History, RefreshCw, Trash2, Loader2, Wrench, Eraser, UploadCloud, PlayCircle, FolderOpen, Copy, HelpCircle, Info, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { CircleGauge, LayoutGrid, MessageSquare, Rocket, Settings, ShieldAlert, Check, X, Globe, Monitor, Laptop, Smartphone, Apple, ChevronDown, History, RefreshCw, Trash2, Loader2, Wrench, Eraser, UploadCloud, PlayCircle, FolderOpen, Copy, HelpCircle, Info, ChevronRight, CheckCircle2, Megaphone } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,15 +17,26 @@ import { useConfirmToast, type PendingConfirm } from '../../lib/useConfirmToast'
 import { useSurface, type UISurfaceActionDef } from '../../lib/surface';
 import { useShellStore } from '../../store';
 import { useCommand } from '../../core/app-shell';
-import { getWorkbenchClient } from '../../store';
+import { getStudioBuildClient, getStudioProjectClient } from '../../store';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
 import { dashApi } from '../../lib/dashboard-api';
 import { alertDialog, confirmDialog } from '../../lib/dialog';
 import { listExtensions } from '../../lib/extension-api';
 import { useTranslation } from '@/i18n';
+import { FeedbackPanel } from '../Feedback/FeedbackPanel';
+import { useFeedbackStore } from '../Feedback/store';
 import { PublishOnboarding } from './PublishOnboarding';
 import { publishDoc } from './publish-options';
 import './TopBar.css';
+
+function formatPackageError(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
 
 type BusCountState =
   | { kind: 'loading' }
@@ -55,14 +66,14 @@ function useBusExtensionCount(): BusCountState {
 }
 
 // P3.7 · Preview mode-tab count chip — completes the 3 mode-tab chip trio
-// (Preview ⌘1 / Workbench ⌘2 / Bus ⌘3 each carry a count chip in the same
+// (Preview ⌘1 / Page ⌘2 / Bus ⌘3 each carry a count chip in the same
 // shape but different color family). Source: /api/health.wsClients — the
 // number of live UI WebSocket connections. Why this signal: Preview is
 // where the engine renders + where /ws-events delivers run streaming, so
 // wsClients is the natural "preview activity" indicator (open another
 // browser tab and the count goes 2 → 3 live). Color is sky-blue, distinct
-// from amber (workbench) and green (bus): "blue=observers / amber=
-// workbench plugins / green=bus plugins" — three different surfaces in one
+// from amber (page) and green (bus): "blue=observers / amber=
+// page plugins / green=bus plugins" — three different surfaces in one
 // scan. Reuses dashApi.health() (already cached for useBusExtensionCount).
 type PreviewCountState =
   | { kind: 'loading' }
@@ -90,37 +101,11 @@ function usePreviewWsCount(): PreviewCountState {
   return state;
 }
 
-// P3.5 · Workbench mode-tab count chip — symmetric with the Bus chip above.
-// 公平地反映「Workbench mode 当前装载多少 wb-* plugin」。Source 是
-// bus.plugins.list({kind:'workbench'})（同样的端点，Sidebar P2.6a 也在用）。
+// P3.5 · Page mode-tab count chip — symmetric with the Bus chip above.
+// 公平地反映「Page mode 当前装载多少 extension-* plugin」。Source 是
+// bus.plugins.list({kind: 'extension'})（同样的端点，Sidebar P2.6a 也在用）。
 // 单独一次 fetch + 8s 轮询足够；不必跟 /api/health 共用（health 只暴露总数，
 // 不分 kind），独立 hook 更解耦也更便于未来按其他 kind 扩展。
-type WbCountState =
-  | { kind: 'loading' }
-  | { kind: 'down' }
-  | { kind: 'ok'; count: number };
-
-function useWorkbenchExtensionCount(): WbCountState {
-  const [state, setState] = useState<WbCountState>({ kind: 'loading' });
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await listExtensions('workbench');
-        if (cancelled) return;
-        setState({ kind: 'ok', count: r.count });
-      } catch {
-        if (cancelled) return;
-        setState({ kind: 'down' });
-      }
-    };
-    tick();
-    const id = setInterval(tick, 8000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-  return state;
-}
-
 // P4.5 · TopBar tb-model BrainPill — until now the model pill in tb-right
 // was a static `<span>` showing only the active model label (e.g. "Claude
 // Opus 4.7"). Bus already hosts a `@forgeax-plugin/model-anthropic-text`
@@ -295,7 +280,7 @@ function ConfirmToastList({ confirms, onAck, onDeny }: ConfirmToastListProps) {
   );
 }
 
-// WorkbenchSwitcher + modeForWorkbench extracted → ./WorkbenchSwitcher (§D).
+// PageSwitcher + modeForPage extracted → ./PageSwitcher (§D).
 
 interface EngineRootCandidate {
   path: string;
@@ -304,11 +289,13 @@ interface EngineRootCandidate {
   recommended: boolean;
 }
 
-export function TopBar() {
+export function TopBar({ showSessionSwitcher = true }: { showSessionSwitcher?: boolean } = {}) {
   const { t } = useTranslation();
   const hasChatSurface = Boolean(usePanelRenderers().panels?.chat);
   const openOverlay = useShellStore((s) => s.openOverlay);
   const activeGameSlug = useShellStore((s) => s.activeGameSlug);
+  const chatpanelCollapsed = useShellStore((s) => s.chatpanelCollapsed);
+  const toggleChatpanel = useShellStore((s) => s.toggleChatpanel);
   // Route the LayoutGrid button through the command bus so keyboard / palette /
   // iframe all share one entry (was: window.dispatchEvent(APP_EVENTS.dockLayoutToggle)).
   const dockLayoutToggle = useCommand<{ rect?: { top: number; bottom: number; left: number; right: number } }>('app.dock.layoutToggle');
@@ -352,7 +339,7 @@ export function TopBar() {
     let cancelled = false;
     (async () => {
       try {
-        const j = await getWorkbenchClient().getEngineRoots();
+        const j = await getStudioBuildClient().getEngineRoots();
         if (cancelled) return;
         const roots = (j.roots ?? []) as unknown as EngineRootCandidate[];
         setEngineRoots(roots);
@@ -368,7 +355,7 @@ export function TopBar() {
     let slug = activeGameSlug;
     if (!slug) {
       try {
-        const j = await getWorkbenchClient().getActiveGame();
+        const j = await getStudioProjectClient().getActiveProject();
         slug = j.activeSlug ?? null;
       } catch { /* fall through */ }
     }
@@ -409,7 +396,7 @@ export function TopBar() {
     setPackaging(true);
     setPackagingPlatform(platform);
     try {
-      const j = await getWorkbenchClient().packageGame(slug, {
+      const j = await getStudioBuildClient().buildProject(slug, {
         targetPlatform: platform,
         rebuildEngine,
         forceRebuild: false,
@@ -428,9 +415,11 @@ export function TopBar() {
 
       // Synchronous result (Web)
       if (!j.ok) {
+        const detail = formatPackageError(j.detail || j.error || t('topbar.package.unknownError'));
+        console.error('[packager] build failed', { slug, platform, result: j, detail });
         await alertDialog({
           title: t('topbar.package.failed'),
-          body: <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{String(j.detail || j.error || t('topbar.package.unknownError'))}</pre>,
+          body: <pre className="tb-package-error">{detail}</pre>,
         });
         return;
       }
@@ -447,7 +436,9 @@ export function TopBar() {
         ),
       });
     } catch (e) {
-      await alertDialog({ title: t('topbar.package.failed'), body: String((e as Error)?.message ?? e) });
+      const detail = formatPackageError((e as Error)?.message ?? e);
+      console.error('[packager] request failed', { slug, platform, error: e, detail });
+      await alertDialog({ title: t('topbar.package.failed'), body: <pre className="tb-package-error">{detail}</pre> });
     } finally {
       setPackaging(false);
       setPackagingPlatform('');
@@ -460,7 +451,7 @@ export function TopBar() {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise(r => setTimeout(r, INTERVAL));
       try {
-        const job = (await getWorkbenchClient().pollPackageJob(jobId)) as unknown as {
+        const job = (await getStudioBuildClient().pollBuildJob(jobId)) as unknown as {
           status: string;
           phase: string;
           logTail: string[];
@@ -490,14 +481,19 @@ export function TopBar() {
             });
           } else {
             const res = job.result ?? {};
+            const detail = formatPackageError(res.detail || res.error || t('topbar.package.unknownError'));
+            console.error('[packager] build failed', { slug, platform, job, detail });
             await alertDialog({
               title: t('topbar.package.failed'),
-              body: <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{String(res.detail || res.error || t('topbar.package.unknownError'))}</pre>,
+              body: <pre className="tb-package-error">{detail}</pre>,
             });
           }
           return;
         }
-      } catch { /* continue polling */ }
+      } catch (e) {
+        console.error('[packager] polling failed', { jobId, slug, platform, error: e });
+        /* continue polling */
+      }
     }
     setShowProgress(false);
     setPackaging(false);
@@ -509,7 +505,7 @@ export function TopBar() {
     setPackagingPlatform(platform);
     setShowHistory(false);
     try {
-      const j = await getWorkbenchClient().packageGame(slug, {
+      const j = await getStudioBuildClient().buildProject(slug, {
         targetPlatform: platform,
         forceRebuild: true,
         engineRoot: selectedEngineRoot,
@@ -521,7 +517,9 @@ export function TopBar() {
         await pollJob(j.jobId as string, slug, platform);
       }
     } catch (e) {
-      await alertDialog({ title: t('topbar.package.failed'), body: String((e as Error)?.message ?? e) });
+      const detail = formatPackageError((e as Error)?.message ?? e);
+      console.error('[packager] retry failed', { slug, platform, error: e, detail });
+      await alertDialog({ title: t('topbar.package.failed'), body: <pre className="tb-package-error">{detail}</pre> });
     } finally {
       setPackaging(false);
       setPackagingPlatform('');
@@ -549,7 +547,7 @@ export function TopBar() {
 
     setCleaning(true);
     try {
-      const j = await getWorkbenchClient().cleanPackage();
+      const j = await getStudioBuildClient().cleanBuilds();
       const fmtSize = (b: number): string => {
         if (b <= 0) return '0 B';
         const u = ['B', 'KB', 'MB', 'GB']; let i = 0; let n = b;
@@ -634,7 +632,7 @@ export function TopBar() {
   // 上一次的 selected,底部已经切了),用户明确反馈"为什么有好几个选模型
   // 的地方"。SSOT 收回 Composer (`ChatPanel/Composer.tsx <ModelPicker>`),
   // TopBar 只留 Settings 入口和 cli-provider admin 快捷键。
-  // 2026-05-17 — useBusExtensionCount / useWorkbenchExtensionCount / usePreviewWsCount
+  // 2026-05-17 — useBusExtensionCount / usePageExtensionCount / usePreviewWsCount
   // hooks no longer wired (count badges were removed). The function bodies are
   // kept in this file for the moment in case future TopBar widgets want them;
   // the unused-imports lint warning is tolerated.
@@ -657,7 +655,7 @@ export function TopBar() {
         {/* Forge agent entry region appears only when the host injects chat.
             MenuBar already renders its own trailing divider (web), so the
             SessionSwitcher follows it directly — no extra divider here. */}
-        {hasChatSurface && (
+        {showSessionSwitcher && hasChatSurface && (
           <span data-testid="forge-entry" style={{ display: 'contents' }}>
             <SessionSwitcher />
           </span>
@@ -665,6 +663,36 @@ export function TopBar() {
       </div>
 
       <div className="tb-right" data-tour-id="tb-right">
+        {/* 需求 §1:反馈入口位于对话流按钮左侧 —— tb-right 从左往右排,
+            所以反馈必须排在 chat-panel-toggle 之前,勿调换。 */}
+        <button
+          type="button"
+          className="tb-feedback-btn"
+          title={t('feedback.tooltip')}
+          onClick={() => useFeedbackStore.getState().openPanel('write')}
+        >
+          <Megaphone size={16} />
+          <span>{t('feedback.button')}</span>
+        </button>
+        <TbDivider />
+        {hasChatSurface && (
+          <button
+            type="button"
+            className="tb-icon-btn"
+            data-testid="chat-panel-toggle"
+            aria-label={t(chatpanelCollapsed ? 'topbar.chatToggle.expand' : 'topbar.chatToggle.collapse')}
+            aria-pressed={!chatpanelCollapsed}
+            title={t(chatpanelCollapsed ? 'topbar.chatToggle.expand' : 'topbar.chatToggle.collapse')}
+            onClick={toggleChatpanel}
+          >
+            <MessageSquare
+              size={16}
+              fill={chatpanelCollapsed ? 'none' : 'currentColor'}
+              stroke={chatpanelCollapsed ? 'currentColor' : 'none'}
+            />
+          </button>
+        )}
+        {hasChatSurface && <TbDivider />}
         <DashboardToggle />
         <TbDivider />
         <button
@@ -818,6 +846,7 @@ export function TopBar() {
       </div>
     </div>
     <ConfirmToastList confirms={pendingConfirms} onAck={ack} onDeny={deny} />
+    <FeedbackPanel />
     {cleaning && (
       <div className="tb-progress-overlay">
         <div className="tb-progress-dialog">
@@ -877,13 +906,13 @@ function PackageSuccessBody({ outDir, runHint, platform, slug, usedCachedShell, 
     } catch { /* ignore */ }
   };
   const reveal = async () => {
-    try { await fetch('/api/workbench/package/reveal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: outDir }) }); } catch { /* ignore */ }
+    try { await fetch('/api/builds/reveal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: outDir }) }); } catch { /* ignore */ }
   };
   // Playtest is served by the studio server itself (same-origin, secure
   // localhost context, correct .wasm MIME) — no npx/serve.sh spawn, so the tab
   // opens instantly onto a ready server instead of a maybe-not-bound one.
   const play = () => {
-    window.open(`/api/workbench/play/${encodeURIComponent(slug)}/`, '_blank');
+    window.open(`/api/builds/play/${encodeURIComponent(slug)}/`, '_blank');
   };
 
   const isWeb = platform === 'web';
@@ -1022,7 +1051,7 @@ function PackageHistoryDialog({ onClose, onRetry, t }: {
 
   const fetchHistory = async () => {
     try {
-      const j = await getWorkbenchClient().listPackageHistory();
+      const j = await getStudioBuildClient().listBuildHistory();
       setRecords((j.records ?? []) as unknown as HistoryRecord[]);
     } catch { /* empty */ }
     setLoading(false);
@@ -1032,7 +1061,7 @@ function PackageHistoryDialog({ onClose, onRetry, t }: {
 
   const handleDelete = async (id: string) => {
     try {
-      await getWorkbenchClient().deletePackageHistory(id, { clean: true });
+      await getStudioBuildClient().deleteBuildHistory(id, { clean: true });
       setRecords(prev => prev.filter(r => r.id !== id));
     } catch { /* ignore */ }
   };

@@ -1,0 +1,179 @@
+.feedback-passive-backdrop {
+  position: fixed;
+  inset: 36px 0 24px;
+  z-index: var(--z-modal, 1000);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.feedback-passive-card {
+  position: relative;
+  width: min(560px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: #303033;
+  color: var(--color-text-primary, #f2f2f2);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.48);
+}
+
+.feedback-passive-card--corner {
+  position: fixed;
+  right: 18px;
+  bottom: 42px;
+  z-index: var(--z-toast, 900);
+  width: min(440px, calc(100vw - 36px));
+}
+
+.feedback-passive-chat-slot {
+  flex: 0 0 auto;
+  padding: 0 10px 8px;
+}
+
+.feedback-passive-card--chat {
+  width: 100%;
+  padding: 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
+}
+
+.feedback-passive-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 28px;
+}
+
+.feedback-passive-header h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.feedback-passive-card--chat .feedback-passive-header h2 { font-size: 15px; }
+
+.feedback-passive-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border-radius: 7px;
+  color: #ff6468;
+  background: rgba(255, 100, 104, 0.18);
+}
+
+.feedback-passive-card--chat .feedback-passive-icon {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+}
+
+.feedback-passive-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary, #8e8e93);
+  cursor: pointer;
+}
+
+.feedback-passive-close:hover { color: var(--color-text-primary, #fff); }
+
+.feedback-passive-summary {
+  margin: 18px 0 12px 66px;
+  color: var(--color-text-secondary, #c5c5c8);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.feedback-passive-card--chat .feedback-passive-summary {
+  margin: 12px 0 10px;
+  font-size: 12px;
+}
+
+.feedback-passive-stack { margin: 0 0 18px 66px; }
+.feedback-passive-card--chat .feedback-passive-stack { margin-left: 0; }
+.feedback-passive-stack summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-tertiary, #929296);
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+.feedback-passive-stack summary::-webkit-details-marker { display: none; }
+.feedback-passive-stack[open] summary svg { transform: rotate(180deg); }
+.feedback-passive-stack pre {
+  max-height: 180px;
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #bfc0c4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.feedback-passive-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 66px;
+}
+.feedback-passive-card--chat .feedback-passive-actions { margin-left: 0; }
+.feedback-passive-primary,
+.feedback-passive-ignore {
+  min-height: 42px;
+  padding: 0 22px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.feedback-passive-primary {
+  border: 1px solid var(--color-brand-primary, #c7ff35);
+  background: var(--color-brand-primary, #c7ff35);
+  color: #111;
+}
+.feedback-passive-primary:hover { filter: brightness(0.94); }
+.feedback-passive-ignore {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--color-text-secondary, #b5b5b8);
+}
+.feedback-passive-ignore:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  color: var(--color-text-primary, #fff);
+}
+
+@media (max-width: 640px) {
+  .feedback-passive-card { padding: 18px; }
+  .feedback-passive-card--corner { right: 12px; bottom: 34px; width: calc(100vw - 24px); }
+  .feedback-passive-summary,
+  .feedback-passive-stack,
+  .feedback-passive-actions { margin-left: 0; }
+  .feedback-passive-actions { align-items: stretch; flex-direction: column; }
+  .feedback-passive-primary,
+  .feedback-passive-ignore { width: 100%; }
+}

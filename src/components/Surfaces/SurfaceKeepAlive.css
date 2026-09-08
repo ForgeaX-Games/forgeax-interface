@@ -10,22 +10,32 @@
   height: 100%;
 }
 
-/* The always-mounted root holds the kept-alive items but takes no space itself. */
+/* Portal-mounted viewport overlay root: fixed to the layout viewport so children
+ * can use absolute coords derived from anchor getBoundingClientRect() without
+ * inheriting a shifted fixed containing block from the studio shell tree. */
 .fx-surface-keepalive-root {
-  position: absolute;
-  width: 0;
-  height: 0;
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
   pointer-events: none;
+  z-index: 40;
 }
 
-/* Each kept-alive surface. position:fixed so it can be overlaid on its dockview
- * anchor's rect (top/left/width/height set imperatively) without re-parenting the
- * iframe. Inactive items are display:none (set inline) → their IntersectionObserver
+/* Each kept-alive surface. position:absolute inside the viewport overlay root.
+ * Inactive items are visibility:hidden (set inline) → their IntersectionObserver
  * pauses the engine. z-index sits above in-flow dock content but below dock pop-out
  * affordances (200), popovers (1000), detached-surface (9000), and modals/menus. */
 .fx-surface-keepalive-item {
-  position: fixed;
-  z-index: 40;
-  pointer-events: auto;
+  position: absolute;
+  z-index: 1;
+  /* Do not hit-test the overlay chrome itself. A stale/DPI-shifted rect on
+     Windows WebView2 can overlap the viewport PanelShell Play row; empty
+     overlay pixels must not swallow those clicks. */
+  pointer-events: none;
   /* `display` (none/flex) + top/left/width/height are owned by syncLayout(). */
+}
+.fx-surface-keepalive-item .ep-viewport-root,
+.fx-surface-keepalive-item .fx-surface-region-body {
+  pointer-events: auto;
 }

@@ -29,15 +29,15 @@ describe('derivePanelRenderers', () => {
     expect(without.overlays?.Settings).toBe(C);
   });
 
-  it('workbenchPanels sub-key merge preserves siblings', () => {
+  it('extensionPanels sub-key merge preserves siblings', () => {
     const a = (): React.ReactNode => null;
     const b = (): React.ReactNode => null;
     const out = derivePanelRenderers(DEFAULT_PANEL_RENDERERS, [
-      { workbenchPanels: { 'wb:a': a } },
-      { workbenchPanels: { 'wb:b': b } },
+      { extensionPanels: { 'extension:a': a } },
+      { extensionPanels: { 'extension:b': b } },
     ]);
-    expect(out.workbenchPanels?.['wb:a']).toBe(a);
-    expect(out.workbenchPanels?.['wb:b']).toBe(b);
+    expect(out.extensionPanels?.['extension:a']).toBe(a);
+    expect(out.extensionPanels?.['extension:b']).toBe(b);
   });
 
   it('array fields REPLACE whole-value; later patch wins', () => {

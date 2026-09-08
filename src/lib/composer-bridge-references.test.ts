@@ -36,8 +36,7 @@ describe('buildReferenceFor — DOM units', () => {
     { name: 'file', html: `<div class="fp-row file" data-fp-path="games/x/main.ts"><span class="fp-name">main.ts</span></div>`, kind: 'file', icon: '📄', detailIncludes: 'main.ts' },
     { name: 'dir', html: `<div class="fp-row dir"><span class="fp-name">src</span></div>`, kind: 'dir', icon: '📁', detailIncludes: 'src' },
     { name: 'agent-card', html: `<div class="agent-card" data-agent-id="iori" data-role="pillar"><span class="ac-name">Iori★</span></div>`, kind: 'agent', icon: '🤝', detailIncludes: '@iori' },
-    { name: 'wm-agent-card', html: `<div class="wm-agent-card" data-agent-id="suzu" data-agent-name="Suzu"></div>`, kind: 'agent', icon: '🤝', detailIncludes: '@suzu' },
-    { name: 'ws-icon-btn', html: `<button class="ws-icon-btn" data-extension-id="@x/wb-character" aria-label="角色"></button>`, kind: 'tool', icon: '🔧', detailIncludes: 'wb-character' },
+    { name: 'agents-agent-card', html: `<div class="agents-agent-card" data-agent-id="suzu" data-agent-name="Suzu"></div>`, kind: 'agent', icon: '🤝', detailIncludes: '@suzu' },
     { name: 'preview-toolbar', html: `<div class="preview-toolbar" data-game-slug="sector-strike"></div>`, kind: 'game', icon: '🎮', detailIncludes: 'sector-strike' },
     { name: 'console-row', html: `<div class="console-row">RhiError: boom</div>`, kind: 'log', icon: '📜', detailIncludes: 'RhiError' },
     { name: 'workspace-tab', html: `<button class="mode-tab" data-ws-id="ws-abc" data-ws-name="Workspace 1"></button>`, kind: 'tool', icon: '🗂', detailIncludes: 'Workspace 1' },
@@ -76,15 +75,6 @@ describe('buildReferenceFor — DOM units', () => {
     const node = el(`<button class="mode-tab"></button>`);
     expect(node.matches('.mode-tab[data-ws-id]')).toBe(false); // selector itself requires the attr
     expect(buildReferenceFor(node)).toBeNull();
-  });
-
-  it('ws-icon-btn wins over the generic [data-extension-id] descriptor', () => {
-    // a ws-icon-btn also carries data-extension-id; the specific descriptor (earlier
-    // in the list) must win, and the generic one self-excludes inside .ws-icon-btn.
-    const node = el(`<button class="ws-icon-btn" data-extension-id="@x/p" aria-label="P"></button>`);
-    const ref = buildReferenceFor(node);
-    expect(ref?.descriptor.kind).toBe('wb-plugin');
-    expect(ref?.pill.icon).toBe('🔧'); // not 🔌
   });
 
   it('copy items are exposed where declared', () => {

@@ -25,8 +25,8 @@
   min-width: 0;
   overflow: hidden;
 }
-/* Version is contributed through statusbar.left for compatibility, but the
-   footer presents it as the final, far-right identity chip. */
+/* Game version control is the only left-slot contribution. CSS order 4 makes
+   that slot the visual far-right owner; build metadata stays in right/order 3. */
 .sb-slot-left {
   order: 4;
   flex: 0 0 auto;
@@ -76,7 +76,7 @@
    status items. order:1 keeps CB / Info / other bottom edge tabs flush-left;
    flex:1 leaves the status cluster anchored at the right.
    Empty (no docked bottom panels) → display:none, so the center slot's
-   margin-left:auto still right-aligns the health chip. */
+   margin-left:auto still right-aligns the status cluster. */
 .sb-slot-dock {
   order: 1;
   flex: 1 1 auto;
@@ -106,7 +106,9 @@
   height: 100%;
 }
 .fx-bottom-edge-strip .dv-tab {
-  min-width: 0 !important;
+  width: auto !important;
+  min-width: max-content !important;
+  flex: 0 0 auto !important;
   height: 100%;
   padding: 0 8px !important;
   display: inline-flex;
@@ -173,11 +175,62 @@
   padding: 0;
   gap: 5px;
   font-size: 12px;
+  width: auto;
+  max-width: min(36vw, 360px);
 }
 .fx-bottom-edge-strip .dv-default-tab .dv-default-tab-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
   margin: 0;
   padding: 0;
+  line-height: 1;
 }
+.fx-bottom-edge-strip .dv-default-tab .fx-dock-tab-title {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fx-info-tab-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 100%;
+  font-size: 11px;
+  line-height: 1;
+}
+.fx-info-tab-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.fx-info-tab-count-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  font-size: 11px;
+  line-height: 11px;
+  transform: translateY(1.5px);
+}
+.fx-info-tab-count-value {
+  display: inline-flex;
+  align-items: center;
+  height: 11px;
+  line-height: 11px;
+}
+.fx-info-tab-count--error { color: #ff6b6b; }
+.fx-info-tab-count--warn { color: #e6c14b; }
 /* Keep the void container narrow — it stays a valid drop target for drag-in
    but must not expand to eat the whole footer. */
 .fx-bottom-edge-strip .dv-void-container {

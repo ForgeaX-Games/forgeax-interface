@@ -2,7 +2,7 @@ import { useShellStore } from '../../store';
 import { useTranslation } from '@/i18n';
 
 // ConsolePanel — a standalone dock panel for the engine/editor console stream
-// (the same `consoleLog` the Workbench bottom tab shows, surfaced as its own
+// (the same `consoleLog` the Page bottom tab shows, surfaced as its own
 // dockable/floatable/pop-out-able panel). Reuses the existing console-row styles.
 export function ConsolePanel() {
   const { t } = useTranslation();
@@ -16,7 +16,7 @@ export function ConsolePanel() {
           <button type="button" className="fx-console-clear" onClick={() => clearConsole()} title={t('consolePanel.clearTitle')}>clear</button>
         )}
       </div>
-      <div className="wb-bottom-body thin-scrollbar fx-console-body">
+      <div className="page-bottom-body thin-scrollbar fx-console-body">
         {consoleLog.length === 0 && (
           <div className="wbb-row" style={{ opacity: 0.5 }}>
             <span>{t('consolePanel.empty')}</span>

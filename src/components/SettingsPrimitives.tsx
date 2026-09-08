@@ -34,6 +34,7 @@ export function EnvField({
   visible,
   notSetHint,
   onReset,
+  resetTitle,
 }: {
   label: string;
   masked: string | null;
@@ -45,6 +46,8 @@ export function EnvField({
   notSetHint?: string;
   /** Clear the override and restore the built-in default (e.g. shared upload token). */
   onReset?: () => void;
+  /** Override the reset tooltip when the field has no built-in fallback. */
+  resetTitle?: string;
 }) {
   const { t } = useTranslation();
   const stored = masked ?? '';
@@ -79,7 +82,12 @@ export function EnvField({
 
   return (
     <div className="settings-row">
-      <label className="settings-label">{label}</label>
+      <label
+        className={`settings-label${label.length > 28 ? ' settings-label--long' : ''}`}
+        title={label}
+      >
+        {label}
+      </label>
       <div className={`settings-input-wrap${visible ? '' : ' with-eye'}`}>
         <input
           className="settings-input"
@@ -110,7 +118,7 @@ export function EnvField({
           className="settings-cancel-btn"
           onClick={reset}
           disabled={busy || !masked}
-          title={t('settings.upload.resetTokenTitle')}
+          title={resetTitle ?? t('settings.upload.resetTokenTitle')}
         >
           {t('common.reset')}
         </button>

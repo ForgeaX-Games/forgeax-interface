@@ -11,7 +11,7 @@
  *  且本 tab 可见而无 lease 时机会式 acquire(单 tab 断续场景自愈;两 tab 同可见时后
  *  acquire 者胜,server 只认现任 leaseId,不会双应答)。
  */
-import { getSessionClient, type SessionEvent } from '../store-parts/session-client';
+import { getSessionClient, hasSessionClient, type SessionEvent } from '../store-parts/session-client';
 import {
   buildManifest,
   dispatchAction,
@@ -152,9 +152,10 @@ async function answerUiQuery(evt: SessionEvent): Promise<void> {
 
 // ─── 全局快捷键的 iframe→host 接收器(todo 004)──────────────────────────────
 // 焦点在 iframe 内时,命令面板(⌘K)/ useGlobalShortcuts 的顶层监听拿不到按键。
-// 各 iframe 内装 `installShortcutForwarder`(权威在 @forgeax/host-sdk,消费方 vendor)
+// 各 iframe 内装 `installShortcutForwarder`（权威在 @forgeax/extension-platform/transport，消费方 vendor）
 // 把白名单键 postMessage 上来;此处校验 origin 后在顶层重放 → 现有监听自动统一处理。
-// 常量与 host-sdk `shortcut-forwarder.ts` 保持一致(interface 不 dep host-sdk,故内联)。
+// 常量与 Extension Platform transport 的 shortcut forwarder 保持一致；
+// Interface 不静态依赖 transport 实现，因此在边界内联。
 const FORGEAX_FORWARD_KEY = 'FORGEAX_FORWARD_KEY';
 
 let shortcutReceiverInstalled = false;
@@ -203,7 +204,9 @@ export function bootUiBridge(): void {
   installShortcutReceiver(); // todo 004:iframe 内全局快捷键(⌘K 等)转发上来,顶层重放
 
   // ui_* 查询应答(onSessionEvent 按 key 幂等,HMR 安全;world/frame 由 perception-stream 继续中转)。
-  getSessionClient().onSessionEvent('ui-bridge', (evt) => void answerUiQuery(evt));
+  if (hasSessionClient()) {
+    getSessionClient().onSessionEvent('ui-bridge', (evt) => void answerUiQuery(evt));
+  }
 
   // registry 变更 → debounce 重推 manifest(只推本 tab 持 lease 的 sid)。
   onRegistryChange(() => {

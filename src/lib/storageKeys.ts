@@ -8,30 +8,9 @@
 //
 // Versioning: when a value's SHAPE changes incompatibly, bump its key suffix
 // (…:v2 → …:v3) and add a migration. The dockview layout uses a separate
-// numeric stamp (LAYOUT_VERSION) handled by workspaces.migrateWorkbenchSchema().
+// numeric stamp (LAYOUT_VERSION) handled by the page workspace migrator.
 
 export const STORAGE_KEYS = {
-  // ── workbenches (Blender-style named layouts) ──
-  //
-  // NOTE: after the v7→v8 migration (T7 · 2026-07-07), all workbench state
-  // lives under project-scoped keys (see `workbenchesKeyForProject` /
-  // `workbenchLayoutKeyForProject` below). The keys listed here are LEGACY —
-  // read once by `migrateWorkbenchSchema()` on first boot after upgrade to
-  // recover pre-v8 user state, then deleted. No runtime read/write path
-  // should touch them.
-  /** [LEGACY, v7] { list: Workbench[]; activeId } — pre-v8 global workbench list + selection. */
-  workspaces: 'forgeax:workspaces:v2',
-  /** [LEGACY, v7] pre-v2 shape of the above — read once by migration. */
-  workspacesLegacyV1: 'forgeax:workspaces:v1',
-  /** [LEGACY, v7] pre-v2 active-id key — read once by migration. */
-  workspaceActiveLegacy: 'forgeax:workspace:active',
-  /** [LEGACY, v7] prefix; full key is `${wsLayoutPrefix}<workbenchId>` → SerializedDockview. */
-  wsLayoutPrefix: 'forgeax:ws-layout:',
-  /** [LEGACY, v7] numeric stamp of the built-in default-layout schema. Replaced by `workbenchSchemaVersionKey`. */
-  wsLayoutVersion: 'forgeax:ws-layout-version',
-  /** [LEGACY, pre-workspaces] single-layout key — read once by migration. */
-  legacyDockLayout: 'forgeax:shell:dock:v4',
-
   // ── session / chat shell (store.ts) ──
   /** persisted open chat tabs. */
   tabs: 'forgeax.tabs',
@@ -74,41 +53,23 @@ export const STORAGE_KEYS = {
   /** when '1', the first-run Publish coach-mark has been seen (or skipped). */
   publishOnboarded: 'forgeax.publish.onboarded',
 
+  /** Contact email reused by the manual feedback form. Plain string, v1. */
+  feedbackEmail: 'forgeax.feedback.email.v1',
+
   // ── activity rail ──
   /** [v3] qualified activity IDs pinned to the ActivityRail.
    *  Shape: string[]. Display order keeps the historical curated entries first,
    *  then follows ActivityRegistry order for newly pinned extensions;
    *  missing key → the historical 12-plugin product seed is derived. */
   activityRailPinned: 'forgeax.activityRail.pinned.v3',
+  /** one-shot migration marker: add the Video Game entry to existing v3 pins
+   *  once without re-pinning it after a deliberate user unpin. */
+  activityRailPinnedVideoGameDefault: 'forgeax.activityRail.pinned.videoGameDefault.v1',
   /** [ABANDONED, v2] briefly seeded every registered activity; intentionally not migrated. */
   activityRailPinnedLegacyV2: 'forgeax.activityRail.pinned.v2',
   /** [LEGACY, v1] plugin slugs (or early qualified IDs); read-only migration source. */
   activityRailPinnedLegacyV1: 'forgeax.activityRail.pinned.v1',
 } as const;
-
-/** Build a per-workspace dockview layout key. Legacy — kept for the v7→v8
- *  migration to READ from; runtime paths use `workbenchLayoutKeyForProject`. */
-export const wsLayoutKey = (workbenchId: string): string => `${STORAGE_KEYS.wsLayoutPrefix}${workbenchId}`;
-
-// ── project-scoped workbench keys (v8 schema · T7) ─────────────────────────
-//
-// Post-v8, workbench state is namespaced under the current project id so
-// switching projects re-reads a per-project list + per-project layouts. The
-// project id is set by `setCurrentProject(projId)` (workbenches.ts), driven by
-// GameDirectoryModalHost after `/api/workbench/games` returns.
-/** Per-project workbench list + active selection. { list: Workbench[]; activeId } */
-export const workbenchesKeyForProject = (projId: string): string =>
-  `forgeax:project:${projId}:workbenches`;
-/** Per-project, per-workbench dockview layout cache (SerializedDockview). */
-export const workbenchLayoutKeyForProject = (projId: string, wbId: string): string =>
-  `forgeax:project:${projId}:workbench-layout:${wbId}`;
-/** Schema-version stamp (replaces the legacy `wsLayoutVersion`). Global —
- *  the version applies to the on-disk layout across every project. */
-export const workbenchSchemaVersionKey = 'forgeax:workbench-schema-version';
-/** Legacy global panel-region overrides map — inlined into every workbench's
- *  panelLocations by the v7→v8 migration, then deleted. Kept as a constant
- *  so the migration can reference it by name. */
-export const legacyPanelLocationsKey = 'forgeax:panel-locations';
 
 // Cross-component window CustomEvent names (NOT storage, but same "stringly-typed
 // global namespace" footgun — centralized here so they can't drift either).

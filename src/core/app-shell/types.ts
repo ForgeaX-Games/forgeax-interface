@@ -54,6 +54,8 @@ export interface ContentBrowserRevealTarget {
   readonly assetKind?: string;
   /** Display name, forwarded into the selection (best-effort). */
   readonly name?: string;
+  /** Game-relative author source path (imported `.glb` / `.fbx` …), when known. */
+  readonly sourcePath?: string;
 }
 
 export interface AppBusEventMap extends Record<string, unknown> {
@@ -66,7 +68,7 @@ export interface AppBusEventMap extends Record<string, unknown> {
   /** Locate a target in the Content Browser (see ContentBrowserRevealTarget). */
   'content-browser:reveal': { target: ContentBrowserRevealTarget };
   'dock:reset':          Record<string, never>;
-  'dock:layout-toggle':  { workbenchId?: string; rect?: { top: number; bottom: number; left: number; right: number } };
+  'dock:layout-toggle':  { pageId?: string; rect?: { top: number; bottom: number; left: number; right: number } };
   'anim:handoff':        { fromSurface: string; toSurface: string };
   'chat:pill':           { pill: AppShellPillPayload };
   /** Host-command handoffs; domain owners may subscribe without importing UI. */
@@ -82,7 +84,7 @@ export interface AppBusEventMap extends Record<string, unknown> {
 export type HostCapability =
   | 'commands' | 'keybindings' | 'bus' | 'storage' | 'panels' | 'panelActions' | 'panelControls' | 'contextKeys' | 'pages'
   | 'activities' | 'resourceEditors'
-  | 'session' | 'workbench' | 'observability' | 'editor'
+  | 'session' | 'observability' | 'editor'
   | (string & {});
 
 export interface AppLogger {
@@ -119,7 +121,9 @@ export interface AppHostBase {
 /** Consumers narrow optional fields with `if (host.session) {...}`. */
 export interface AppHost extends AppHostBase {
   readonly session?: unknown;                // typed by session-client plugin's .d.ts
-  readonly workbench?: unknown;              // typed by workbench-client plugin's .d.ts
+  readonly agentCatalog?: unknown;
+  readonly projects?: unknown;
+  readonly builds?: unknown;
   readonly observability?: unknown;          // typed by observability plugin's .d.ts
   readonly editor?: unknown;
   readonly [extension: string]: unknown;

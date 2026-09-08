@@ -31,12 +31,14 @@ import { subscribePermissionStream } from './lib/permission-stream';
 import { subscribePerceptionStream } from './lib/perception-stream';
 import { bootUiBridge } from './lib/ui-bridge';
 import { syncBrowserPrefsFromServer, startBrowserPrefsSync } from './lib/browser-prefs-sync';
-import { setCurrentProject, startWorkbenchLayoutFlush } from './lib/workbenches';
-import { useShellStore } from './store';
-import { decodeSurfaceFromLocation, getWindowManager, isTauri, surfaceKey } from './lib/platform';
+import { setCurrentProject } from './lib/project-context';
+import { getStudioProjectClient, hasStudioDomainClients, useShellStore } from './store';
+import { decodeSurfaceFromLocation } from '@forgeax/app-shell/window';
+import { getSurfaceWindowingController, getWindowManager, isTauri } from './lib/platform';
 import { DetachedSurface } from './components/DetachedSurface';
 import { installHealthBridge } from './components/StatusBar/healthBridge';
 import { beginAppBoot, appBootSpan, endAppBoot } from './lib/trace';
+import { hasSessionClient } from './store-parts/session-client';
 
 // Boot Aegis (Galileo) front-end monitoring first, before any heavy boot work,
 // so early throws are captured. Inert unless VITE_AEGIS_* is configured (PROD,
@@ -108,14 +110,12 @@ if (detachedSurface) {
     await syncBrowserPrefsFromServer();
     initI18n();
     try {
-      const r = await fetch('/api/workbench/games');
-      if (r.ok) {
-        const j = (await r.json()) as { activeSlug?: string; games?: Array<{ slug?: string }> };
+      if (hasStudioDomainClients()) {
+        const j = await getStudioProjectClient().listProjects();
         setCurrentProject(j.activeSlug ?? j.games?.[0]?.slug ?? 'default');
       }
     } catch { /* non-critical — GameDirectoryModalHost retries */ }
     startBrowserPrefsSync();
-    startWorkbenchLayoutFlush();
     bootStageEntry();
     bootFullShell(rootEl);
   })();
@@ -131,12 +131,14 @@ function bootStore() {
   // early createApp failures are caught. Idempotent.
   installHealthBridge();
   bootBroadcast(); // R5/P1 唯一公共广播 socket（telemetry）
-  subscribeNarrativeCopilot();
-  subscribeFileActivityStream();
-  subscribePermissionStream();
-  subscribePerceptionStream();
+  if (hasSessionClient()) {
+    subscribeNarrativeCopilot();
+    subscribeFileActivityStream();
+    subscribePermissionStream();
+    subscribePerceptionStream();
+    void useShellStore.getState().initSessions();
+  }
   bootUiBridge(); // UI 语义操作层(ActionRegistry + lease + ui_* 应答;方案:产品AI化-语义操作层)
-  void useShellStore.getState().initSessions();
 }
 
 function bootFullShell(el: HTMLElement) {
@@ -150,7 +152,7 @@ function bootFullShell(el: HTMLElement) {
   // (the main window re-mounts its keep-alive iframe or retained Page anchor).
   // Browser popup polling and Tauri destroyed events both converge here.
   getWindowManager().onSurfaceWindowClosed((d) => {
-    useShellStore.getState().markSurfaceDocked(surfaceKey(d));
+    getSurfaceWindowingController().markSurfaceDocked(d);
   });
 
   if (import.meta.env.DEV) {

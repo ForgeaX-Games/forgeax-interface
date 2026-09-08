@@ -14,7 +14,7 @@
  *    就是 Kotone 刚起的。
  *  - 前端是同时连着「agent 会话(WS)」和「叙事后端(REST)」的唯一协调者；放后端要跨进程。
  *
- *  START 侧（左栏回填 + 中间预览直播）由 wb-narrative viz 的 useAutoAttach 自包含完成，
+ *  START 侧（左栏回填 + 中间预览直播）由 extension-narrative viz 的 useAutoAttach 自包含完成，
  *  不在本模块职责内。 */
 
 import { getSessionClient } from '../store-parts/session-client';

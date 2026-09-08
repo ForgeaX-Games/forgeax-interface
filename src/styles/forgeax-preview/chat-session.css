@@ -50,43 +50,123 @@
 }
 
 .chat-session-tabs {
+  box-sizing: border-box;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px 6px;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
   min-width: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-background-base);
 }
 
+.chat-session-tab-list {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.chat-session-tab-list::-webkit-scrollbar { display: none; }
+
 .chat-session-tab {
+  position: relative;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   max-width: 140px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border-default);
-  background: var(--color-background-elevated);
-  color: var(--color-text-primary);
+  min-width: 0;
+  color: var(--color-text-secondary);
+}
+
+.chat-session-tab + .chat-session-tab::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--color-border-default);
+}
+
+.chat-session-tab.is-active::before,
+.chat-session-tab.is-active + .chat-session-tab::before,
+.chat-session-tab:hover::before,
+.chat-session-tab:hover + .chat-session-tab::before {
+  opacity: 0;
+}
+
+.chat-session-tab-button {
+  min-width: 0;
+  max-width: 118px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
 
+.chat-session-tab-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-session-tab:hover,
 .chat-session-tab.is-active {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-border-default));
-  background: var(--color-background-base);
-  color: var(--primary);
+  color: var(--color-brand-primary);
+}
+
+.chat-session-tab.is-active .chat-session-tab-button {
   font-weight: 600;
 }
 
+.chat-session-tab.is-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-brand-primary);
+  pointer-events: none;
+}
+
 .chat-session-tab-close {
-  opacity: 0.55;
-  font-size: 14px;
-  line-height: 1;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-left: -7px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: currentColor;
+  opacity: 0.62;
+  cursor: pointer;
+}
+
+.chat-session-tab-close:hover,
+.chat-session-tab-close:focus-visible {
+  opacity: 1;
+  background: var(--color-background-elevated);
 }
 
 .chat-session-tab-tools {
-  margin-left: auto;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -96,16 +176,99 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--color-border-default);
-  background: var(--color-background-elevated);
+  border: 0;
+  background: transparent;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
   cursor: pointer;
 }
 
-.chat-session-tab-tool:hover {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-default));
+.chat-session-tab-tool:hover,
+.chat-session-tab-tool:focus-visible {
   color: var(--color-text-primary);
+  background: var(--color-background-elevated);
+}
+
+.chat-session-tab-tool.is-active {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-background-elevated));
+}
+
+.chat-session-history {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 80px));
+  padding: 10px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-background-floating);
+  color: var(--color-text-primary);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+
+.chat-session-history-title {
+  height: 30px;
+  padding: 0 8px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chat-session-history-list {
+  max-height: 430px;
+  overflow-y: auto;
+}
+
+.chat-session-history-row {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 9px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-session-history-row:hover,
+.chat-session-history-row:focus-visible,
+.chat-session-history-row.is-active {
+  background: var(--color-interaction-hover);
+  color: var(--color-text-primary);
+}
+
+.chat-session-history-row.is-active {
+  color: var(--color-brand-primary);
+}
+
+.chat-session-history-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-session-history-time {
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-session-history-empty {
+  padding: 18px 10px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  text-align: center;
 }
 
 /* ─── Agent Facepile Strip ──────────────────────────────────────────────────
@@ -486,7 +649,7 @@
  * and given higher specificity than the global per-agent rules in
  * agent-avatar-video.css (the extra [data-agent-id] bumps the weight) so this
  * wins inside the capsule WITHOUT touching the same component anywhere else
- * (sidebar / chat / workbench / settings keep their own framing). The circular
+ * (sidebar / chat / extension / settings keep their own framing). The circular
  * frame stays 32/44px; only the image inside is scaled/shifted. */
 .cas-avatar-wrap > .agent-avatar-video[data-agent-id] .aav-layer {
   transform: scale(1.32) translate3d(0, -16%, 0);

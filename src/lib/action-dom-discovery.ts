@@ -4,7 +4,7 @@
  *  `registerAction`(handler = click 该元素),**不构成第二条执行路径**——派发仍统一走
  *  action-registry 的 `dispatchAction` 单入口。目标元素不在 DOM(面板没开)时
  *  `available()` 返回人话原因 fail-closed;**不做自动导航**——「把面板打开」本身该是
- *  一个 action(如 workbench.open),导航编排属于模型,不藏进派发层。
+ *  一个 action(如 page.open),导航编排属于模型,不藏进派发层。
  *
  *  可选注解:
  *    data-fx-title        人读标题(缺省取 aria-label / textContent)

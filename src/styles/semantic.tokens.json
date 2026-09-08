@@ -1294,7 +1294,7 @@
       }
     },
     "kind": {
-      "workbench": {
+      "extension": {
         "$type": "color",
         "$value": {
           "colorSpace": "srgb",
@@ -1317,7 +1317,7 @@
             "targetVariableSetName": "Primitive"
           }
         },
-        "$description": "Workbench bus — brand lime/400"
+        "$description": "Extension bus — brand lime/400"
       },
       "agent": {
         "$type": "color",

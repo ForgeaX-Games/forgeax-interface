@@ -11,6 +11,7 @@ import {
   useReducer,
   type ReactNode,
 } from 'react';
+import { PanelEmptyState, PanelSurface } from '@forgeax/app-shell/react';
 import {
   AlertCircle,
   Bell,
@@ -734,7 +735,7 @@ function PanelHeaderBar({ panelId, panel }: { panelId: string; panel: PanelDescr
         const showOverflow = location === 'header/right' && overflow.length > 0;
         return (
           <div key={location} className="fx-panel-header-zone" data-zone={location.slice('header/'.length)}>
-            {location === 'header/left' && panel.header?.showTitle !== false && (() => {
+            {location === 'header/left' && panel.header?.showTitle === true && (() => {
               const PanelIcon = iconForDockPanel(panelId);
               return (
               <div className="fx-panel-title-block" ref={titleRef}>
@@ -772,17 +773,64 @@ function PanelHeaderBar({ panelId, panel }: { panelId: string; panel: PanelDescr
   );
 }
 
+/**
+ * Header visibility is DERIVED, not centrally whitelisted: a panel shows its
+ * operation header when it either opts in explicitly (`header.visible === true`,
+ * used for always-on chrome like Hierarchy / Viewport; Chat requires content)
+ * OR currently has at least
+ * one non-context action whose `when` passes. Actions/controls are registered by
+ * feature extensions, so a panel "owns" its header simply by having live
+ * contributions — no separate registry of panel ids to maintain. `when` is
+ * evaluated here (not merely "has registrations") so a panel whose actions are
+ * all gated off never renders an empty header bar. Reactive to both the action
+ * registry and every context key those `when` expressions read.
+ */
+function usePanelHeaderVisible(panelId: string, panel: PanelDescriptor): boolean {
+  const host = useHost();
+  const actionVersion = useActionRegistryVersion();
+  const actions = useMemo(
+    () =>
+      mergeActions(panelId, panel.actions ?? [], host.panelActions.list(panelId)).filter(
+        (action) => (action.location ?? 'header/right') !== 'context',
+      ),
+    // actionVersion re-triggers when contributions (including kind:'control') change.
+    [actionVersion, host, panel.actions, panelId],
+  );
+
+  const [, bump] = useReducer((n: number) => n + 1, 0);
+  const keys = useMemo(() => {
+    const set = new Set<string>();
+    for (const action of actions) {
+      for (const key of getContextExpressionKeys(action.when)) set.add(key);
+    }
+    return [...set].sort();
+  }, [actions]);
+  useEffect(() => {
+    if (keys.length === 0) return undefined;
+    const cleanups = keys.map((key) => host.contextKeys.onChange(key, () => bump()));
+    return () => { for (const cleanup of cleanups) void cleanup(); };
+  }, [host, keys]);
+
+  // Chat already has session chrome above the dock. A legacy visible flag
+  // must not reserve a second, empty toolbar; actual title/actions still render.
+  if (panel.header?.visible === true && (panelId !== 'chat' || panel.header.showTitle === true)) return true;
+  return actions.some((action) => resolvePanelActionState(action, host.contextKeys).visible);
+}
+
 function PanelHeader({ panelId, panel }: { panelId: string; panel: PanelDescriptor }): ReactNode {
-  if (panel.header?.visible !== true) return null;
+  const visible = usePanelHeaderVisible(panelId, panel);
+  if (!visible) return null;
   return <PanelHeaderBar panelId={panelId} panel={panel} />;
 }
 
 function PanelUnavailable({ id }: { id: string }): ReactNode {
   return (
-    <div className="fx-panel-empty" data-panel={id} data-panel-unmounted="1">
-      <div className="fx-panel-empty-title">Panel not mounted</div>
-      <div className="fx-panel-empty-detail">{id}</div>
-    </div>
+    <PanelEmptyState
+      title="Panel not mounted"
+      detail={id}
+      data-panel={id}
+      data-panel-unmounted="1"
+    />
   );
 }
 
@@ -793,26 +841,17 @@ export function PanelShell({
   id: string;
   panel?: PanelDescriptor;
 }): ReactNode {
-  const content = panel?.content;
   return (
-    <section
-      className="fx-panel"
-      data-fx-slot={`DockPanel:${id}`}
-      data-fx-panel-id={id}
-      data-panel-registered={panel ? 'true' : 'false'}
-      data-dock-single-tab={panel?.dockChrome?.singleTab ?? undefined}
+    <PanelSurface
+      id={id}
+      registered={panel !== undefined}
+      singleTab={panel?.dockChrome?.singleTab}
+      header={panel ? <PanelHeader panelId={id} panel={panel} /> : undefined}
+      content={panel?.content}
     >
-      {panel && <PanelHeader panelId={id} panel={panel} />}
-      <div
-        className="fx-panel-content"
-        data-padding={content?.padding ?? 'none'}
-        data-scroll={content?.scroll ?? 'auto'}
-        data-tone={content?.tone ?? 'default'}
-      >
-        <RecoveryBoundary scope={`panel:${id}`} fullscreen={false}>
-          {panel?.render() ?? <PanelUnavailable id={id} />}
-        </RecoveryBoundary>
-      </div>
-    </section>
+      <RecoveryBoundary scope={`panel:${id}`} fullscreen={false}>
+        {panel?.render() ?? <PanelUnavailable id={id} />}
+      </RecoveryBoundary>
+    </PanelSurface>
   );
 }

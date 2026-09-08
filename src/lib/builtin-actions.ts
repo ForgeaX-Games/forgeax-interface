@@ -11,12 +11,48 @@
 import { registerAction, registerStateSlice } from './action-registry';
 import { getSessionClient } from '../store-parts/session-client';
 import { useShellStore, tabLabel } from '../store';
-import { openExtensionPage } from '../core/page-navigation';
+import { openExtensionPage, resolveRegisteredOverlayId } from '../core/page-navigation';
 import { useHealthStore } from '../components/StatusBar/healthStore';
 import { getBrowserConsole, clearBrowserConsole } from '../components/StatusBar/healthBridge';
 import { listExtensions, pickLang } from './extension-api';
+import { getStudioProjectClient } from '../store-parts/domain-clients';
 
 let registered = false;
+
+type RoleRosterEntry = {
+  id?: unknown;
+  role?: unknown;
+  displayName?: unknown;
+  source?: unknown;
+};
+
+type RoleRosterResult =
+  | { ok: true; count: number; roles: RoleRosterEntry[] }
+  | { ok: false; reason: string };
+
+async function readRoleRoster(): Promise<RoleRosterResult> {
+  const response = await fetch('/api/tools/call', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ toolId: 'team:list_roles', caller: { kind: 'user' }, args: {} }),
+  });
+  const data = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    result?: { count?: number; roles?: unknown[] };
+  };
+  if (!response.ok || data.ok === false) {
+    return { ok: false, reason: data.error ?? `list roles failed (HTTP ${response.status})` };
+  }
+  const roles = Array.isArray(data.result?.roles)
+    ? data.result.roles.filter((role): role is RoleRosterEntry => !!role && typeof role === 'object')
+    : [];
+  return {
+    ok: true,
+    count: typeof data.result?.count === 'number' ? data.result.count : roles.length,
+    roles,
+  };
+}
 
 /** bootUiBridge 调用一次(幂等)。 */
 export function registerBuiltinActions(): void {
@@ -25,28 +61,6 @@ export function registerBuiltinActions(): void {
   const st = () => useShellStore.getState();
 
   // ── 视图 / 布局(纯 UI)──────────────────────────────────────────────────
-  registerAction({
-    id: 'app.set_mode',
-    title: '切换主模式',
-    description:
-      "Switch the app's main workspace: 'scene' (game editing) or 'ai' (AI · plugins & tools). Same as clicking the Scene / AI tabs.",
-    // 'bus' 已退役(bus 清单 2026-05-17 移进 Settings 浮层的 Plugins 段,mode==='bus' 不再渲染);
-    // 只留两个真能切换的工作区,避免选了没反应。需要 bus 请用 overlay.open{id:'settings'}。
-    schema: {
-      type: 'object',
-      properties: { mode: { type: 'string', enum: ['scene', 'ai'] } },
-      required: ['mode'],
-    },
-    capability: 'write',
-    firstClass: true, // P1-9:高频 action 派生一等 ToolSpec(ui_act_*)
-    surface: 'ui',
-    run: async (args) => {
-      const mode = args.mode as 'scene' | 'ai';
-      await openExtensionPage(mode === 'scene' ? '@forgeax/editor' : '@forgeax/studio-agents');
-      return { status: 'completed', stateDigest: { page: mode } };
-    },
-  });
-
   registerAction({
     id: 'panel.toggle_sidebar',
     title: '折叠/展开侧栏',
@@ -84,35 +98,17 @@ export function registerBuiltinActions(): void {
     },
   });
 
+  // 扩展页面发现与打开：AI 和人共用 Page navigation。
   registerAction({
-    id: 'workbench.open',
-    title: '打开 Workbench',
-    description: "Open the workbench surface, optionally at a specific tab (e.g. 'plugins').",
-    schema: { type: 'object', properties: { tab: { type: 'string' } } },
-    capability: 'write',
-    firstClass: true, // P1-9:高频 action 派生一等 ToolSpec(ui_act_*)
-    surface: 'ui',
-    run: async () => {
-      await openExtensionPage('@forgeax/studio-agents');
-      return { status: 'completed', stateDigest: { page: 'agents' } };
-    },
-  });
-
-  // 插件桥(方案 §10 标注的「用户最在意、唯一还缺」的机制件):把 workbench 插件登记成
-  // 可被模型发现/打开的 action —— 之前模型对插件无感知、只能 glob+read_file 源码猜用法。
-  //  - workbench.list_plugins:列出插件 id/名称/说明,模型据此告诉用户"有哪些工具、干嘛的"。
-  //  - workbench.open_plugin:切到工作台并展开指定插件(第一步「打开插件」的可执行动作)。
-  // 「插件内部再怎么用」需插件各自登记自身 action(更深一层桥,后续做);当前先补发现+打开。
-  registerAction({
-    id: 'workbench.list_plugins',
-    title: '列出工作台插件',
+    id: 'extension.list',
+    title: '列出扩展页面',
     description:
-      'List installed workbench plugins (id, name, description). Use this to tell the user what workbench tools exist and what each does, then guide them with workbench.open_plugin. Returns { count, plugins:[{id,name,description}] }. A plugin shows on the rail only when its manifest declares an activity AND the user has pinned it; the pin half is per-user localStorage, so this list cannot tell you what the rail currently shows. The workbench grid always lists every installed plugin, so do NOT claim a plugin is unreachable.',
+      'List installed extensions that contribute pages. Returns { count, plugins:[{id,name,description}] }.',
     capability: 'read',
     firstClass: true,
     surface: 'ui',
     run: async () => {
-      const { items } = await listExtensions('workbench');
+      const { items } = await listExtensions();
       // 2026-08-06 外审 B5:此前这里带 railPinned/railNote —— 判据是一张手维护的
       // 14-slug 表,而 rail 的真实可达性 = manifest 的 contributes.activities ∩ 每浏览
       // 器 localStorage 的 pin 集,与那张表毫无关系。默认(无 localStorage)全部
@@ -120,7 +116,7 @@ export function registerBuiltinActions(): void {
       // 否定结论 + 手维护副本必然腐烂,两条都是本打样自己立的反面不变式。删除;
       // 可达性交给真投影(将来 rail 接入 surface 总线后由它现算),不再猜。
       const plugins = items
-        .filter((p) => !p.workbench?.hidden)
+        .filter((p) => (p.contributes?.pages?.length ?? 0) > 0)
         .map((p) => ({
           id: p.id,
           name: pickLang(p.displayName, 'zh', p.id),
@@ -131,17 +127,17 @@ export function registerBuiltinActions(): void {
   });
 
   registerAction({
-    id: 'workbench.open_plugin',
-    title: '打开工作台插件',
+    id: 'extension.open',
+    title: '打开扩展页面',
     description:
-      "Open the workbench and expand a specific plugin by id — the concrete 'open this plugin' step. It switches to the workbench (AI) workspace, then expands that plugin's panel. Discover valid ids and what each does via workbench.list_plugins.",
+      'Open the Page contributed by a specific extension id. Discover valid ids via extension.list.',
     schema: { type: 'object', properties: { extensionId: { type: 'string' } }, required: ['extensionId'] },
     capability: 'write',
     firstClass: true,
     surface: 'ui',
     // 命令面板把 extensionId 变成「现有插件」下拉,免瞎填。
     choices: {
-      extensionId: async () => (await listExtensions('workbench')).items.filter((p) => !p.workbench?.hidden).map((p) => p.id),
+      extensionId: async () => (await listExtensions()).items.filter((p) => (p.contributes?.pages?.length ?? 0) > 0).map((p) => p.id),
     },
     run: async (args) => {
       const extensionId = args.extensionId as string;
@@ -160,7 +156,7 @@ export function registerBuiltinActions(): void {
     id: 'role.create',
     title: '创建新角色',
     description:
-      'Mint a NEW teammate/agent role when no existing role in the roster fits. Args: id (single segment [a-zA-Z0-9_-]) + persona (markdown: who they are / what they are good at / when to delegate to them / what they produce) + optional displayName / role / avatar / color / scope("global"|"project") / tools(host-tool allow globs). The new role persists and joins the roster (delegate_to_subagent can then dispatch it). Duplicate ids are rejected, never overwritten. Discover existing roles first via role.list.',
+      'Mint a NEW teammate/agent role when no existing role in the roster fits. Args: id (single segment [a-zA-Z0-9_-]) + persona (markdown: who they are / what they are good at / when to delegate to them / what they produce) + optional displayName / role / avatar / color / scope("global"|"project") / tools(host-tool allow globs). The new role persists and joins the roster (delegate_to_subagent can then dispatch it). Duplicate ids are rejected, never overwritten.',
     schema: {
       type: 'object',
       properties: {
@@ -210,21 +206,9 @@ export function registerBuiltinActions(): void {
     firstClass: true,
     surface: 'both',
     run: async () => {
-      const r = await fetch('/api/tools/call', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ toolId: 'team:list_roles', caller: { kind: 'user' }, args: {} }),
-      });
-      const data = (await r.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        result?: { count?: number; roles?: unknown[] };
-      };
-      if (!r.ok || data.ok === false) {
-        return { status: 'rejected', reason: data.error ?? `list roles failed (HTTP ${r.status})` };
-      }
-      const res = data.result ?? {};
-      return { status: 'completed', stateDigest: { count: res.count ?? 0, roles: res.roles ?? [] } };
+      const roster = await readRoleRoster();
+      if (!roster.ok) return { status: 'rejected', reason: roster.reason };
+      return { status: 'completed', stateDigest: { count: roster.count, roles: roster.roles } };
     },
   });
 
@@ -239,11 +223,36 @@ export function registerBuiltinActions(): void {
     surface: 'ui',
     run: async (args) => {
       const id = typeof args.id === 'string' && args.id.trim() ? args.id.trim() : '';
+      const state = st();
+      const activeTab = id
+        ? state.tabs.find((tab) => tab.sid === state.activeSid)
+        : undefined;
+      const targetSid = activeTab?.sid;
+      if (id && !activeTab) {
+        return { status: 'rejected', reason: 'role.open with id requires an active chat session' };
+      }
+      if (id) {
+        const roster = await readRoleRoster();
+        if (!roster.ok) {
+          return { status: 'rejected', reason: `role.open could not read the current roster: ${roster.reason}` };
+        }
+        const roleExists = roster.roles.some((role) => role.id === id);
+        if (!roleExists) {
+          return { status: 'rejected', reason: `role.open could not find role "${id}" in the current roster` };
+        }
+      }
       await openExtensionPage('@forgeax/studio-agents');
       if (id) {
-        const sid = st().activeSid;
-        if (sid) st().setTabAgent(sid, id); // 绑角色到当前会话 → 聊天区展示其 persona 详情条
-        return { status: 'completed', stateDigest: { opened: id, activeWorkspace: 'ai' } };
+        const currentState = st();
+        const targetTab = currentState.tabs.find((tab) => tab.sid === targetSid);
+        if (!targetTab) {
+          return { status: 'rejected', reason: 'role.open target session no longer exists' };
+        }
+        st().setTabAgent(targetTab.sid, id); // 固定调用开始时的会话,避免 await 期间切 tab 后绑错对象。
+        if (st().tabs.find((tab) => tab.sid === targetTab.sid)?.agentId !== id) {
+          return { status: 'rejected', reason: 'role.open could not bind the role to the target chat session' };
+        }
+        return { status: 'completed', stateDigest: { opened: id, boundSid: targetTab.sid, activeWorkspace: 'ai' } };
       }
       return { status: 'completed', stateDigest: { activeWorkspace: 'ai' } };
     },
@@ -261,8 +270,16 @@ export function registerBuiltinActions(): void {
     capability: 'write',
     surface: 'ui',
     run: (args) => {
-      st().openOverlay(args.id as string, typeof args.param === 'string' ? args.param : undefined);
-      return { status: 'completed' };
+      const requestedId = args.id as string;
+      const overlayId = resolveRegisteredOverlayId(requestedId);
+      if (!overlayId) {
+        return { status: 'rejected', reason: `overlay.open could not find registered overlay "${requestedId}"` };
+      }
+      st().openOverlay(overlayId, typeof args.param === 'string' ? args.param : undefined);
+      if (st().activeOverlay !== overlayId) {
+        return { status: 'rejected', reason: `overlay.open could not activate overlay "${overlayId}"` };
+      }
+      return { status: 'completed', stateDigest: { activeOverlay: overlayId } };
     },
   });
 
@@ -414,15 +431,50 @@ export function registerBuiltinActions(): void {
     surface: 'both',
     timeoutMs: 15_000,
     run: async (args) => {
-      await st().closeSession(args.sid as string);
-      return { status: 'completed', stateDigest: { activeSid: st().activeSid } };
+      const sid = args.sid as string;
+      const result = await st().closeSession(sid);
+      if (result.status === 'not-deleted') {
+        return {
+          status: 'rejected',
+          reason: `session.close could not delete session "${sid}": ${result.error.message}`,
+          stateDigest: { code: result.error.code, activeSid: result.activeSid },
+        };
+      }
+      if (st().tabs.some((tab) => tab.sid === sid)) {
+        return {
+          status: 'completed',
+          stateDigest: {
+            deleted: true,
+            activeSid: result.activeSid,
+            localStateConsistent: false,
+            warning: {
+              code: 'SESSION_DELETE_READBACK_FAILED',
+              message: `Session "${sid}" was deleted on the server but local state still contains it`,
+            },
+            recovery: 'Refresh sessions before continuing. Do not retry the deletion.',
+          },
+        };
+      }
+      if (result.status === 'deleted-without-active-session') {
+        return {
+          status: 'completed',
+          stateDigest: {
+            deleted: true,
+            activeSid: null,
+            replacementReady: false,
+            warning: result.error,
+            recovery: 'Create or refresh a session before continuing chat work. Do not retry the deletion.',
+          },
+        };
+      }
+      return { status: 'completed', stateDigest: { deleted: true, activeSid: result.activeSid } };
     },
   });
 
   registerAction({
     id: 'session.rename',
     title: '重命名会话',
-    description: 'Rename a chat session tab.',
+    description: 'Persistent session rename is not available in this Studio version; this action rejects instead of changing only the temporary tab label.',
     schema: {
       type: 'object',
       properties: { sid: { type: 'string' }, displayName: { type: 'string' } },
@@ -430,10 +482,11 @@ export function registerBuiltinActions(): void {
     },
     capability: 'write',
     surface: 'both',
-    run: (args) => {
-      st().renameTab(args.sid as string, args.displayName as string);
-      return { status: 'completed' };
-    },
+    available: () => 'Persistent session rename is not available in this Studio version',
+    run: () => ({
+      status: 'rejected',
+      reason: 'Persistent session rename is not available in this Studio version',
+    }),
   });
 
   registerAction({
@@ -443,8 +496,21 @@ export function registerBuiltinActions(): void {
     capability: 'read',
     surface: 'both',
     run: async () => {
-      await st().refreshSessions();
-      return { status: 'completed', stateDigest: { tabs: st().tabs.length } };
+      const result = await st().refreshSessions();
+      if (result.status === 'failed') {
+        return {
+          status: 'rejected',
+          reason: `sessions.refresh could not read the server session list: ${result.error.message}`,
+          stateDigest: { code: result.error.code },
+        };
+      }
+      if (result.status === 'superseded') {
+        return {
+          status: 'rejected',
+          reason: 'sessions.refresh was superseded by a newer game selection',
+        };
+      }
+      return { status: 'completed', stateDigest: { tabs: st().tabs.length, serverCount: result.count } };
     },
   });
 
@@ -475,14 +541,21 @@ export function registerBuiltinActions(): void {
     // 命令面板把 slug 变成「现有游戏」下拉,避免瞎填触发 server 404。
     choices: {
       slug: async () => {
-        const r = await fetch('/api/workbench/games');
-        const j = (await r.json()) as { games?: { slug: string }[] };
-        return (j.games ?? []).map((g) => g.slug);
+        const result = await getStudioProjectClient().listProjects();
+        return result.games.map((project) => project.slug);
       },
     },
     run: async (args) => {
-      await st().setActiveGame(args.slug as string);
-      return { status: 'completed', stateDigest: { activeGameSlug: st().activeGameSlug } };
+      const switched = await st().setActiveGame(args.slug as string);
+      const runtime = st().activeGameRuntime;
+      return {
+        status: 'completed',
+        stateDigest: {
+          activeGameSlug: st().activeGameSlug,
+          runtimeStatus: runtime.status,
+          ...(switched.warning ? { warning: switched.warning } : {}),
+        },
+      };
     },
   });
 
@@ -490,7 +563,7 @@ export function registerBuiltinActions(): void {
     id: 'game.create',
     title: '新建游戏',
     description:
-      'Create a NEW game (project) from the template and give it its own dedicated chat session. Args: slug (required, 1-41 chars lowercase ASCII/digits/hyphens, must start with a letter/digit — e.g. "neon-runner") + optional name (display name) + optional brief (one line describing what game to make, recorded in FORGE.md for later). Fails with 409 if the slug already exists — use game.switch for existing games; list existing slugs to avoid collisions. NOTE: this does NOT switch the UI to the new game (switching mid-turn would break the active chat channel). Tell the user the game is ready and to open it from the top-bar game switcher; game.switch will land on its dedicated session.',
+      'Create a NEW game (project) from the template and give it its own dedicated chat session. Args: slug (required, 1-41 chars lowercase ASCII/digits/hyphens, must start with a letter/digit — e.g. "neon-runner") + optional name (display name) + optional brief (one line describing what game to make, recorded in FORGE.md for later). Fails with 409 if the slug already exists — use game.switch for existing games; list existing slugs to avoid collisions. NOTE: this does NOT switch the UI to the new game (switching mid-turn would break the active chat channel). This creates a project template, not a finished playable game. Tell the user to press Ctrl+K (Cmd+K on macOS), choose 切换游戏 (game.switch), select the created slug, and confirm to open its dedicated session and continue development.',
     schema: {
       type: 'object',
       properties: {
@@ -506,30 +579,20 @@ export function registerBuiltinActions(): void {
     timeoutMs: 20_000,
     run: async (args) => {
       const slug = String(args.slug ?? '').trim();
-      const r = await fetch('/api/workbench/games', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          slug,
-          ...(typeof args.name === 'string' ? { name: args.name } : {}),
-          ...(typeof args.brief === 'string' ? { brief: args.brief } : {}),
-        }),
+      const data = await getStudioProjectClient().createProject({
+        slug,
+        name: typeof args.name === 'string' ? args.name : slug,
+        brief: typeof args.brief === 'string' ? args.brief : '',
       });
-      const data = (await r.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        slug?: string;
-        session?: { sid: string };
-      };
-      if (!r.ok || data.ok === false) {
-        return { status: 'rejected', reason: data.error ?? `create game failed (HTTP ${r.status})` };
+      if (!data.ok) {
+        return { status: 'rejected', reason: data.error ?? 'create game failed' };
       }
       return {
         status: 'completed',
         stateDigest: {
           slug,
           session: data.session?.sid ?? null,
-          hint: '新游戏已建好并配了独立会话;从顶栏游戏切换器切过去即可开始做',
+          hint: `已创建游戏项目模板 ${slug} 并配了独立会话，尚不代表游戏制作完成。按 Ctrl+K（macOS 为 Cmd+K）打开命令面板，选择「切换游戏」，选择 ${slug} 并确认，然后在新会话中继续制作。`,
         },
       };
     },

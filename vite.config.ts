@@ -7,7 +7,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { vitePluginBrand } from './vite-plugin-brand';
 
 const PACKAGE_DIR = dirname(fileURLToPath(import.meta.url));
-const WB_GAME_VIDEO_WORKSPACE = resolve(PACKAGE_DIR, '../marketplace/extensions/wb-game-video');
+const EXTENSION_HOST_SOURCE = resolve(PACKAGE_DIR, '../extension-host/src');
+const HAS_WORKSPACE_EXTENSION_HOST = existsSync(resolve(EXTENSION_HOST_SOURCE, 'browser/index.ts'));
 const ROOT_ENV = resolve(PACKAGE_DIR, '../../.env');
 if (existsSync(ROOT_ENV)) {
   for (const line of readFileSync(ROOT_ENV, 'utf-8').split('\n')) {
@@ -106,10 +107,6 @@ export default defineConfig(({ command }) => ({
     // null". Force a single react instance for all imports (incl. dockview).
     dedupe: ['react', 'react-dom'],
     alias: {
-      ...(command === 'serve' && existsSync(resolve(WB_GAME_VIDEO_WORKSPACE, 'package.json')) ? {
-        '@forgeax-extension/wb-game-video/styles.css': resolve(WB_GAME_VIDEO_WORKSPACE, 'src/styles.css'),
-        '@forgeax-extension/wb-game-video': resolve(WB_GAME_VIDEO_WORKSPACE, 'src/mount.tsx'),
-      } : {}),
       // More specific subpaths first — Vite matches string aliases by prefix
       // and uses the first hit, so '@forgeax/design' must come last.
       '@/': `${resolve(PACKAGE_DIR, 'src')}/`,
@@ -119,8 +116,15 @@ export default defineConfig(({ command }) => ({
       '@forgeax/design/theme': resolve(PACKAGE_DIR, 'packages/design/theme.ts'),
       '@forgeax/design/tokens.css': resolve(PACKAGE_DIR, 'packages/design/tokens.css'),
       '@forgeax/design': resolve(PACKAGE_DIR, 'packages/design/index.ts'),
-      '@forgeax/types': resolve(PACKAGE_DIR, '../contracts/types/src/index.ts'),
-      '@forgeax/host-sdk': resolve(PACKAGE_DIR, '../host-sdk/src/index.ts'),
+      // When Interface is assembled inside Studio/editor, use the sibling
+      // workspace source so a frozen checkout does not depend on lifecycle
+      // scripts generating dist for its standalone git dependency. A direct
+      // Interface checkout has no sibling source and keeps package exports.
+      ...(HAS_WORKSPACE_EXTENSION_HOST ? {
+        '@forgeax/extension-host/browser': resolve(EXTENSION_HOST_SOURCE, 'browser/index.ts'),
+        '@forgeax/extension-host/react': resolve(EXTENSION_HOST_SOURCE, 'react/index.ts'),
+        '@forgeax/extension-host/contracts': resolve(EXTENSION_HOST_SOURCE, 'contracts/index.ts'),
+      } : {}),
     },
   },
   // @forgeax/engine-runtime is pure ESM with hundreds of named exports. Vite's
@@ -175,7 +179,7 @@ export default defineConfig(({ command }) => ({
     // plugin frontends live at ../../marketplace/extensions/*/src/panel.tsx and
     // are statically imported via Sidebar.tsx's LazyPluginPanels map; allow the
     // monorepo root so those imports resolve.  See:
-    //   packages/marketplace/extensions/wb-character/PLUGIN.md
+    //   packages/marketplace/extensions/character/PLUGIN.md
     fs: { allow: ['..', '../..'] },
     proxy: {
       '/api': { target: SERVER, changeOrigin: true },
@@ -195,17 +199,22 @@ export default defineConfig(({ command }) => ({
       // plugin's vite build dist under /extensions/<plugin-id>/*. Without this
       // proxy the interface dev server SPA-falls back to its own index.html
       // and the iframe ends up loading a nested studio UI. See:
-      //   packages/server/src/main.ts → serveStatic('/extensions/wb-character/*')
-      //   packages/marketplace/extensions/wb-character/
+      //   packages/server/src/main.ts → serveStatic('/extensions/character/*')
+      //   packages/marketplace/extensions/character/
       '/extensions': { target: SERVER, changeOrigin: true },
-      // wb-character iframe legacy shim — the plugin submodule's 88 fetch
+      // Extension Runtime API (catalog, package metadata, extension frame hosts).
+      // This surface is server-owned; without the proxy, Vite's SPA fallback
+      // returns index.html and extension runtime clients try to parse '<!doctype'
+      // as JSON.
+      '/__extension__': { target: SERVER, changeOrigin: true },
+      // Character extension iframe compatibility shim — the legacy package's 88 fetch
       // sites hit /__ce-api__/* expecting the old vite-dev plugin. Studio
       // host owns this surface now via server/src/api/ce-api-shim.ts; route
       // the iframe's calls through to the backend instead of SPA-falling
       // back to interface/index.html.
       '/__ce-api__': { target: SERVER, changeOrigin: true },
-      // wb-reel API endpoints (scenarios, assets) and Play workspace Player iframe.
-      // The wb-reel vite dev server hosts these routes as custom middleware.
+      // reel API endpoints (scenarios, assets) and Play workspace Player iframe.
+      // The reel vite dev server hosts these routes as custom middleware.
       '/__reel__': { target: REEL, changeOrigin: true },
       ...standalonePluginProxies(),
     },

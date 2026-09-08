@@ -33,10 +33,12 @@
 // When #1295 ships this whole module can be replaced by the native `pinned`
 // flag on EdgeGroupOptions.
 import type { DockviewApi, DockviewGroupPanel, IDockviewPanel } from 'dockview';
-import { FOOTER_PANEL_ID_LIST } from './builtinWorkbenches';
+import { FOOTER_PANEL_ID_LIST } from './footer-panels';
+import { isFooterPanelUserVisible, registerFooterPanelEnsure } from './footer-panel-visibility';
 import { clearEdgePins, EDGE_PIN_CLASS, pinnedPanelIdIn, setEdgePin } from './edgePinStore';
 
 const OPEN_CLASS = 'fx-edge-drawer-open';
+export const EDGE_DRAWER_SURFACE_BLOCK_CLASS = 'fx-edge-drawer-visible';
 /** Toggled to (re)start the wipe-in animation — on first open AND on same-strip tab switch. */
 const ANIM_CLASS = 'fx-edge-drawer-animating';
 const EDGE_POSITIONS = ['left', 'right', 'top', 'bottom'] as const;
@@ -44,13 +46,29 @@ const EDGE_DRAWER_INTERACTION_SURFACE_SELECTOR = '[data-fx-interaction-scope]';
 type EdgePosition = (typeof EDGE_POSITIONS)[number];
 
 /**
+ * Publish foreground drawer ownership to portal-mounted surfaces. The live
+ * viewport sits outside Dockview's stacking tree, so z-index alone cannot make
+ * every relocated edge drawer win hit testing consistently.
+ */
+export function setEdgeDrawerSurfaceInteractionBlocked(
+  root: Pick<HTMLElement, 'classList'>,
+  blocked: boolean,
+): void {
+  root.classList.toggle(EDGE_DRAWER_SURFACE_BLOCK_CLASS, blocked);
+}
+
+/**
  * Portalled controls do not participate in the drawer element's DOM subtree.
  * They must opt into this interaction-surface contract when they belong to the
  * active drawer; the app context menu keeps its legacy class for the same
- * reason.
+ * reason, and dockview's own tab menu (`.dv-context-menu`, mounted into the
+ * shell's popover anchor) is the same case one layer down — it acts ON the
+ * drawer's tab, so picking an item must not first collapse the drawer.
  */
 export function isEdgeDrawerDismissExemptTarget(target: Element | null): boolean {
-  return target?.closest(`.forgeax-ctx-menu-panel, ${EDGE_DRAWER_INTERACTION_SURFACE_SELECTOR}`) != null;
+  return target?.closest(
+    `.forgeax-ctx-menu-panel, .dv-context-menu, ${EDGE_DRAWER_INTERACTION_SURFACE_SELECTOR}`,
+  ) != null;
 }
 /** Slots always registered so root-edge drop / "Move to Side" work even when
  *  the default layout keeps panels in the grid (no edgeGroups in JSON). */
@@ -77,6 +95,10 @@ function edgeGroupFromElement(api: DockviewApi, el: Element): DockviewGroupPanel
 export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => void {
   let openGroup: DockviewGroupPanel | null = null;
   let preserveNextActiveTabClick = false;
+  const syncSurfaceInteractionBlock = (): void => {
+    if (typeof document === 'undefined') return;
+    setEdgeDrawerSurfaceInteractionBlocked(document.documentElement, openGroup !== null);
+  };
 
   const hasOwnedInteractionSurface = (): boolean =>
     typeof document !== 'undefined'
@@ -218,12 +240,94 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
     } catch { /* dockview internals moved — footer drop keeps working sans overlay */ }
   };
 
+  let drawerPortalHost: HTMLElement | null = null;
+  let portaledFlyout: HTMLElement | null = null;
+  const FLYOUT_CLASS = 'fx-edge-drawer-flyout';
+  const PORTAL_HOST_CLASS = 'fx-edge-drawer-portal-host';
+  const DRAWER_VAR_NAMES = [
+    '--fx-edge-drawer-width',
+    '--fx-edge-drawer-height',
+    '--fx-edge-drawer-left',
+    '--fx-edge-drawer-right',
+    '--fx-edge-drawer-top',
+    '--fx-edge-drawer-bottom',
+    '--fx-edge-strip-top',
+    '--fx-edge-strip-left',
+    '--fx-edge-strip-height',
+    '--fx-edge-strip-width',
+  ] as const;
+  const EDGE_HEADER_CLASSES = [
+    'dv-groupview-header-left',
+    'dv-groupview-header-right',
+    'dv-groupview-header-top',
+    'dv-groupview-header-bottom',
+  ] as const;
+  const ensureDrawerPortalHost = (): HTMLElement => {
+    if (drawerPortalHost) return drawerPortalHost;
+    const host = document.createElement('div');
+    host.className = PORTAL_HOST_CLASS;
+    document.body.appendChild(host);
+    drawerPortalHost = host;
+    return host;
+  };
+  const disposeDrawerPortalHost = (): void => {
+    drawerPortalHost?.remove();
+    drawerPortalHost = null;
+    portaledFlyout = null;
+  };
+  const contentContainerOf = (group: DockviewGroupPanel): HTMLElement | null =>
+    group.element.querySelector(':scope > .dv-content-container');
+  const copyDrawerVars = (from: CSSStyleDeclaration, to: HTMLElement): void => {
+    for (const name of DRAWER_VAR_NAMES) {
+      const val = from.getPropertyValue(name);
+      if (val) to.style.setProperty(name, val);
+      else to.style.removeProperty(name);
+    }
+  };
+  const syncFlyoutDirectionClasses = (group: DockviewGroupPanel, flyout: HTMLElement): void => {
+    for (const cls of EDGE_HEADER_CLASSES) {
+      flyout.classList.toggle(cls, group.element.classList.contains(cls));
+    }
+  };
+  const restoreDrawerFlyout = (group: DockviewGroupPanel): void => {
+    const flyout = portaledFlyout ?? contentContainerOf(group);
+    if (flyout) {
+      flyout.classList.remove(FLYOUT_CLASS, ANIM_CLASS);
+      for (const cls of EDGE_HEADER_CLASSES) flyout.classList.remove(cls);
+      group.element.appendChild(flyout);
+    }
+    if (grip.parentElement !== group.element) group.element.appendChild(grip);
+    portaledFlyout = null;
+    if (drawerPortalHost) {
+      for (const name of DRAWER_VAR_NAMES) drawerPortalHost.style.removeProperty(name);
+      drawerPortalHost.replaceChildren();
+    }
+  };
+  const portalDrawerFlyout = (group: DockviewGroupPanel): void => {
+    const flyout = contentContainerOf(group);
+    if (!flyout) return;
+    const host = ensureDrawerPortalHost();
+    flyout.classList.add(FLYOUT_CLASS);
+    syncFlyoutDirectionClasses(group, flyout);
+    copyDrawerVars(group.element.style, host);
+    portaledFlyout = flyout;
+    host.appendChild(flyout);
+    host.appendChild(grip);
+  };
+  const isInsideOpenDrawer = (target: Element | null): boolean => {
+    if (!target || !openGroup) return false;
+    if (openGroup.element.contains(target)) return true;
+    if (portaledFlyout?.contains(target)) return true;
+    if (grip.contains(target)) return true;
+    return false;
+  };
+
   // Our own resize handle — a thin fixed bar riding the drawer's far edge. Native
   // dockview resize is a splitview sash that would push the grid, which we forbid;
   // dragging this grip only rewrites the CSS size var, so the overlay grows/shrinks
   // without ever touching the collapsed splitview cell. One grip is reused for the
-  // single drawer that can be open at a time; it lives INSIDE openGroup.element so
-  // the outside-click dismiss (which checks group.element.contains) ignores it.
+  // single drawer that can be open at a time; while open it is portalled to
+  // `.fx-edge-drawer-portal-host` so the flyout paints above the keep-alive viewport.
   const grip = document.createElement('div');
   grip.className = 'fx-edge-drawer-grip';
 
@@ -242,6 +346,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
       s.setProperty('--fx-edge-strip-left', `${gr.left}px`);
       s.setProperty('--fx-edge-strip-width', `${gr.width}px`);
       s.setProperty('--fx-edge-drawer-bottom', `${window.innerHeight - footerTop}px`);
+      if (openGroup === group && drawerPortalHost) copyDrawerVars(s, drawerPortalHost);
       positionGrip(group);
       return;
     }
@@ -254,6 +359,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
     s.setProperty('--fx-edge-strip-left', `${r.left}px`);
     s.setProperty('--fx-edge-strip-height', `${r.height}px`);
     s.setProperty('--fx-edge-strip-width', `${r.width}px`);
+    if (openGroup === group && drawerPortalHost) copyDrawerVars(s, drawerPortalHost);
     positionGrip(group);
   };
 
@@ -292,6 +398,12 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
     // Force a style recalc so the next add is treated as a fresh animation start.
     void el.offsetWidth;
     el.classList.add(ANIM_CLASS);
+    const flyout = portaledFlyout ?? contentContainerOf(group);
+    if (flyout) {
+      flyout.classList.remove(ANIM_CLASS);
+      void flyout.offsetWidth;
+      flyout.classList.add(ANIM_CLASS);
+    }
   };
 
   // The bottom strip is relocated into the footer, OUTSIDE its group element, so
@@ -321,23 +433,26 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
 
   // Hard close — dispose / switching to another edge group.
   const forceClose = (): void => {
-    if (!openGroup) return;
-    openGroup.element.classList.remove(OPEN_CLASS, ANIM_CLASS);
-    grip.remove();
-    openGroup = null;
+    if (openGroup) {
+      restoreDrawerFlyout(openGroup);
+      openGroup.element.classList.remove(OPEN_CLASS, ANIM_CLASS);
+      openGroup = null;
+    }
+    syncSurfaceInteractionBlock();
     syncBottomOpenMarker();
   };
 
   const open = (group: DockviewGroupPanel): void => {
     if (openGroup && openGroup !== group) {
+      restoreDrawerFlyout(openGroup);
       openGroup.element.classList.remove(OPEN_CLASS, ANIM_CLASS);
-      grip.remove();
       openGroup = null;
     }
     openGroup = group;
     group.element.classList.add(OPEN_CLASS);
-    group.element.appendChild(grip);
+    syncSurfaceInteractionBlock();
     position(group);
+    portalDrawerFlyout(group);
     kickAnim(group);
     syncBottomOpenMarker();
   };
@@ -397,6 +512,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
       else size = r.top - ev.clientY;
       size = Math.max(160, Math.min(size, 900));
       group.element.style.setProperty(sizeVar(edge), `${size}px`);
+      if (drawerPortalHost) copyDrawerVars(group.element.style, drawerPortalHost);
       positionGrip(group);
     };
     const up = (ev: PointerEvent): void => {
@@ -496,7 +612,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
     if (activeIsPinned(openGroup)) return;
     preserveNextActiveTabClick = false;
     const target = e.target as Element | null;
-    if (target && openGroup.element.contains(target)) return;
+    if (target && isInsideOpenDrawer(target)) return;
     // The relocated bottom strip lives in the footer (outside openGroup.element)
     // yet re-clicking it must route through onClickCapture, not auto-dismiss.
     if (target && bottomStripEl && bottomStripEl.contains(target)) {
@@ -535,7 +651,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
   const dismissIfFocusEscapedTo = (target: Element | null): void => {
     if (!openGroup) return;
     if (activeIsPinned(openGroup)) return;
-    if (target && openGroup.element.contains(target)) return;
+    if (target && isInsideOpenDrawer(target)) return;
     if (target && bottomStripEl && bottomStripEl.contains(target)) return;
     if (isEdgeDrawerDismissExemptTarget(target)) return;
     close();
@@ -702,10 +818,10 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
 
   // ── Global footer-chrome owner ───────────────────────────────────────────
   // The footer panels (Info / Checkpoints / Events) are interface-level chrome
-  // that must exist under EVERY layout — every workbench AND every Page — not be
+  // that must exist under EVERY layout — every page AND every Page — not be
   // re-seeded into each layout's JSON. This reconciler is that single owner:
   // installEdgeDrawer runs once per DockShell region and persists across every
-  // workbench / Page switch, so after each layout change we ensure any missing
+  // page / Page switch, so after each layout change we ensure any missing
   // footer panel is (re)added into the bottom edge group. Panels are inserted
   // straight into the edge group (position.referenceGroup) so they never detour
   // through the grid.
@@ -723,9 +839,15 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
     if (ensuringFooter) return;
     const bottom = edgeGroupAt('bottom');
     if (!bottom) return; // ensureEdgeSlots creates it; a later tick retries
+    for (const id of FOOTER_PANEL_ID_LIST) {
+      if (isFooterPanelUserVisible(id)) continue;
+      const hidden = api.getPanel(id);
+      if (!hidden) continue;
+      try { hidden.api.close(); } catch { /* noop */ }
+    }
     // Steady state (footer already complete): do nothing — onDidLayoutChange fires
     // on every resize/drag, so a no-op fast-path keeps those churn-free.
-    if (FOOTER_PANEL_ID_LIST.every((id) => api.getPanel(id))) return;
+    if (FOOTER_PANEL_ID_LIST.every((id) => !isFooterPanelUserVisible(id) || api.getPanel(id))) return;
     ensuringFooter = true;
     // Preserve whatever the page had focused so a freshly-added footer tab (an
     // empty group's first panel is force-active; moveTo also activates) can't grab
@@ -735,7 +857,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
       FOOTER_PANEL_ID_LIST.forEach((id, index) => {
         // Only ADD a fully-absent footer panel — never relocate one the user has
         // dragged elsewhere (respecting a user who moved Info into the grid).
-        if (api.getPanel(id)) return;
+        if (!isFooterPanelUserVisible(id) || api.getPanel(id)) return;
         try {
           api.addPanel({
             id,
@@ -788,6 +910,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
 
   ensureEdgeSlots();
   ensureFooterPanels();
+  const disposeFooterEnsure = registerFooterPanelEnsure(ensureFooterPanels);
   normalize();
   rebindCollapseGuards();
   relocateBottomStrip();
@@ -795,7 +918,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
 
   // The StatusBar footer host may mount well after the dock, and the layout is
   // hydrated by SEVERAL async paths (onReady restore, applyPageScope, and the
-  // project-id resolve round-trip to /api/workbench/games). Any of these can
+  // project-id resolve round-trip to /api/projects). Any of these can
   // create the real bottom group AFTER our first relocate. Keep re-running the
   // (idempotent) relocate until the strip is actually parented into the footer
   // host, with a generous frame cap so a late-mounting footer or late hydration
@@ -868,8 +991,8 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
   window.addEventListener('dragend', clearDragClass, true);
   window.addEventListener('drop', clearDragClass, true);
 
-  // Programmatic drawer control (chrome-drawer's `app.drawer.*` commands — e.g.
-  // the HealthIndicator chip toggling "Info"). Event name kept as a bare literal
+  // Programmatic drawer control (chrome-drawer's `app.drawer.*` commands).
+  // Event name kept as a bare literal
   // to avoid an interface→extensions import; chrome-drawer emits the same string.
   const onEdgeDrawerCmd = (e: Event): void => {
     const detail = (e as CustomEvent).detail as { action?: string; id?: string } | undefined;
@@ -957,6 +1080,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
   });
 
   return () => {
+    disposeFooterEnsure();
     forceClose();
     clearEdgePins();
     // Return the relocated strip to nowhere-in-particular; dockview disposes it
@@ -966,6 +1090,7 @@ export function installEdgeDrawer(api: DockviewApi, root: HTMLElement): () => vo
     bottomGroupId = null;
     if (relocateRaf) { cancelAnimationFrame(relocateRaf); relocateRaf = 0; }
     try { bottomDropContainer.dispose(); } catch { /* noop */ }
+    disposeDrawerPortalHost();
     document.removeEventListener('pointerdown', onStripChromePointerDown, true);
     document.removeEventListener('click', onClickCapture, true);
     document.removeEventListener('pointerdown', onPointerDownCapture, true);

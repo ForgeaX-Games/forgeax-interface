@@ -1,11 +1,11 @@
 // reopen-position.test.ts — regression guard for the "closed panel reopens
 // bound to a foreign group" bug. DockRegion.reopen must seat a page panel
-// back at its DESIGNED position from the Page Type default layout (Material:
-// preview left, properties/overview stacked right), not blindly right of the
-// last grid panel.
+// back at its DESIGNED position from the Page Type default layout (a preview
+// on the left with a stacked right column), not blindly right of the last grid
+// panel.
 import { describe, expect, it } from 'bun:test';
 import { Orientation, type SerializedDockview } from 'dockview';
-import { designedPanelPosition } from './reopen-position';
+import { designedDockPanelPosition } from '@forgeax/app-shell/dock';
 
 const leaf = (views: string[]): SerializedDockview['grid']['root'] => ({
   type: 'leaf',
@@ -25,11 +25,12 @@ function layoutOf(root: SerializedDockview['grid']['root']): SerializedDockview 
   };
 }
 
-// Mirrors DEFAULT_MATERIAL_EDITOR_DOCK_LAYOUT: preview | (properties / overview).
+// A preview column on the left with a stacked right column (properties / slots),
+// mirroring the mesh page's right-hand stack — the shape DockRegion.reopen walks.
 const MATERIAL = layoutOf(
   branch(
     leaf(['ep:mat-preview']),
-    branch(leaf(['ep:asset-properties']), leaf(['ep:asset-overview'])),
+    branch(leaf(['ep:asset-properties']), leaf(['ep:mesh-slots'])),
   ),
 );
 
@@ -38,29 +39,29 @@ const opener =
   (id: string): boolean =>
     open.includes(id);
 
-describe('designedPanelPosition', () => {
+describe('designedDockPanelPosition', () => {
   it('seats the material preview on the LEFT grid edge (full-height column)', () => {
     // The preview leaf is a direct root child at index 0 — a relative anchor
     // would only capture the sibling's slice of the grid.
-    expect(designedPanelPosition(MATERIAL, 'ep:mat-preview', opener('ep:asset-properties', 'ep:asset-overview')))
+    expect(designedDockPanelPosition(MATERIAL, 'ep:mat-preview', opener('ep:asset-properties', 'ep:mesh-slots')))
       .toEqual({ kind: 'edge', direction: 'left' });
   });
 
-  it('stacks properties above / overview below inside the right column', () => {
-    expect(designedPanelPosition(MATERIAL, 'ep:asset-properties', opener('ep:asset-overview')))
-      .toEqual({ kind: 'relative', referencePanel: 'ep:asset-overview', direction: 'above' });
-    expect(designedPanelPosition(MATERIAL, 'ep:asset-overview', opener('ep:asset-properties')))
+  it('stacks properties above / slots below inside the right column', () => {
+    expect(designedDockPanelPosition(MATERIAL, 'ep:asset-properties', opener('ep:mesh-slots')))
+      .toEqual({ kind: 'relative', referencePanel: 'ep:mesh-slots', direction: 'above' });
+    expect(designedDockPanelPosition(MATERIAL, 'ep:mesh-slots', opener('ep:asset-properties')))
       .toEqual({ kind: 'relative', referencePanel: 'ep:asset-properties', direction: 'below' });
   });
 
   it('climbs to the parent branch when no same-branch sibling is open', () => {
-    expect(designedPanelPosition(MATERIAL, 'ep:asset-properties', opener('ep:mat-preview')))
+    expect(designedDockPanelPosition(MATERIAL, 'ep:asset-properties', opener('ep:mat-preview')))
       .toEqual({ kind: 'relative', referencePanel: 'ep:mat-preview', direction: 'right' });
   });
 
   it('rejoins a surviving tab-mate instead of splitting a new group', () => {
     const tabbed = layoutOf(branch(leaf(['ep:assets', 'ep:history']), leaf(['viewport'])));
-    expect(designedPanelPosition(tabbed, 'ep:history', opener('ep:assets', 'viewport')))
+    expect(designedDockPanelPosition(tabbed, 'ep:history', opener('ep:assets', 'viewport')))
       .toEqual({ kind: 'relative', referencePanel: 'ep:assets', direction: 'within' });
   });
 
@@ -68,8 +69,8 @@ describe('designedPanelPosition', () => {
     const nestedOnly = layoutOf(
       branch(branch(leaf(['ep:hierarchy']), leaf(['ep:inspector'])), leaf(['viewport'])),
     );
-    expect(designedPanelPosition(nestedOnly, 'ep:hierarchy', opener())).toBeUndefined();
-    expect(designedPanelPosition(MATERIAL, 'ep:unknown', opener('ep:asset-properties'))).toBeUndefined();
+    expect(designedDockPanelPosition(nestedOnly, 'ep:hierarchy', opener())).toBeUndefined();
+    expect(designedDockPanelPosition(MATERIAL, 'ep:unknown', opener('ep:asset-properties'))).toBeUndefined();
   });
 
   it('walks nested branches with alternating orientation', () => {
@@ -77,9 +78,9 @@ describe('designedPanelPosition', () => {
     const level = layoutOf(
       branch(branch(leaf(['ep:hierarchy']), leaf(['ep:inspector'])), leaf(['viewport'])),
     );
-    expect(designedPanelPosition(level, 'ep:hierarchy', opener('ep:inspector', 'viewport')))
+    expect(designedDockPanelPosition(level, 'ep:hierarchy', opener('ep:inspector', 'viewport')))
       .toEqual({ kind: 'relative', referencePanel: 'ep:inspector', direction: 'above' });
-    expect(designedPanelPosition(level, 'ep:hierarchy', opener('viewport')))
+    expect(designedDockPanelPosition(level, 'ep:hierarchy', opener('viewport')))
       .toEqual({ kind: 'relative', referencePanel: 'viewport', direction: 'left' });
   });
 
@@ -88,7 +89,7 @@ describe('designedPanelPosition', () => {
     const level = layoutOf(
       branch(branch(leaf(['ep:hierarchy']), leaf(['ep:inspector'])), leaf(['viewport']), leaf(['chat'])),
     );
-    expect(designedPanelPosition(level, 'chat', opener('viewport')))
+    expect(designedDockPanelPosition(level, 'chat', opener('viewport')))
       .toEqual({ kind: 'edge', direction: 'right' });
   });
 });

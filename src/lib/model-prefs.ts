@@ -14,7 +14,9 @@
 
 import { STORAGE_KEYS } from './storageKeys';
 
-const KEY = STORAGE_KEYS.lastModelByProvider;
+function storageKey(): string {
+  return STORAGE_KEYS.lastModelByProvider;
+}
 
 function providerKey(catalogProviderId: string | null): string {
   return catalogProviderId && catalogProviderId !== 'forgeax' ? catalogProviderId : 'forgeax';
@@ -22,7 +24,7 @@ function providerKey(catalogProviderId: string | null): string {
 
 function readMap(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
@@ -47,7 +49,7 @@ export function recordLastModel(catalogProviderId: string | null, modelId: strin
   try {
     const map = readMap();
     map[providerKey(catalogProviderId)] = modelId;
-    localStorage.setItem(KEY, JSON.stringify(map));
+    localStorage.setItem(storageKey(), JSON.stringify(map));
   } catch {
     /* ignore (private mode / SSR) */
   }

@@ -3,18 +3,6 @@
 // never depends on full ExtensionManifest fields server-side never exposes.
 import type { ExtensionManifestV2 } from '@forgeax/types';
 
-export interface ExtensionWorkbenchInfo {
-  id: string;
-  icon?: string;
-  position?: number;
-  panelSize?: 'sm' | 'md' | 'lg';
-  hidden?: boolean;
-  /** Soft hint — when this workbench is active, the corner agent picker
-   *  defaults to this agent's plugin id. User can still pick any session
-   *  agent from the dropdown. R1 untouched: this is just a string ref. */
-  preferredAgent?: string;
-}
-
 // P3.13 — model-binding capability summary exposed via /api/extensions/list.
 // Composer reads vendor/channel/roles to render a routing chip strip so the
 // kind=model-binding plugin is no longer invisible outside the Bus admin
@@ -83,6 +71,12 @@ export interface ExtensionAgentInfo {
   multiInstance?: boolean;
 }
 
+export interface ExtensionSourceInfo {
+  origin: 'builtin' | 'npm' | 'user' | 'project' | 'dev';
+  /** Browser-safe path relative to the selected origin root. */
+  relativeManifestPath: string;
+}
+
 export interface ExtensionInfo {
   id: string;
   version: string;
@@ -92,7 +86,6 @@ export interface ExtensionInfo {
   icon?: string;
   experimental?: boolean;
   contributes?: ExtensionManifestV2['contributes'];
-  workbench?: ExtensionWorkbenchInfo;
   modelBinding?: ExtensionModelBindingInfo;
   skills?: ExtensionSkillInfo[];
   tools?: ExtensionToolInfo[];
@@ -100,6 +93,14 @@ export interface ExtensionInfo {
   cliProvider?: ExtensionCliProviderInfo;
   agent?: ExtensionAgentInfo;
   entry?: ExtensionEntryInfo;
+  /** Explicit host-validated runtime metadata for externally-owned development artifacts. */
+  frontendUrl?: string;
+  moduleUrl?: string;
+  allowedOrigin?: string;
+  runtimeMode?: 'native-module' | 'dev' | 'embedded' | 'standalone';
+  registryGeneration?: number;
+  /** Runtime-resolved origin; never an absolute host filesystem path. */
+  source?: ExtensionSourceInfo;
   /** kind=agent 才有：统一命名。title=「中文职能·英文名」，sub=灰字英文职能。 */
   naming?: { title: string; sub: string };
 }
@@ -107,6 +108,7 @@ export interface ExtensionInfo {
 export interface ExtensionListResponse {
   kind: string | null;
   count: number;
+  generation?: number;
   items: ExtensionInfo[];
 }
 
@@ -166,21 +168,18 @@ export function pickLang(
 export function extensionIdSlug(id: string): string {
   return id
     .replace(/^@forgeax-extension\//, '')
-    .replace(/^@forgeax-plugin\//, '')
     .replace(/^@forgeax\//, '');
 }
 
-/**
- * Flat built-in marketplace path hint for BusAdminPanel / Sidebar detail rows.
- * Normalizes `@forgeax/<slug>`, `@forgeax-extension/<slug>`, and legacy
- * `@forgeax-plugin/<slug>` to
- * `packages/marketplace/extensions/<slug>/forgeax-extension.json`.
- *
- * Deliberately local (id → path): no kind bucket, no PluginSourceDescriptor /
- * plugin-layout dependency (those were reverted with the kind-layout experiment).
- */
-export function extensionManifestPathHint(id: string): string {
-  return `packages/marketplace/extensions/${extensionIdSlug(id)}/forgeax-extension.json`;
+/** Render the browser-safe source descriptor returned by the runtime. */
+export function extensionManifestSourceLabel(
+  extension: Pick<ExtensionInfo, 'id' | 'version' | 'source'>,
+): string {
+  if (!extension.source) return `extension:${extension.id}@${extension.version}`;
+  if (extension.source.origin === 'npm') {
+    return `npm:${extension.id}@${extension.version}/forgeax-extension.json`;
+  }
+  return `${extension.source.origin}:${extension.source.relativeManifestPath}`;
 }
 
 export async function listExtensions(kind?: string): Promise<ExtensionListResponse> {
@@ -189,7 +188,7 @@ export async function listExtensions(kind?: string): Promise<ExtensionListRespon
     : '/api/extensions/list';
   const empty: ExtensionListResponse = { kind: kind ?? null, count: 0, items: [] };
   const res = await fetch(url);
-  // The plugin bus is a studio-only surface owned by the workbench application. The
+  // The extension bus is a Studio-only product surface. The
   // standalone editor has NO bus router, so its absence is EXPECTED, not an
   // error — degrade to an empty list either way the "no backend" shows up:
   //   - no `--game`: unknown /api routes fall to the SPA fallback → 200 + html
@@ -202,15 +201,28 @@ export async function listExtensions(kind?: string): Promise<ExtensionListRespon
   }
   const payload = (await res.json()) as Partial<ExtensionListResponse>;
   if (!Array.isArray(payload.items)) return empty;
+  if (import.meta.env.DEV) {
+    const devItems = payload.items.filter((item) => item.runtimeMode === 'native-module');
+    console.info('[forgeax:dev-extension] list', {
+      requestUrl: url,
+      generation: payload.generation,
+      devItems: devItems.map((item) => ({
+        id: item.id,
+        moduleUrl: item.moduleUrl,
+        allowedOrigin: item.allowedOrigin,
+      })),
+    });
+  }
   return {
     kind: typeof payload.kind === 'string' || payload.kind === null ? payload.kind : empty.kind,
     count: typeof payload.count === 'number' ? payload.count : payload.items.length,
+    ...(typeof payload.generation === 'number' ? { generation: payload.generation } : {}),
     items: payload.items,
   };
 }
 
 // Shared short-TTL cache + in-flight dedupe for the full (no-kind) plugin
-// list. Many surfaces (WorkbenchExtensionHost, Sidebar tiles, BuildBadge, …)
+// list. Many surfaces (ExtensionHostPanel, activity entries, BuildBadge, …)
 // fetch this concurrently; without dedupe each mount fires its own request and
 // a single slow/failed one can leave that panel stuck. `force` bypasses the
 // TTL (used by pollers that need to observe a manifest that just gained

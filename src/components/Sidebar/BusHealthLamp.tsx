@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { dashApi } from '../../lib/dashboard-api';
+import { useSharedHealth } from '../../lib/shell-live-data';
 import { useShellStore } from '../../store';
 
 type BusState =
@@ -29,39 +29,22 @@ function classify(bus: NonNullable<Awaited<ReturnType<typeof dashApi.health>>['b
 // before the count text when state.kind === 'ok'. 5th surface of the
 // Σ-prefix muscle-memory language (after AgentsHub header P4.45 + WbGallery
 // stats P4.46 + AgentsPanel header P4.47 + BusAdminPanel summary P4.42).
-// The WORKBENCH header chip is the player's most-visible at-all-times
+// The extension health chip is the player's most-visible at-all-times
 // indicator, so closing the gap here brings the language to the highest
 // dwell-time surface. Σ glyph only renders in the healthy ok-state to avoid
 // "Σ…" / "Σ down" clutter on loading / down chips. Inline next to the dot,
 // 0 layout shift on width (Σ adds ~6px; chip has flex room).
 export function BusHealthLamp() {
   const { t } = useTranslation();
-  const [state, setState] = useState<BusState>({ kind: 'loading' });
+  const health = useSharedHealth();
   const openOverlay = useShellStore((s) => s.openOverlay);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await dashApi.health();
-        if (cancelled) return;
-        if (!r.bus) {
-          setState({ kind: 'down', reason: 'no bus field' });
-          return;
-        }
-        setState(classify(r.bus));
-      } catch (e) {
-        if (cancelled) return;
-        setState({ kind: 'down', reason: (e as Error).message });
-      }
-    };
-    tick();
-    const id = setInterval(tick, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+  const state: BusState = health.state === 'loading'
+    ? { kind: 'loading' }
+    : health.state === 'down'
+      ? { kind: 'down', reason: 'health request failed' }
+      : health.value.bus
+        ? classify(health.value.bus)
+        : { kind: 'down', reason: 'no bus field' };
 
   const tone =
     state.kind === 'ok'

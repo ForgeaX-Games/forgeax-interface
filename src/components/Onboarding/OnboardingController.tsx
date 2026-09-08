@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation, changeLanguage, getLocale, type Locale } from '@/i18n';
-import { useShellStore } from '../../store';
+import { getStudioProjectClient, useShellStore } from '../../store';
 import { useHost } from '../../core/app-shell';
 import { applyModelRoute } from '../../lib/model-route';
 import { listModelsWithLive } from '../../lib/model-config';
@@ -25,6 +25,7 @@ import '../TopBar/TopBar.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TourOverlay, type TourStep } from '../TourOverlay';
 import { APP_EVENTS } from '../../lib/storageKeys';
+import { resolveHomeOnboarding, shouldActivateTour } from './home-transition';
 import { loadOnboarding, saveOnboarding, type OnboardingPhase, PHASE_ORDER } from './types';
 import {
   interpretLiveCatalogProbe,
@@ -34,8 +35,8 @@ import {
 } from './connect-selection';
 import { isUserExistingGame, resolveProjectName, toGameSlug } from './project-name';
 import { latchTourShellDefaults, prepareTourShell } from './prepareTourShell';
-import { loadWorkbenchList, subscribeWorkbenchList } from '../../lib/workbenches';
-import { listGameTemplates, type GameTemplate } from '../../lib/game-templates';
+import { useGameTemplates } from '../../lib/use-game-templates';
+import { TemplateModal } from './TemplateModal';
 import './Onboarding.css';
 
 type CheckResult = '' | 'ok' | 'fail';
@@ -45,7 +46,7 @@ type CheckResult = '' | 'ok' | 'fail';
 // (that was the codebuddy-missing bug). Kept as a named alias for readability.
 type CliId = string;
 
-/** A game already present in the active instance (GET /api/workbench/games).
+/** A project already present in the active instance (GET /api/projects).
  *  Non-empty ⇒ the project step ALSO offers "open an existing project" — a
  *  returning user (or a freshly-pulled repo that ships games) enters home
  *  directly instead of being forced through create. */
@@ -144,7 +145,12 @@ async function patchEnv(patch: Record<string, string>): Promise<void> {
   if (!r.ok || !j?.ok) throw new Error(j?.error ?? `HTTP ${r.status}`);
 }
 
-export function OnboardingController() {
+export interface OnboardingControllerProps {
+  /** Product assemblies may disable the shell coach-mark tour while retaining setup. */
+  tourEnabled?: boolean;
+}
+
+export function OnboardingController({ tourEnabled = true }: OnboardingControllerProps = {}) {
   const { t } = useTranslation();
   const host = useHost();
   const openOverlay = useShellStore((s) => s.openOverlay);
@@ -172,7 +178,7 @@ export function OnboardingController() {
   const [projName, setProjName] = useState('');
   const [fsOpen, setFsOpen] = useState(false);
   const [tmplOpen, setTmplOpen] = useState(false);
-  const [templates, setTemplates] = useState<GameTemplate[] | null>(null);
+  const { templates, error: templateError, retry: retryTemplates } = useGameTemplates(tmplOpen);
   const [tmplSlug, setTmplSlug] = useState<string | null>(null);
   const [projBusy, setProjBusy] = useState(false);
   // Which action is in-flight — drives a specific "creating…/copying…/opening…"
@@ -186,19 +192,12 @@ export function OnboardingController() {
   // tour must NOT see it again on reload. The first-chat hint now lives in the
   // chat empty state (ChatPanel), not here.
   const [tourIdx, setTourIdx] = useState(0);
-  const [tourActive, setTourActive] = useState(() => !loadOnboarding().done.tour);
+  const [tourActive, setTourActive] = useState(() => shouldActivateTour(tourEnabled, loadOnboarding()));
 
-  // Scene tab + default dock layout so tour anchors (sidebar/preview/chat) exist.
-  // Re-apply when workbench list notifies with a non-scene activeId — home mount
-  // races ProjectSwitcher.setCurrentProject, which can revive a stale 'ai' tab
-  // from the real project namespace after our first prepare.
+  // Open the real Level Page so tour anchors (sidebar/viewport/chat) exist.
   useEffect(() => {
     if (phase !== 'home' || !tourActive) return;
     prepareTourShell(host);
-    return subscribeWorkbenchList(() => {
-      if (loadWorkbenchList().activeId === 'scene') return;
-      prepareTourShell(host);
-    });
   }, [phase, tourActive, host]);
 
   const setPhase = useCallback((p: OnboardingPhase) => {
@@ -209,6 +208,18 @@ export function OnboardingController() {
     // full shell as we move between init (welcome/project) and layout (home).
     window.dispatchEvent(new CustomEvent(APP_EVENTS.onboardingChanged));
   }, []);
+
+  // Repair persisted `home` states left by older IDE builds that disabled the
+  // tour without completing the state machine. The initialization policy above
+  // suppresses the overlay in memory even when persistence is unavailable.
+  useEffect(() => {
+    if (phase !== 'home' || tourEnabled) return;
+    const transition = resolveHomeOnboarding(loadOnboarding(), false);
+    setTourActive(false);
+    saveOnboarding(transition.state);
+    setPhaseState(transition.state.phase);
+    window.dispatchEvent(new CustomEvent(APP_EVENTS.onboardingChanged));
+  }, [phase, tourEnabled]);
 
   const clearCountdown = () => { if (cdRef.current) { clearInterval(cdRef.current); cdRef.current = null; } };
   const resetCheck = useCallback(() => {
@@ -352,16 +363,6 @@ export function OnboardingController() {
   // welcome step's "skip" only skips model-connect and lands on `project`.
   const skipConnect = useCallback(() => { resetCheck(); setPhase('project'); }, [resetCheck, setPhase]);
 
-  // Lazily load the built-in templates the first time the template modal opens.
-  useEffect(() => {
-    if (!tmplOpen || templates) return;
-    let cancelled = false;
-    void listGameTemplates()
-      .then((items) => { if (!cancelled) setTemplates(items); })
-      .catch(() => { if (!cancelled) setTemplates([]); });
-    return () => { cancelled = true; };
-  }, [tmplOpen, templates]);
-
   // Games already known to the runtime host (mtime-sorted server-side).
   // Fetched once on mount; drives the "open an existing project" section so a
   // host that already has games never forces a create (§14 amendment:
@@ -371,11 +372,12 @@ export function OnboardingController() {
   const [existingGames, setExistingGames] = useState<ExistingGame[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/workbench/games')
-      .then((r) => r.json() as Promise<{ games?: ExistingGame[] }>)
+    getStudioProjectClient().listProjects()
       .then((j) => {
         if (cancelled) return;
-        setExistingGames((j.games ?? []).filter((g) => isUserExistingGame(g.slug)));
+        setExistingGames(j.games
+          .filter((project) => isUserExistingGame(project.slug))
+          .map((project) => ({ slug: project.slug, name: project.name ?? project.slug })));
       })
       .catch(() => { if (!cancelled) setExistingGames([]); });
     return () => { cancelled = true; };
@@ -384,10 +386,14 @@ export function OnboardingController() {
   // Create/link materializes the game; selection uses the one active-game write.
   const enterHomeWith = useCallback(async (slug: string) => {
     if (slug) await setActiveGame(slug);
+    const transition = resolveHomeOnboarding(loadOnboarding(), tourEnabled);
     // Latch Scene + default layout intent before shell mounts (onReady race).
-    if (!loadOnboarding().done.tour) latchTourShellDefaults();
-    setPhase('home');
-  }, [setActiveGame, setPhase]);
+    if (transition.shouldRunTour) latchTourShellDefaults();
+    setTourActive(transition.shouldRunTour);
+    saveOnboarding(transition.state);
+    setPhaseState(transition.state.phase);
+    window.dispatchEvent(new CustomEvent(APP_EVENTS.onboardingChanged));
+  }, [setActiveGame, tourEnabled]);
 
   // Open a game that already exists in the active root: no create, no link —
   // just pin + enter home. Reuses the 'open' busy label ("opening…").
@@ -408,22 +414,19 @@ export function OnboardingController() {
   // newly-created games use the runtime host's default game store.
   const execIntent = useCallback(async (intent: ProjectIntent) => {
     if (intent.kind === 'open') {
-      const r = await fetch('/api/workbench/games/link', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path: intent.path }),
-      });
-      const j = (await r.json()) as { ok?: boolean; error?: string; slug?: string };
-      if (!r.ok || !j.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      const j = await getStudioProjectClient().linkProject(intent.path);
+      if (!j.ok) throw new Error(j.error ?? 'Unable to link project');
       await enterHomeWith(j.slug ?? '');
       return;
     }
     const slug = toGameSlug(intent.name);
-    const r = await fetch('/api/workbench/games', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ slug, name: intent.name.trim() || slug, ...(intent.kind === 'template' ? { template: intent.template } : {}) }),
+    const j = await getStudioProjectClient().createProject({
+      slug,
+      name: intent.name.trim() || slug,
+      brief: '',
+      ...(intent.kind === 'template' ? { template: intent.template } : {}),
     });
-    const j = (await r.json()) as { ok?: boolean; error?: string; slug?: string };
-    if (!r.ok || !j.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+    if (!j.ok) throw new Error(j.error ?? 'Unable to create project');
     await enterHomeWith(j.slug ?? slug);
   }, [enterHomeWith]);
 
@@ -589,6 +592,8 @@ export function OnboardingController() {
         <TemplateModal
           t={t}
           templates={templates}
+          error={templateError}
+          onRetry={retryTemplates}
           selected={tmplSlug}
           onSelect={setTmplSlug}
           onCancel={() => setTmplOpen(false)}
@@ -858,46 +863,6 @@ function ProjectView(props: {
       </div>
       {props.err && <div className="fx-ob-callout err">{props.err}</div>}
       <div className="fx-ob-tiny fx-ob-muted">{t('onboarding.project.footer')}</div>
-    </div>
-  );
-}
-
-function TemplateModal(props: {
-  t: TFn; templates: GameTemplate[] | null; selected: string | null;
-  onSelect: (slug: string) => void; onCancel: () => void; onConfirm: () => void; busy: boolean;
-}) {
-  const { t } = props;
-  const loading = props.templates === null;
-  const empty = !loading && props.templates!.length === 0;
-  return (
-    <div className="fx-ob-modal-scrim" onClick={(e) => { if (e.target === e.currentTarget) props.onCancel(); }}>
-      <div className="fx-ob-modal">
-        <div className="fx-ob-modal-inner">
-          <h3 className="fx-ob-h3">{t('onboarding.template.title')}</h3>
-          {loading && <div className="fx-ob-small fx-ob-muted">{t('onboarding.template.loading')}</div>}
-          {empty && <div className="fx-ob-small fx-ob-muted">{t('onboarding.template.empty')}</div>}
-          {!loading && !empty && (
-            <div className="fx-ob-stack fx-ob-gap8" style={{ maxHeight: 320, overflowY: 'auto' }}>
-              {props.templates!.map((tpl) => (
-                <div key={tpl.slug} className={`fx-ob-card${props.selected === tpl.slug ? ' sel' : ''}`} style={{ cursor: 'pointer' }} onClick={() => props.onSelect(tpl.slug)}>
-                  <div className="fx-ob-card-cb">
-                    <div className="fx-ob-row">
-                      <span className="fx-ob-small">{tpl.name}</span>
-                      <span className="fx-ob-tiny fx-ob-muted" style={{ marginLeft: 8 }}>{tpl.slug}</span>
-                      <div className="fx-ob-grow" />
-                      {props.selected === tpl.slug && <span className="fx-ob-pill sm active static">{t('onboarding.template.picked')}</span>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="fx-ob-row" style={{ justifyContent: 'flex-end' }}>
-            <button className="fx-ob-btn fx-ob-btn-ghost" onClick={props.onCancel}>{t('onboarding.template.cancel')}</button>
-            <button className="fx-ob-btn fx-ob-btn-primary" disabled={props.selected === null || props.busy} onClick={props.onConfirm}>{t('onboarding.template.confirm')}</button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

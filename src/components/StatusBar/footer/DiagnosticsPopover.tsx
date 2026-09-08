@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { Gauge, Circle } from 'lucide-react';
 import { StripPopover } from '../StripPopover';
-import { dashApi } from '../../../lib/dashboard-api';
+import { useSharedHealth } from '../../../lib/shell-live-data';
 import { useEditorFacts } from '../../../lib/editor-facts-bus';
 import { useTranslation } from '../../../i18n';
 import type { StatusItemContribution } from '../../../core/panels';
@@ -85,6 +85,7 @@ type ResState = 'loading' | 'ok' | 'down';
 
 export function DiagnosticsChip() {
   const facts = useEditorFacts();
+  const sharedHealth = useSharedHealth();
   const { t, i18n } = useTranslation();
   const [gpu, setGpu] = useState(() => t('statusBar.diagnostics.checking'));
   const [heap, setHeap] = useState<{ usedMB: number; totalMB: number } | null>(null);
@@ -103,26 +104,17 @@ export function DiagnosticsChip() {
   }, [i18n.language, t]);
 
   useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      setHeap(readHeap());
-      try {
-        const h = await dashApi.health();
-        if (cancelled) return;
-        const rss = typeof h.mem?.rss === 'number' ? h.mem.rss : 0;
-        setRes({ rssMB: Math.round(rss / 1048576), uptime: h.uptime ?? 0, ws: h.wsClients ?? 0 });
-        setResState('ok');
-      } catch {
-        if (!cancelled) setResState('down');
-      }
-    };
-    void tick();
-    const timer = setInterval(tick, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+    setHeap(readHeap());
+    if (sharedHealth.state === 'loading') return;
+    if (sharedHealth.state === 'down') {
+      setResState('down');
+      return;
+    }
+    const h = sharedHealth.value;
+    const rss = typeof h.mem?.rss === 'number' ? h.mem.rss : 0;
+    setRes({ rssMB: Math.round(rss / 1048576), uptime: h.uptime ?? 0, ws: h.wsClients ?? 0 });
+    setResState('ok');
+  }, [sharedHealth]);
 
   const memPct = heap && heap.totalMB ? Math.round((heap.usedMB / heap.totalMB) * 100) : 0;
   const resText = (fmt: (r: RuntimeRes) => string): string =>

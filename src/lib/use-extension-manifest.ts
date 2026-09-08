@@ -1,19 +1,10 @@
 import { useEffect, useState } from 'react';
 import { listExtensionsShared, type ExtensionInfo } from './extension-api';
 
-/** A plugin has two identities: the canonical manifest id (`@forgeax-extension/
- *  wb-observatory`, the bus SSOT) and the short workbench id (`wb-observatory`,
- *  the UI-facing alias). Callers open plugins by either form — the sidebar
- *  passes the manifest id, while `workbench.open_plugin` / deep links often pass
- *  the workbench id. Resolution must accept both, else opening by the alias
- *  never finds the manifest and the panel falls to "Could not load plugin".
- *  A third accepted form: persisted dock layouts written before the Extension
- *  rename (ADR 0025 M3) carry `@forgeax-plugin/*` in the user's localStorage —
- *  normalize at this single match point (same sanctioned compat exception as
- *  the kernel scanner's id normalize). */
+/** Match the canonical manifest identity. Legacy ids are migrated before
+ * opening a Page; the runtime host never carries an alias path. */
 export function manifestMatchesId(m: ExtensionInfo, id: string): boolean {
-  const norm = id.replace(/^@forgeax-plugin\//, '@forgeax-extension/');
-  return m.id === norm || m.workbench?.id === norm;
+  return m.id === id;
 }
 
 /** Fetches the bus manifest for a single plugin id, with retry/polling so a
@@ -25,9 +16,9 @@ export function manifestMatchesId(m: ExtensionInfo, id: string): boolean {
  *    just gained `entry.standalone` is picked up live.
  *  - Polling stops once we have a usable manifest (standalone present) or after
  *    MAX_ATTEMPTS (the plugin genuinely ships no standalone entry — e.g. the
- *    inline wb-plugin-author panel — so there is nothing more to wait for).
+ *    inline extension panel — so there is nothing more to wait for).
  *
- *  Extracted from WorkbenchExtensionHost so the keep-alive CenterExtensionLayer can
+ *  Extracted from ExtensionHostPanel so the keep-alive layer can
  *  share one implementation (single source of truth for manifest resolution).
  */
 export function useExtensionManifest(extensionId: string): ExtensionInfo | null | 'loading' {
@@ -51,7 +42,7 @@ export function useExtensionManifest(extensionId: string): ExtensionInfo | null 
         if (cancelled) return;
         const found = res.items.find((p) => manifestMatchesId(p, extensionId)) ?? null;
         setInfo(found);
-        if (found?.entry?.standalone || attempts >= MAX_ATTEMPTS) return;
+        if (found?.frontendUrl || found?.entry?.standalone || found?.entry?.frontend || attempts >= MAX_ATTEMPTS) return;
       } catch {
         if (cancelled) return;
         if (attempts >= MAX_ATTEMPTS) {

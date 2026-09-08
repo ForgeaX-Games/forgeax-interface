@@ -12,7 +12,7 @@
 
 import type { AppExtension } from '../app-shell/types';
 import type { SessionClient } from '../../store-parts/session-client';
-import type { ChatTab } from '../../store';
+import type { ChatTab, CloseSessionResult, RefreshSessionsResult } from '../../store';
 import { useShellStore } from '../../store';
 import { getSessionClient, hasSessionClient } from '../../store-parts/session-client';
 
@@ -35,9 +35,9 @@ export interface SessionCapability {
     scope?: string;
     providerOverride?: string | null;
   }): Promise<{ sid: string } | null>;
-  closeSession(sid: string): Promise<void>;
+  closeSession(sid: string): Promise<CloseSessionResult>;
   renameTab(sid: string, displayName: string): void;
-  refreshSessions(): Promise<void>;
+  refreshSessions(): Promise<RefreshSessionsResult>;
   setActiveGame(slug: string): Promise<void>;
 }
 
@@ -65,7 +65,7 @@ export const sessionClientExtension: AppExtension = {
       closeSession:    (sid)     => useShellStore.getState().closeSession(sid),
       renameTab:       (sid, n)  => useShellStore.getState().renameTab(sid, n),
       refreshSessions: ()        => useShellStore.getState().refreshSessions(),
-      setActiveGame:   (slug)    => useShellStore.getState().setActiveGame(slug),
+      setActiveGame:   async (slug) => { await useShellStore.getState().setActiveGame(slug); },
     };
     ctx.host.extend('session', cap);
   },

@@ -7,16 +7,9 @@ const packageJsonPath = join(import.meta.dir, "..", "package.json");
 const forbidden = new Set([
   "@forgeax/editor",
   "@forgeax/chat",
-  "@forgeax/ai-workbench",
   "@forgeax/settings",
   "@forgeax/dashboard",
-]);
-// Aliases that were removed — importing them = using a stale name.
-// Bump 3 renamed `@forgeax/workbench` → `@forgeax/ai-workbench`; any lingering
-// reference to the old literal is caught here with a clearer error message than
-// the generic forbidden-package rule above.
-const removedAliases = new Set([
-  "@forgeax/workbench",
+  "@forgeax/agents",
 ]);
 const forbiddenExports = [
   "./components/TopBar/SettingsDrawer",
@@ -64,11 +57,6 @@ for (const file of sourceFiles) {
   const source = stripComments(readFileSync(file, "utf8"));
   for (const match of source.matchAll(importPattern)) {
     const specifier = match[1];
-    if (removedAliases.has(specifier) || [...removedAliases].some((r) => specifier.startsWith(`${r}/`))) {
-      violations.push(
-        `${relative(process.cwd(), file)}: import of removed alias '${specifier}' — did you mean '@forgeax/ai-workbench'?`,
-      );
-    }
     for (const pkg of forbidden) {
       if (specifier === pkg || specifier.startsWith(`${pkg}/`)) {
         violations.push(`${relative(process.cwd(), file)} imports ${specifier}`);

@@ -28,17 +28,17 @@
 }
 .ss-section:last-child { border-bottom: none; }
 
-/* Workbench section claims all remaining vertical space (the only section
+/* extension section claims all remaining vertical space (the only section
    today; the footer-kinds row was removed 2026-05-17). Allows iframe / split-
    surface plugin panels to fill the full Sidebar height instead of collapsing
    to their natural ~200px content height. */
-.ss-section.workbench {
+.ss-section.extension {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.ss-section.workbench .ws-active-content {
+.ss-section.extension .ws-active-content {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
@@ -63,7 +63,7 @@
    specificity clobbers the (0,1,0) rule above, dropping this overlay's
    absolute+inset:0 so it collapses to 0 height and the left-pane (options)
    iframe becomes invisible. Restore the overlay with a higher-specificity
-   selector. (Regression fix 2026-06: workbench plugin options panel blank.) */
+   selector. (Regression fix 2026-06: extension plugin options panel blank.) */
 .ws-active-content.rail-panel > .ws-pane-keepalive {
   position: absolute;
   inset: 0;
@@ -72,7 +72,7 @@
   flex: 1 1 auto;
   min-height: 0;
 }
-.ws-pane-keepalive .wb-plugin-iframe-wrap {
+.ws-pane-keepalive .page-plugin-iframe-wrap {
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
@@ -262,8 +262,8 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
 .ss-body { display: flex; flex-direction: column; gap: 1px; }
 
 .ws-active-content {
-  /* AgentsPanel / Workbench plugin placeholder live here; keep a real box so
-     rail-panel motion can run on Workbench tab switches. */
+  /* AgentsPanel / extension plugin placeholder live here; keep a real box so
+     rail-panel motion can run on extension tab switches. */
   flex: 1 1 0;
   min-height: 0;
   display: flex;
@@ -274,10 +274,10 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   position: relative;
   will-change: opacity, transform;
   overflow: hidden;
-  animation: ws-workbench-panel-in 360ms var(--motion-ease-out) both;
+  animation: ws-extension-panel-in 360ms var(--motion-ease-out) both;
 }
 
-@keyframes ws-workbench-panel-in {
+@keyframes ws-extension-panel-in {
   from {
     opacity: 0.72;
     transform: translate3d(0, -6px, 0);
@@ -293,7 +293,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
 .ws-active-content.rail-panel > * {
   position: relative;
   z-index: 1;
-  animation: ws-workbench-flow-in 520ms var(--motion-ease-out) both;
+  animation: ws-extension-flow-in 520ms var(--motion-ease-out) both;
 }
 .ws-active-content.rail-panel > *:nth-child(1) { animation-delay: 0ms; }
 .ws-active-content.rail-panel > *:nth-child(2) { animation-delay: 45ms; }
@@ -302,7 +302,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
 .ws-active-content.rail-panel > *:nth-child(5) { animation-delay: 180ms; }
 .ws-active-content.rail-panel > *:nth-child(n + 6) { animation-delay: 225ms; }
 
-@keyframes ws-workbench-flow-in {
+@keyframes ws-extension-flow-in {
   from {
     opacity: 0;
     filter: blur(5px);
@@ -582,7 +582,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   padding: 0; text-align: left;
 }
 /* P3.52 — focus ring matches .ws-icon-btn:focus-visible (P3.51) so the
- * Sidebar's WORKBENCH tab strip and AGENTS listbox share one visual contract
+ * Sidebar's extension tab strip and AGENTS listbox share one visual contract
  * for arrow-key focus. */
 .ac-row:focus-visible {
   outline: 2px solid rgba(255,255,255,0.55);
@@ -943,9 +943,9 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   font-size: 11px;
 }
 
-/* P2.6a — richer placeholder for bus-sourced workbench tabs.
+/* P2.6a — richer placeholder for bus-sourced extension tabs.
  * Replaces the legacy "Coming soon" sub with the manifest's emoji + zh
- * description so clicking a wb-* icon actually shows what that plugin is
+ * description so clicking a * icon actually shows what that plugin is
  * about. Visual delta: previously bone-empty pane → now icon + title + desc. */
 .tool-placeholder.bus-tool {
   text-align: left;
@@ -1050,7 +1050,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   font-family: var(--font-mono);
 }
 /* Match BusAdminPanel kind colors so the player visually links the two surfaces. */
-.bus-tool-cell-value.k-workbench { color: var(--accent-cyan); }
+.bus-tool-cell-value.k-extension { color: var(--accent-cyan); }
 .bus-tool-cell-value.k-agent { color: var(--accent-blue); }
 .bus-tool-cell-value.k-cli-provider { color: var(--color-text-primary); }
 .bus-tool-cell-value.k-model-binding { color: var(--color-text-primary); }
@@ -1062,7 +1062,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * BusAdminPanel .ba-prov-tag palette so the player learns one cross-
  * surface language: "orange = tools the AI can call, pink = events the
  * plugin emits, purple = chat-composer skills". Empty-state pills stay
- * visible at low opacity so every workbench tab gets the same strip
+ * visible at low opacity so every extension tab gets the same strip
  * geometry — only the highlight changes. */
 .bus-tool-provides {
   margin: 0 0 8px;
@@ -1220,10 +1220,10 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
 }
 
 /* P2.7i — bus kinds 6-chip strip pinned at sidebar bottom (sibling of
- * .ss-section workbench, not nested inside it, so it survives any future
+ * .ss-section extension, not nested inside it, so it survives any future
  * sectioning). Shares the BusAdminPanel kind palette so the player learns
  * one color language across surfaces:
- *   workbench=lime  agent=violet  cli-provider=blue
+ *   extension=lime  agent=violet  cli-provider=blue
  *   model-binding=teal  skill=amber  tool=orange
  * Chip layout = `name [tabular n]`, wrap-aware so a 220px-wide sidebar still
  * fits all six on two rows. Empty kinds dim down but stay visible — the row
@@ -1317,7 +1317,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
 }
 /* Six kind variants — match BusAdminPanel.css .ba-chip.k-* palette so chips
  * read the same across Sidebar footer + Bus admin filter row + row k-tag. */
-.ss-kind-chip.k-workbench     { background: rgba(212, 255,  72, 0.10); border-color: rgba(212, 255,  72, 0.32); color: var(--primary); }
+.ss-kind-chip.k-extension     { background: rgba(212, 255,  72, 0.10); border-color: rgba(212, 255,  72, 0.32); color: var(--primary); }
 .ss-kind-chip.k-agent         { background: rgba(168,  85, 247, 0.12); border-color: rgba(168,  85, 247, 0.35); color: var(--color-role-orchestrator); }
 .ss-kind-chip.k-cli-provider  { background: rgba(108, 196, 255, 0.10); border-color: rgba(108, 196, 255, 0.34); color: var(--color-kind-cli-provider); }
 .ss-kind-chip.k-model-binding { background: rgba(126, 231, 196, 0.10); border-color: rgba(126, 231, 196, 0.32); color: var(--accent-mint); }
@@ -1327,7 +1327,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * thickens to ~55% of the kind's accent so hover reads as "this chip is
  * activating" rather than a generic gray. Outer glow with same hue +12%
  * alpha for tactile click affordance. */
-.ss-kind-chip.k-workbench.is-link:hover     { background: rgba(212, 255,  72, 0.22); border-color: rgba(212, 255,  72, 0.55); box-shadow: none; }
+.ss-kind-chip.k-extension.is-link:hover     { background: rgba(212, 255,  72, 0.22); border-color: rgba(212, 255,  72, 0.55); box-shadow: none; }
 .ss-kind-chip.k-agent.is-link:hover         { background: rgba(168,  85, 247, 0.24); border-color: rgba(168,  85, 247, 0.58); box-shadow: none; }
 .ss-kind-chip.k-cli-provider.is-link:hover  { background: rgba(108, 196, 255, 0.22); border-color: rgba(108, 196, 255, 0.56); box-shadow: none; }
 .ss-kind-chip.k-model-binding.is-link:hover { background: rgba(126, 231, 196, 0.22); border-color: rgba(126, 231, 196, 0.55); box-shadow: none; }
@@ -1356,7 +1356,7 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
   position: relative;
   z-index: 2;
 }
-.ss-kind-chip.is-flashing.k-workbench     { background: rgba(212, 255,  72, 0.32); border-color: rgba(212, 255,  72, 0.75); box-shadow: none; color: var(--primary); }
+.ss-kind-chip.is-flashing.k-extension     { background: rgba(212, 255,  72, 0.32); border-color: rgba(212, 255,  72, 0.75); box-shadow: none; color: var(--primary); }
 .ss-kind-chip.is-flashing.k-agent         { background: rgba(168,  85, 247, 0.34); border-color: rgba(168,  85, 247, 0.78); box-shadow: none; color: var(--primary); }
 .ss-kind-chip.is-flashing.k-cli-provider  { background: rgba(108, 196, 255, 0.32); border-color: rgba(108, 196, 255, 0.76); box-shadow: none; color: var(--primary); }
 .ss-kind-chip.is-flashing.k-model-binding { background: rgba(126, 231, 196, 0.32); border-color: rgba(126, 231, 196, 0.75); box-shadow: none; color: var(--primary); }

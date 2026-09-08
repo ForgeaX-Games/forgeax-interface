@@ -109,7 +109,6 @@
   align-items: center;
   min-width: 0;
   flex: 1 1 auto;
-  gap: 12px;
 }
 
 .fx-searchable-menu__label {
@@ -121,13 +120,7 @@
 }
 
 .fx-searchable-menu__description {
-  overflow: hidden;
-  max-width: 48%;
-  flex: 0 1 auto;
-  color: var(--color-text-tertiary);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .fx-searchable-menu__empty {

@@ -9,11 +9,11 @@
 // surface is kept alive across workspace switches. The play-runtime (/preview)
 // is now a standalone fullscreen-only entry point (AC-14).
 //
-// This layer is a sibling of DockShell (App.tsx, inside `.studio-body`) that never
-// unmounts. It mounts the surface ONCE (lazily, on first visit) and keeps it alive
-// forever in a stable parent — never re-parented, so it never reloads. On a switch
+// React mounts this layer through a portal on `document.body` (see return) so
+// keep-alive surfaces escape the studio shell's fixed containing block. It still
+// conceptually tracks DockShell anchors from App.tsx and never unmounts. On a switch
 // we only:
-//   - position the ACTIVE surface (fixed) over its dockview anchor's rect, visible;
+//   - position the ACTIVE surface over its dockview anchor's rect, visible;
 //   - park the others off-screen + visibility:hidden, which trips the in-process
 //     viewport's OWN IntersectionObserver (installVisibilityPause in edit-runtime)
 //     → editorApp.pause() in the background (context preserved).
@@ -24,11 +24,13 @@
 // context (studio injects @forgeax/editor's SceneEditor); interface keeps ZERO
 // editor imports.
 import { useEffect, useReducer, useRef, type ReactNode } from 'react';
-import { useActiveWorkbench } from '../../lib/useWorkbench';
+import { createPortal } from 'react-dom';
+import { SurfacePlaceholder, SurfaceRegion } from '@forgeax/app-shell/react';
 import { useHost } from '../../core/app-shell';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
 import { FatalBanner } from '../StatusBar/FatalBanner';
-import { useShellStore } from '../../store';
+import { useFloatingSurfaces } from '../../lib/platform';
+import { clampOverlayRectBelowHeader, mapViewportRectToOverlayRoot } from '../../lib/surfaceKeepAliveLayout';
 import {
   getAnchor,
   subscribeAnchors,
@@ -38,15 +40,8 @@ import {
 import './SurfaceKeepAlive.css';
 
 // AppMode = shell workspace mode. The engine's edit-time surface kind is still
-// 'edit' (see SurfaceKind in ../../lib/surfaceAnchors); the workbench-id / mode-id
-// 'edit' was renamed to 'scene' by the v9 workbench-schema migration.
-type AppMode = 'scene' | 'ai';
-
-function kindForMode(mode: AppMode): SurfaceKind | null {
-  if (mode === 'scene') return 'edit';
-  return null; // workbench / custom workspaces show neither surface
-}
-
+// 'edit' (see SurfaceKind in ../../lib/surfaceAnchors); the page-id / mode-id
+// 'edit' was renamed to 'scene' by the v9 page-schema migration.
 const ALL_KINDS: SurfaceKind[] = ['edit'];
 
 // The keep-alive surface lives in a fixed overlay OUTSIDE dockview's DOM tree, so
@@ -62,12 +57,12 @@ const PANEL_ID_FOR_KIND: Partial<Record<SurfaceKind, string>> = {
 export function SurfaceKeepAliveLayer(): ReactNode {
   // Derived from the active workspace (SSOT); 'scene' workspace → edit surface,
   // every other workspace → no kept-alive surface.
-  const mode: AppMode = useActiveWorkbench()?.id === 'scene' ? 'scene' : 'ai';
   const host = useHost();
   const { surfaces } = usePanelRenderers();
   const SceneEditor = surfaces?.SceneEditor;
-  const viewportFloating = useShellStore((state) => Boolean(state.floatingSurfaces['panel:viewport']));
-  const activeKind = viewportFloating ? null : kindForMode(mode);
+  const floatingSurfaces = useFloatingSurfaces();
+  const viewportFloating = Boolean(floatingSurfaces['panel:viewport']);
+  const activeKind: SurfaceKind | null = viewportFloating ? null : 'edit';
 
   // Visited set only grows — a surface, once mounted, is never torn down. Seeded
   // with the boot mode's kind so the first surface mounts immediately; later kinds
@@ -81,19 +76,21 @@ export function SurfaceKeepAliveLayer(): ReactNode {
     }
   }, [activeKind]);
 
-  // Per-kind item DOM nodes — styled imperatively (fixed rect / display) so dock
+  // Portal overlay root + per-kind item DOM nodes — styled imperatively so dock
   // resize/drag ticks don't churn React.
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<SurfaceKind, HTMLDivElement | null>>(new Map());
 
   // Imperative layout sync: overlay the active surface on its anchor's rect; hide
   // the rest. Cheap enough to call on every resize/relayout tick.
   const syncLayout = (): void => {
+    const overlayRoot = rootRef.current;
     for (const kind of ALL_KINDS) {
       const el = itemRefs.current.get(kind);
       if (!el) continue;
       const anchor = kind === activeKind ? getAnchor(kind) : null;
       if (!anchor) {
-        // Inactive, or active-but-no-anchor (workbench mode / panel closed / popped
+        // Inactive, or active-but-no-anchor (page mode / panel closed / popped
         // to an OS window). DO NOT use display:none — on WKWebView (the desktop
         // Studio app) display:none on a WebGPU <canvas> DROPS the GPU device, so
         // flipping back finds a dead context and the re-create wedges WKWebView's
@@ -114,14 +111,19 @@ export function SurfaceKeepAliveLayer(): ReactNode {
         if (!el.style.height || el.style.height === '0px') el.style.height = '720px';
         continue;
       }
-      const r = anchor.getBoundingClientRect();
+      const mapped = clampOverlayRectBelowHeader(
+        mapViewportRectToOverlayRoot(anchor.getBoundingClientRect(), overlayRoot),
+        overlayRoot,
+        document.querySelector('.fx-panel[data-dock-single-tab="hideTitle"] > .fx-panel-header')
+          ?.getBoundingClientRect() ?? null,
+      );
       el.style.display = 'flex';
       el.style.visibility = 'visible';
       el.style.pointerEvents = '';
-      el.style.top = `${r.top}px`;
-      el.style.left = `${r.left}px`;
-      el.style.width = `${r.width}px`;
-      el.style.height = `${r.height}px`;
+      el.style.top = `${mapped.top}px`;
+      el.style.left = `${mapped.left}px`;
+      el.style.width = `${mapped.width}px`;
+      el.style.height = `${mapped.height}px`;
     }
   };
 
@@ -218,17 +220,22 @@ export function SurfaceKeepAliveLayer(): ReactNode {
     );
   };
 
-  return (
-    <div className="fx-surface-keepalive-root" aria-hidden={activeKind ? undefined : true}>
+  const layer = (
+    <div
+      ref={rootRef}
+      className="fx-surface-keepalive-root"
+      aria-hidden={activeKind ? undefined : true}
+    >
       {[...visitedRef.current].map((kind) => (
         // Stable key + stable parent → the in-process surface is reconciled in
         // place across every render: never remounted, never reloaded.
-        <div
+        <SurfaceRegion
           key={kind}
           ref={(el) => { itemRefs.current.set(kind, el); }}
-          className="fx-surface-keepalive-item surface-region"
+          className="fx-surface-keepalive-item"
           data-surface-kind={kind}
           style={{ display: 'none' }}
+          overlay={<FatalBanner source="edit" />}
           // Capture-phase so it fires before the surface's own handlers, and never
           // preventDefault/stopPropagation — we only mirror the click as dock focus.
           // Moves `dv-active-group` (the lime focus accent) onto the viewport group,
@@ -238,20 +245,15 @@ export function SurfaceKeepAliveLayer(): ReactNode {
             if (panelId) host.bus.emit('panel:focus', { id: panelId });
           }}
         >
-          {/* ALL_KINDS is ['edit'] today — the only kept-alive surface is the edit
-              viewport. FatalBanner is fixed to 'edit' accordingly. */}
-          <FatalBanner source="edit" />
           {kind === 'edit' && viewportFloating ? null : renderSurface(kind)}
-        </div>
+        </SurfaceRegion>
       ))}
     </div>
   );
+
+  return createPortal(layer, document.body);
 }
 
 function NoEditor({ kind }: { kind: SurfaceKind }) {
-  return (
-    <div className={`surface-placeholder surface-placeholder--${kind}`}>
-      <div className="surface-placeholder-title">No editor configured</div>
-    </div>
-  );
+  return <SurfacePlaceholder title="No editor configured" className={`surface-placeholder--${kind}`} />;
 }

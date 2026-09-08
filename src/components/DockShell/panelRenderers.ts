@@ -1,6 +1,6 @@
 // Panel renderer injection — keeps the interface shell business-agnostic.
 //
-// The DockShell renders generic chrome (workbench / preview / edit / chat /
+// The DockShell renders generic chrome (page / preview / edit / chat /
 // ep:* editor panels), but the actual edit & preview SURFACES belong to an
 // app (today: the editor). To avoid interface importing `@forgeax/editor*`
 // (which created the studio → interface → editor → interface cycle), the
@@ -9,7 +9,7 @@
 // - interface ALONE renders neutral placeholders (no editor present).
 // - studio injects real renderers built from `@forgeax/editor/{edit,play}`.
 //
-// This is the same shape as the existing `wb:*` plugin merge: DockShell owns
+// This is the same shape as the existing extension panel merge: DockShell owns
 // the docking mechanics, the host supplies the panel bodies.
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
 import type { SerializedDockview } from 'dockview';
@@ -21,10 +21,10 @@ import type {
   StatusItemContribution,
   DrawerPanelContribution,
 } from '../../core/panels';
-import type { DetachedWindowCapability } from '../../lib/platform';
+import type { DetachedWindowCapability } from '@forgeax/app-shell/window';
 
-// Structural host-SDK boundary. Interface receives these factories from the
-// aggregation host but must neither import nor type-resolve @forgeax/host-sdk:
+// Structural extension-transport boundary. Interface receives these factories from the
+// aggregation host but must neither import nor type-resolve @forgeax/extension-platform/transport:
 // standalone editor intentionally has no such workspace dependency.
 export interface ExtensionTransport {
   post(envelope: unknown): void;
@@ -35,12 +35,20 @@ export interface ExtensionTransport {
 export interface ExtensionToolCall {
   toolId: string;
   args?: unknown;
-  caller: {
-    kind: 'user' | 'ai' | 'skill' | 'workbench' | 'cli';
-    sessionId?: string;
-    threadId?: string;
-    agentId?: string;
-  };
+  caller:
+    | {
+      kind: 'user' | 'ai' | 'skill' | 'cli';
+      sessionId?: string;
+      threadId?: string;
+      agentId?: string;
+    }
+    | {
+      kind: 'extension';
+      extensionId: string;
+      instanceId: string;
+      sessionId?: string;
+      threadId?: string;
+    };
 }
 
 export type ExtensionToolResult =
@@ -77,10 +85,10 @@ export interface EditorContextMenuItem {
 }
 
 /**
- * Host-owned source import request for workbench-generated assets.
+ * Host-owned source import request for page-generated assets.
  *
  * This is deliberately an Editor host seam, not a plugin tool contract. The
- * host decides how the bytes enter the Editor product; workbench runtimes only
+ * host decides how the bytes enter the Editor product; page runtimes only
  * provide the project-relative destination and source bytes.
  */
 export interface EditorAssetImportSourceRequest {
@@ -133,7 +141,7 @@ export type CreateWindowTransport = (options: WindowTransportOptions) => Extensi
  * (order/icon/when/defaultRegion), and the body renderer.
  *
  * Phase 1 uses `defaultRegion` as the initial home; user overrides live in
- * the active workbench's `panelLocations` (see useActiveWorkbench). Phase 2
+ * the active page's `panelLocations` (see useActivePage). Phase 2
  * wires the override via UI.
  */
 export interface PanelDescriptor {
@@ -179,12 +187,12 @@ export interface PanelDescriptor {
  *   chrome    — fixed shell regions outside dockview
  *   detached  — bodies of DETACHED OS windows (Tauri or `window.open`)
  *   slots     — well-defined sub-slots inside interface-owned components
- *   hostSDK   — capability factories (not rendering)
+ *   extensionTransport — cross-realm transport factories (not rendering)
  *
  * All render targets are React Components (capitalized nouns) — consumers
  * use JSX `<X.Y />` directly, no render-function-call syntax.
  *
- * (v9 · 2026-07-08) The former `workbench` category — a feature-name grouping
+ * (v9 · 2026-07-08) The former `page` category — a feature-name grouping
  * mixing MainArea body / sidebar sub-nav / detached windows — was eliminated.
  * Its five slots are now reclassified by structural role into `detached.*`
  * and `slots.*`. Structural categories no longer contain feature names.
@@ -244,8 +252,8 @@ export interface PanelRenderers {
         summary?: { totalAssets: number; kinds: Record<string, number>; guids: string[] };
       }>): void;
     }) => () => void;
-    /** Optional Scene-workbench document scope. DockRegion subscribes to this
-     * external store and swaps panel domains without changing Workbench. */
+    /** Optional Scene-page document scope. DockRegion subscribes to this
+     * external store and swaps panel domains without changing Page. */
   };
 
   /** ADR-0030 §2.3 — bottom-drawer panel contributions (kind:'drawer'). Keyed
@@ -281,13 +289,13 @@ export interface PanelRenderers {
     MainAreaBody?: ComponentType;
     /** Sidebar's Agents sub-nav body. */
     SidebarAgents?: ComponentType;
-    /** Plugin-host top-right widget (in MainArea when a wb:* plugin is expanded). */
+    /** Extension-host top-right widget shown when an extension Page is expanded. */
     CornerAgentPicker?: ComponentType<{ preferredAgentExtensionId?: string }>;
   };
 
-  /** Host-SDK factories for wb:* plugin iframe RPC (studio-only). The contract
-   *  is structural so interface stays runnable without host-sdk installed. */
-  hostSDK?: {
+  /** Extension-transport factories for extension Page iframe RPC (studio-only). The contract
+   *  is structural so Interface stays runnable without Extension Platform installed. */
+  extensionTransport?: {
     createExtensionPort?: CreateExtensionPort;
     createWindowTransport?: CreateWindowTransport;
   };
@@ -297,14 +305,14 @@ export interface PanelRenderers {
    *  Empty means no editor is wired. */
   editorPanelIds: readonly string[];
 
-  /** Optional host-owned layouts for built-in workbenches. Interface owns the
+  /** Optional host-owned layouts for built-in product pages. Interface owns the
    *  docking mechanics but must not encode an editor application's panel
    *  arrangement, so editor hosts inject their Scene layout here. */
-  builtinWorkbenchLayouts?: Readonly<Record<string, SerializedDockview>>;
+  builtinPageLayouts?: Readonly<Record<string, SerializedDockview>>;
 
-  /** Inline (non-iframe) workbench panels, keyed by bus plugin id. Not a
+  /** Inline (non-iframe) extension panels, keyed by extension id. Not a
    *  fixed slot — plugins register themselves here. Stays at top level. */
-  workbenchPanels?: Record<string, () => ReactNode>;
+  extensionPanels?: Record<string, () => ReactNode>;
 }
 
 // Interface-alone hosts do not expose editor panels. Editor hosts inject their

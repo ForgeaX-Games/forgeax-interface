@@ -2,7 +2,7 @@
 //
 // Test-only helper that builds an AppHost with fake capabilities injected via
 // host.extend. Tests that used to mock the useShellStore slice for
-// session/workbench/observability data can instead:
+// session/observability data can instead:
 //
 //   render(<HostProvider value={mockHost({ session: { tabs: [], activeSid: null } })}>
 //     <Component />
@@ -15,7 +15,6 @@ import { createAppHost } from '../core/app-shell';
 
 export interface MockHostOverrides {
   session?: Record<string, unknown>;
-  workbench?: Record<string, unknown>;
   observability?: Record<string, unknown>;
   [extension: string]: unknown;
 }

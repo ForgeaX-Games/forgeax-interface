@@ -139,9 +139,8 @@ function ancestorsOf(path: string, rootPath: string): string[] {
 }
 
 export function FilesPanel() {
-  // ③ 文件预览态归 workbench（bus 'workbench:files'）—— 打开走命令，高亮读快照。
-  const openFile = (path: string) => { publish('workbench:open-file', { path } as never); };
-  const activeFilePath = (useBusSnapshot('workbench:files') as { activeFilePath?: string | null } | undefined)?.activeFilePath ?? null;
+  const openFile = (path: string) => { publish('resource-editor:open-file', { path } as never); };
+  const activeFilePath = (useBusSnapshot('resource-editor:files') as { activeFilePath?: string | null } | undefined)?.activeFilePath ?? null;
   const activeSlug = useShellStore((s) => s.activeGameSlug);
   const [tree, setTree] = useState<Node | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());

@@ -5,7 +5,7 @@ import { useShellStore } from '../../store';
 import './LangSwitcher.css';
 
 /**
- * Agent reply-language switcher. Mounted in the Workbench "Agents · Team"
+ * Agent reply-language switcher. Mounted in the Page "Agents · Team"
  * header (top-right). Controls the language the agent replies in.
  *
  * Semantics (see lib/reply-language.ts):

@@ -28,6 +28,7 @@
 
 import type { AppExtension } from '../app-shell/types';
 import { getKeyboardRouterDeps } from '../../lib/global-shortcuts';
+import { executeFocusedTextEditAction } from '../../lib/text-edit-actions';
 
 /** Resolve the injected router deps or throw a clear error naming the missing
  *  wiring — makes a mis-boot fail loudly at command-invoke time instead of
@@ -105,7 +106,10 @@ export const editorCommandsExtension: AppExtension = {
     cleanups.push(registerCommand({
       id: 'editor.selectAll',
       title: '全选实体',
-      execute: () => {
+      execute: async () => {
+        if (await executeFocusedTextEditAction('selectAll')) {
+          return { status: 'completed' as const };
+        }
         requireDeps().selectAllEntities();
         return { status: 'completed' as const };
       },
@@ -153,6 +157,17 @@ export const editorCommandsExtension: AppExtension = {
         // editor gateway; the current path is a bus-event handoff, and a
         // future consumer may not even need the router deps.
         (ctx.bus.emit as (topic: string, payload: unknown) => void)('preview:reload', {});
+        return { status: 'completed' as const };
+      },
+    }));
+
+    cleanups.push(registerCommand({
+      id: 'editor.restartPreview',
+      title: '重建预览运行时',
+      execute: () => {
+        const restart = requireDeps().restartPreview;
+        if (!restart) throw new Error('editor.restartPreview: host did not provide restartPreview');
+        restart();
         return { status: 'completed' as const };
       },
     }));

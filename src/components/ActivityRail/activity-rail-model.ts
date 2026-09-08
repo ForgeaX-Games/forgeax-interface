@@ -5,18 +5,19 @@ export type ActivityRailEntry = ActivityRegistration & { readonly owner: string 
 
 const CATEGORY_ORDER: readonly ActivityRailCategory[] = ['3D', '2D', 'general'];
 export const DEFAULT_PINNED_ACTIVITY_SLUGS = [
-  'wb-skill',
-  'wb-gen3d',
-  'wb-3d-lowpoly',
-  'wb-character',
-  'wb-items',
-  'wb-anim',
-  'wb-2d-scene-asset-generator',
-  'wb-ui',
-  'wb-narrative',
-  'wb-reel',
-  'wb-bgm',
-  'wb-scene-generator',
+  'skill',
+  'gen3d',
+  'scene-generator.3d-model',
+  'character',
+  'items',
+  'anim',
+  'scene-generator.2d-assets',
+  'ui',
+  'narrative',
+  'video-game',
+  'reel',
+  'bgm',
+  'scene-generator',
 ] as const;
 
 function contributionLocalId(id: string): string | undefined {
@@ -54,17 +55,26 @@ export function localizeActivityRailEntries(
   }));
 }
 
-function legacyAliases(activity: ActivityRailEntry): string[] {
+function ownerAliases(activity: ActivityRailEntry): string[] {
   const owner = ownerSlug(activity.owner);
-  const localId = contributionLocalId(activity.id);
   return [
-    activity.id,
     activity.owner,
     owner,
-    owner.replace(/^wb-/, ''),
+  ];
+}
+
+function localActivityAliases(activity: ActivityRailEntry): string[] {
+  const localId = contributionLocalId(activity.id);
+  const localIdWithoutLauncher = localId?.replace(/\.launcher$/, '');
+  return [
+    activity.id,
     localId,
-    localId?.replace(/^wb[:-]?/, ''),
+    localIdWithoutLauncher,
   ].filter((value): value is string => Boolean(value));
+}
+
+function legacyAliases(activity: ActivityRailEntry): string[] {
+  return [...localActivityAliases(activity), ...ownerAliases(activity)];
 }
 
 export function activityRailCategory(activity: ActivityRailEntry): ActivityRailCategory {
@@ -143,9 +153,14 @@ export function migrateLegacyPinnedActivityIds(
 ): string[] {
   const aliasToQualifiedId = new Map<string, string>();
   for (const activity of activities) {
-    for (const alias of legacyAliases(activity)) {
+    for (const alias of ownerAliases(activity)) {
       const normalized = alias.toLowerCase();
       if (!aliasToQualifiedId.has(normalized)) aliasToQualifiedId.set(normalized, activity.id);
+    }
+  }
+  for (const activity of activities) {
+    for (const alias of localActivityAliases(activity)) {
+      aliasToQualifiedId.set(alias.toLowerCase(), activity.id);
     }
   }
 
@@ -167,4 +182,14 @@ export function defaultPinnedActivityIds(
   activities: readonly ActivityRailEntry[],
 ): string[] {
   return migrateLegacyPinnedActivityIds(DEFAULT_PINNED_ACTIVITY_SLUGS, activities);
+}
+
+export function addDefaultPinnedActivity(
+  pinnedIds: readonly string[],
+  activities: readonly ActivityRailEntry[],
+  slug: string,
+): string[] {
+  const [qualifiedId] = migrateLegacyPinnedActivityIds([slug], activities);
+  if (!qualifiedId || pinnedIds.includes(qualifiedId)) return [...pinnedIds];
+  return [...pinnedIds, qualifiedId];
 }

@@ -281,8 +281,9 @@ fn set_pointer_capture(window: tauri::Window, capture: bool) {
 //
 // The webview is the SSOT for the menu bar (menu-registry.ts). The bridge
 // (native-menu-bridge.ts) calls `serializeMenusForNative(t)` there, then this
-// command turns the resulting JSON into a real native Menu and installs it via
-// `set_as_app_menu()`. Menu event dispatch happens in the webview too: a
+// command turns the resulting JSON into a real native Menu. macOS installs it
+// process-wide; Windows/Linux attach and show it on the main window. Menu event
+// dispatch happens in the webview too: a
 // global `on_menu_event` (registered in `run()` below) emits `menu:invoke` to
 // the "main" window with the clicked id; the webview looks it up in the
 // registry and calls `host.commands.execute(commandId, args)`. Rust owns no
@@ -377,10 +378,32 @@ fn set_app_menu(app: tauri::AppHandle, payload: Vec<NativeMenuJson>) -> Result<(
                 .join(","),
         ));
     }
-    menu.set_as_app_menu().map_err(|e| {
-        fx_trace_line(&format!("set_app_menu: set_as_app_menu FAILED {e}"));
-        e.to_string()
-    })?;
+    // macOS owns one process-wide menu in the system menu bar. Windows and
+    // Linux render menus inside each window, so attach the menu explicitly to
+    // the main window and force it visible. Relying on the app-wide fallback
+    // left packaged Windows builds with neither a native menu nor the web menu
+    // (MenuBar intentionally hides itself under Tauri).
+    #[cfg(target_os = "macos")]
+    {
+        menu.set_as_app_menu().map_err(|e| {
+            fx_trace_line(&format!("set_app_menu: set_as_app_menu FAILED {e}"));
+            e.to_string()
+        })?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let window = app
+            .get_webview_window("main")
+            .ok_or_else(|| "main webview window is unavailable".to_string())?;
+        window.set_menu(menu).map_err(|e| {
+            fx_trace_line(&format!("set_app_menu: main window set_menu FAILED {e}"));
+            e.to_string()
+        })?;
+        window.show_menu().map_err(|e| {
+            fx_trace_line(&format!("set_app_menu: main window show_menu FAILED {e}"));
+            e.to_string()
+        })?;
+    }
     fx_trace_line(&format!("set_app_menu: installed ok submenus={installed}"));
     Ok(())
 }

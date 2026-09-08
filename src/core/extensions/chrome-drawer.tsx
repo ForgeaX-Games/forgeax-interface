@@ -5,9 +5,8 @@
 // now real dockview panels that default into the footer-merged bottom EDGE
 // group (see panelRegistry.tsx + the built-in layouts' `edgeGroups.bottom`).
 //
-// This extension keeps the `app.drawer.*` command surface (callers like the
-// HealthIndicator chip toggle "Info" through it) but retargets it at the edge
-// drawer: the commands dispatch a `forgeax:edge-drawer` window event that
+// This extension keeps the `app.drawer.*` command surface but retargets it at
+// the edge drawer: the commands dispatch a `forgeax:edge-drawer` window event that
 // edgeDrawer.ts consumes to activate the panel + open/close its footer flyout.
 import type { AppExtension } from '../app-shell/types';
 

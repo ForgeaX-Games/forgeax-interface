@@ -3,5 +3,5 @@
 export {
   CapabilityRegistry,
   createCapabilityRegistry,
-} from '@forgeax/extension-platform';
-export type { CapabilityEventName } from '@forgeax/extension-platform';
+} from '@forgeax/extension-platform/platform';
+export type { CapabilityEventName } from '@forgeax/extension-platform/platform';

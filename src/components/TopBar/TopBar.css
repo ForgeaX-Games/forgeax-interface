@@ -201,7 +201,7 @@
  * `.mode-tab` had no focus-visible style before, so the new tablist nav
  * produced no pixel signal when Tab walked into the row. 2px white
  * outline matches `.ws-icon-btn:focus-visible` (P3.51) so the same family
- * of keyboard cues applies to the Sidebar WORKBENCH tab strip AND the
+ * of keyboard cues applies to the Sidebar extension tab strip AND the
  * TopBar mode tab strip. `.tb-center-kbd` mirrors `.ss-header-kbd`
  * (P3.51) and `.ss-footer-kbd` (P3.50) — three identical key-cap chips
  * across Sidebar header / Sidebar footer / TopBar center signal "←→
@@ -271,50 +271,10 @@
   border-color: rgba(180, 96, 0, 0.5);
 }
 
-/* P3.5 · Workbench mode-tab plugin count chip — same shape as .tb-bus-count
-   so the trio (Preview · Workbench · Bus) feels balanced. Color is amber
-   (跟 Sidebar WORKBENCH 区域 header 的色调一致 · 也是 P2.6a wb-* 卡的 hue)
-   而不是 green，避免跟 Bus chip 抢色 — player 扫一眼就能读出
-   "amber=workbench / green=bus / 同色系=插件计数 chip 这一类语言"。 */
-.tb-wb-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  padding: 1px 6px;
-  margin-left: 4px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  background: rgba(255, 176, 32, 0.16);
-  color: var(--color-status-warning-text);
-  border: 1px solid rgba(255, 176, 32, 0.34);
-}
-.tb-wb-count.is-down {
-  background: rgba(255, 95, 87, 0.22);
-  color: var(--accent-error);
-  border-color: rgba(255, 95, 87, 0.4);
-}
-/* When Workbench tab is active the primary-color fill is amber-ish, so the
-   chip needs to flip to a darker contrast variant like the Bus chip does. */
-.mode-tab.active .tb-wb-count {
-  background: rgba(10, 10, 10, 0.18);
-  color: var(--prim-color-neutral-950);
-  border-color: rgba(10, 10, 10, 0.28);
-}
-
-/* P3.7 · Preview mode-tab WS client count chip — same shape as
-   .tb-bus-count / .tb-wb-count so the trio (Preview · Workbench · Bus)
-   is balanced. Sky-blue palette (rgb(108,196,255) family) reuses the
+/* Preview WS client count chip. Sky-blue palette (rgb(108,196,255) family) reuses the
    blue we've already established for cli-provider plugins (P2.7d
    .cb-cli-bus-pill / Sidebar .ss-kind-chip.k-cli-provider), but here it
-   means "WS observers" — distinct from amber=workbench / green=bus so a
-   single scan of the TopBar shows three different signals in their own
-   color family. .is-down keeps the same red palette as .tb-bus-count.is-down
+   means "WS observers". .is-down keeps the same red palette as .tb-bus-count.is-down
    for visual consistency on server failure. */
 .tb-preview-count {
   display: inline-flex;
@@ -372,6 +332,20 @@
 }
 .tb-icon-btn:hover { background: var(--color-interaction-hover); color: var(--color-text-primary); }
 .tb-icon-btn.active { color: var(--color-text-primary); }
+
+/* ── 反馈入口(喇叭 icon + 文字),对齐 tb-game-btn 范式(需求 §1:图标+文字) ── */
+.tb-feedback-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px; cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--motion-duration-instant) var(--motion-ease-standard), color var(--motion-duration-instant) var(--motion-ease-standard);
+}
+.tb-feedback-btn:hover { background: var(--color-interaction-hover); color: var(--color-text-primary); }
 
 /* ── publish CTA (icon only, white background) ── */
 .tb-publish-btn {
@@ -572,7 +546,7 @@
 .tb-modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Game switcher dropdown ────────────────────────────────────────────── */
-/* z-index lifts the entire switcher's stacking context above Sidebar/Workbench
+/* z-index lifts the entire switcher's stacking context above Sidebar/extension
    panels that follow in DOM order — otherwise the dropdown's internal z-index:100
    is trapped inside this context and sibling .ss-active-label etc. paint on top. */
 .tb-game-switcher { position: relative; z-index: 50; }
@@ -718,7 +692,16 @@
 
 .settings-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
 .settings-row.edit { flex-wrap: wrap; }
-.settings-label { width: 180px; flex-shrink: 0; color: var(--text-secondary, rgba(255,255,255,0.65)); font-family: var(--font-mono); font-size: 10px; }
+.settings-label {
+  width: 180px;
+  flex-shrink: 0;
+  color: var(--text-secondary, rgba(255,255,255,0.65));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.settings-label--long { font-size: 8px; white-space: nowrap; }
 .settings-current { flex: 1; font-family: var(--font-mono); color: var(--text-primary); font-size: 11px; }
 .settings-empty { color: var(--text-muted, rgba(255,255,255,0.35)); font-style: italic; }
 .settings-edit-btn, .settings-save-btn, .settings-cancel-btn {
@@ -1362,6 +1345,20 @@
   max-width: 540px;
   color: var(--color-text-primary, #e0e0e0);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.tb-package-error {
+  max-width: min(760px, calc(100vw - 48px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 @keyframes tb-spin { to { transform: rotate(360deg); } }
 .tb-spinner { animation: tb-spin 1s linear infinite; }

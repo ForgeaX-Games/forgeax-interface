@@ -5,19 +5,23 @@ import {
   subscribeRecentGames,
   warmRecentGames,
 } from './recent-games';
-import { configureWorkbenchClient, type WorkbenchClient } from '../store-parts/workbench-client';
+import { configureStudioDomainClients, type StudioProjectClient } from '../store-parts/domain-clients';
 
 describe('recent games cache', () => {
   test('notifies the menu after async games arrive and sorts by mtime', async () => {
-    configureWorkbenchClient({
-      listGames: async () => ({
-        games: [
-          { slug: 'older', mtime: 10 },
-          { slug: 'newer', mtime: 20 },
-        ],
-        activeSlug: null,
-      }),
-    } as WorkbenchClient);
+    configureStudioDomainClients({
+      agents: null as never,
+      builds: null as never,
+      projects: {
+        listProjects: async () => ({
+          games: [
+            { slug: 'older', mtime: 10 },
+            { slug: 'newer', mtime: 20 },
+          ],
+          activeSlug: null,
+        }),
+      } as StudioProjectClient,
+    });
 
     const before = getRecentGamesRevision();
     let notifications = 0;

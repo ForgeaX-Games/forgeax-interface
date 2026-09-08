@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { History, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { t, useTranslation } from '@/i18n';
-import { useShellStore } from '../../store';
+import { tabLabel, useShellStore } from '../../store';
 import { confirmDialog } from '../../lib/dialog';
 import './TopBar.css';
 
@@ -89,8 +89,7 @@ export function SessionSwitcher() {
   };
 
   const activeTab = tabs.find((t) => t.sid === activeSid);
-  const activeLabel = activeTab?.displayName?.trim()
-    || (activeTab ? `session ${activeTab.sid.slice(0, 6)}` : t('common.loading'));
+  const activeLabel = activeTab ? tabLabel(activeTab) : t('common.loading');
 
   // Dropdown-only sort by最后对话时间 desc — keep store.tabs in its
   // original order (TabStrip / persisted activeSid still index by it).
@@ -146,7 +145,7 @@ export function SessionSwitcher() {
           )}
           {sortedTabs.map((tab) => {
             const isActive = tab.sid === activeSid;
-            const label = tab.displayName?.trim() || `session ${tab.sid.slice(0, 6)}`;
+            const label = tabLabel(tab);
             const rel = formatRelative(tab.lastActivityAt);
             const isBusy = Object.values(busyByAgentBySid[tab.sid] ?? {}).some(Boolean);
             return (

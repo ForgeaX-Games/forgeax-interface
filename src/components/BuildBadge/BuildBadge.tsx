@@ -14,13 +14,13 @@ import {
 // closed by default). This badge anchors itself fixed bottom-right of the
 // viewport so it is unconditionally visible on every page/mode, fetches
 // /api/extensions/list once on mount, and renders a compact pill with total
-// count + kind breakdown (workbench / cli-provider / agent / model /
+// count + kind breakdown (page / cli-provider / agent / model /
 // skill / tool / etc). All styles are inline so no CSS file (interface
 // dirty storm in full effect) is touched. New directory under src/components/
 // — no `M` or `??` collision per the don't-touch-player-untracked-dirs rule.
 
 interface KindBreakdown {
-  workbench: number;
+  pages: number;
   agent: number;
   cliProvider: number;
   model: number;
@@ -31,7 +31,7 @@ interface KindBreakdown {
 
 function tallyByKind(items: ExtensionListResponse['items']): KindBreakdown {
   const counts: KindBreakdown = {
-    workbench: 0,
+    pages: 0,
     agent: 0,
     cliProvider: 0,
     model: 0,
@@ -40,10 +40,8 @@ function tallyByKind(items: ExtensionListResponse['items']): KindBreakdown {
     other: 0,
   };
   for (const p of items) {
+    if ((p.contributes?.pages?.length ?? 0) > 0) counts.pages++;
     switch (p.kind) {
-      case 'workbench':
-        counts.workbench++;
-        break;
       case 'agent':
         counts.agent++;
         break;
@@ -73,7 +71,7 @@ type LoadState =
   | { status: 'error'; message: string };
 
 const KIND_ORDER: Array<{ key: string; label: string; match: (p: ExtensionInfo) => boolean }> = [
-  { key: 'workbench', label: 'workbench', match: (p) => p.kind === 'workbench' },
+  { key: 'pages', label: 'pages', match: (p) => (p.contributes?.pages?.length ?? 0) > 0 },
   { key: 'agent', label: 'agent', match: (p) => p.kind === 'agent' },
   { key: 'cli-provider', label: 'cli-provider', match: (p) => p.kind === 'cli-provider' },
   { key: 'model', label: 'model', match: (p) => p.kind === 'model' || p.kind === 'model-binding' },
@@ -204,7 +202,7 @@ export function BuildBadge() {
   } else {
     const k = state.kinds;
     const parts: string[] = [];
-    if (k.workbench) parts.push(`${k.workbench}wb`);
+    if (k.pages) parts.push(`${k.pages}pages`);
     if (k.agent) parts.push(`${k.agent}ag`);
     if (k.cliProvider) parts.push(`${k.cliProvider}cli`);
     if (k.model) parts.push(`${k.model}mdl`);
@@ -348,7 +346,7 @@ export function BuildBadge() {
                 const name = pickLang(p.displayName, locale, p.id);
                 const icon =
                   p.icon ??
-                  p.workbench?.icon ??
+                  p.contributes?.activities?.[0]?.icon ??
                   (p.kind === 'cli-provider' ? '⌘' : p.kind === 'agent' ? '◆' : '·');
                 const shortId = p.id.replace(/^@forgeax-plugin\//, '');
                 return (

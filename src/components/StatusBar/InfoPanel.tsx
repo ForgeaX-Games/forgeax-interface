@@ -1,10 +1,9 @@
 /**
  * InfoPanel — a Blender-INFO-editor-style log panel.
  *
- * Registered as the bottom-drawer 'info' panel (ADR-0030 §2.3, see
- * core/extensions/chrome-drawer.tsx): a launcher tab at the bottom expands it
- * upward. Content is the same health feed the bottom status HealthChip peeks
- * at, but full-height and with the affordances Blender's INFO editor has:
+ * Registered as the footer-merged bottom-edge 'info' panel (ADR-0030 §2.3, see
+ * core/extensions/chrome-drawer.tsx): its footer tab expands it upward. Content
+ * is the full health feed with the affordances Blender's INFO editor has:
  *
  *   - one row per entry: severity icon + time + source badge + message, newest
  *     at the bottom, auto-scrolled to the latest;

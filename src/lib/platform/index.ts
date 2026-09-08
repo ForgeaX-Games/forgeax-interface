@@ -10,11 +10,16 @@ export {
   type PlatformRuntime,
 } from './runtime';
 export { getShellAdapter, type ShellAdapter } from './shell-adapter';
+export { getWindowManager } from './window-manager';
 export {
-  getWindowManager,
+  getSurfaceWindowingController,
+  VIEWPORT_CARRIER_WILL_DETACH,
+} from './surface-windowing';
+export { useFloatingSurfaces } from './use-surface-windowing';
+export {
   type WindowManager,
   type DetachWindowOptions,
-} from './window-manager';
+} from '@forgeax/app-shell/window';
 export {
   type DetachedWindowCapability,
   type DetachedWindowTarget,
@@ -25,4 +30,9 @@ export {
   surfaceWindowLabel,
   encodeSurfaceQuery,
   decodeSurfaceFromLocation,
+} from '@forgeax/app-shell/window';
+export {
+  type DetachedViewportCarrierKind,
+  encodeSurfaceWindowQuery,
+  surfaceWindowUrl,
 } from './surface';

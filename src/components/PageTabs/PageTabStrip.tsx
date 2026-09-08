@@ -109,7 +109,14 @@ export function PageTabStrip(): ReactElement | null {
   const [, setDirtyTick] = useState(0);
 
   const { instances, activeKey } = snapshot;
-  const openableTypes = openablePageTypes(registry);
+  // The "+" menu lists types openable without a resource. Hide SINGLETON types
+  // that already have an open instance in this strip: reopening one only
+  // refocuses the existing tab, so it's a duplicate, dead option. Multi-instance
+  // types stay — opening another is a valid action.
+  const openTypeIds = new Set(instances.map((p) => p.typeId));
+  const openableTypes = openablePageTypes(registry).filter(
+    (pageType) => pageType.cardinality !== 'singleton' || !openTypeIds.has(pageType.id),
+  );
   const activityByPageType = new Map<string, (typeof activityCatalog.activities)[number]>();
   for (const activity of activityCatalog.activities) {
     if (activity.pageTypeId && !activityByPageType.has(activity.pageTypeId)) {
@@ -119,8 +126,7 @@ export function PageTabStrip(): ReactElement | null {
   const newPageItems: SearchableMenuItem[] = openableTypes.map((pageType) => ({
     id: pageType.id,
     label: pageType.title,
-    description: pageType.id,
-    keywords: [pageType.cardinality],
+    keywords: [pageType.id, pageType.cardinality],
     group: t('pageTabs.availableTypes'),
     icon: activityByPageType.has(pageType.id)
       ? lucideIconOrBox(activityByPageType.get(pageType.id)?.icon)
@@ -305,6 +311,7 @@ export function PageTabStrip(): ReactElement | null {
             ? t('pageTabs.noOpenableTypes')
             : t('pageTabs.noMatchingTypes')}
           items={newPageItems}
+          className="page-tab-new-menu"
           onSelect={(item) => {
             const pageType = openableTypes.find((candidate) => candidate.id === item.id);
             if (pageType) void host.pages.open({ typeId: pageType.id }).catch(() => {});

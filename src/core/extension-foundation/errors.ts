@@ -3,8 +3,8 @@
 export {
   ExtensionConflictError,
   ExtensionSetupError,
-} from '@forgeax/extension-platform';
+} from '@forgeax/extension-platform/platform';
 export type {
   ExtensionConflictErrorInfo,
   ExtensionSetupErrorInfo,
-} from '@forgeax/extension-platform';
+} from '@forgeax/extension-platform/platform';

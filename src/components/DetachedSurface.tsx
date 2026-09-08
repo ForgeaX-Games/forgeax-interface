@@ -12,7 +12,13 @@
  * the same backend (/api, /ws) — no cross-window state plumbing required.
  */
 import type { ReactElement } from 'react';
-import type { SurfaceDescriptor } from '../lib/platform';
+import {
+  DetachedSurfaceFrame,
+  DetachedSurfaceStatus,
+  SurfacePlaceholder,
+  SurfaceRegion,
+} from '@forgeax/app-shell/react';
+import type { SurfaceDescriptor } from '@forgeax/app-shell/window';
 import { useTranslation } from '@/i18n';
 import { useExtensionManifest } from '../lib/use-extension-manifest';
 import { StandaloneExtensionIframe } from './MainArea/StandaloneExtensionIframe';
@@ -63,7 +69,7 @@ function DetachedPanelSurface({ surface }: Props): ReactElement {
       );
       break;
     case 'agents':
-      // The standalone @forgeax/ai-workbench application injects detached.AgentsBrowser (R4).
+      // Studio injects detached.AgentsBrowser from the chat application.
       body = (
         <>
           {AgentsBrowser ? (
@@ -75,7 +81,7 @@ function DetachedPanelSurface({ surface }: Props): ReactElement {
       );
       break;
     case 'files':
-      // The standalone @forgeax/ai-workbench application injects detached.FilesBrowser (R4).
+      // Studio injects detached.FilesBrowser from the resource editor.
       body = (
         <>
           {FilesBrowser ? (
@@ -118,30 +124,36 @@ function DetachedPanelSurface({ surface }: Props): ReactElement {
             dockChrome: { singleTab: 'hideTitle' },
             ...viewportDescriptor,
             render: () => (
-              <div className="surface-region">
-                <FatalBanner source="edit" />
+              <SurfaceRegion overlay={<FatalBanner source="edit" />}>
                 {SceneEditor ? (
                   <div data-fx-slot="SceneEditor" style={{ display: 'contents' }}><SceneEditor /></div>
                 ) : (
                   <NoEditorBody />
                 )}
-              </div>
+              </SurfaceRegion>
             ),
           }}
         />
       );
       break;
-    default:
-      return (
-        <div style={fillCenter}>
-          <span style={{ color: '#888' }}>{t('detachedSurface.unknownPanel', { id: surface.id })}</span>
-        </div>
-      );
+    default: {
+      const editorPanelId = surface.id.startsWith('ep:') ? surface.id.slice(3) : null;
+      const editorPanel = editorPanelId ? renderers.panels?.[editorPanelId] : undefined;
+      if (!editorPanelId || !editorPanel) {
+        return (
+          <DetachedSurfaceFrame centered>
+            <DetachedSurfaceStatus>{t('detachedSurface.unknownPanel', { id: surface.id })}</DetachedSurfaceStatus>
+          </DetachedSurfaceFrame>
+        );
+      }
+      body = <PanelShell id={surface.id} panel={editorPanel} />;
+      break;
+    }
   }
   return (
-    <div className="fx-detached-surface fx-detached-panel main-area" style={fill}>
+    <DetachedSurfaceFrame panel>
       {body}
-    </div>
+    </DetachedSurfaceFrame>
   );
 }
 
@@ -151,38 +163,26 @@ function DetachedExtensionSurface({ surface }: Props): ReactElement {
 
   if (manifest === 'loading') {
     return (
-      <div style={fillCenter}>
-        <span style={{ color: '#888' }}>{t('detachedSurface.loadingExtension', { id: surface.id })}</span>
-      </div>
+      <DetachedSurfaceFrame centered>
+        <DetachedSurfaceStatus>{t('detachedSurface.loadingExtension', { id: surface.id })}</DetachedSurfaceStatus>
+      </DetachedSurfaceFrame>
     );
   }
   if (!manifest) {
     return (
-      <div style={fillCenter}>
-        <span style={{ color: '#c44' }}>{t('detachedSurface.extensionNotFound', { id: surface.id })}</span>
-      </div>
+      <DetachedSurfaceFrame centered>
+        <DetachedSurfaceStatus tone="error">{t('detachedSurface.extensionNotFound', { id: surface.id })}</DetachedSurfaceStatus>
+      </DetachedSurfaceFrame>
     );
   }
 
   return (
-    <div className="fx-detached-surface" style={fill}>
+    <DetachedSurfaceFrame>
       <StandaloneExtensionIframe plugin={manifest} pane={surface.pane} active />
-    </div>
+    </DetachedSurfaceFrame>
   );
 }
 
 function NoEditorBody(): ReactElement {
-  return (
-    <div className="surface-placeholder">
-      <div className="surface-placeholder-title">No editor configured</div>
-    </div>
-  );
+  return <SurfacePlaceholder title="No editor configured" />;
 }
-
-const fill: React.CSSProperties = { position: 'fixed', inset: 0 };
-const fillCenter: React.CSSProperties = {
-  ...fill,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};

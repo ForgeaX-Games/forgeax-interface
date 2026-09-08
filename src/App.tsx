@@ -13,6 +13,7 @@
 //   - triggering bootStageAppMounted() AFTER host boot completes
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { SlotDebugOverlay, isSlotDebugEnabled } from '@forgeax/app-shell/react';
 import { TopBar } from './components/TopBar/TopBar';
 import { GameDirectoryModalHost } from './components/TopBar/ProjectSwitcher';
 import { GameModalHost } from './components/TopBar/GameSwitcher';
@@ -28,7 +29,7 @@ import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { OnboardingController, ConnectModelPrompt } from './components/Onboarding';
 import { useOnboardingPhase } from './components/Onboarding/types';
 import { DialogHost } from './lib/dialog';
-import { SlotDebugOverlay, isSlotDebugEnabled } from './components/SlotDebugOverlay';
+import { PassiveFeedbackHost } from './components/Feedback/PassiveFeedback';
 import { bootStageAppMounted } from './boot/driver';
 import { useGlobalShortcuts } from './lib/global-shortcuts';
 import { useShellStore } from './store';
@@ -44,6 +45,14 @@ export interface AppProps {
    *  extensions here (ADR 0025 M1 — the sole assembly channel; the legacy
    *  `panelRenderers` escape hatch was removed once studio migrated). */
   overrides?: AppHostBootstrapOverrides;
+  /** Product-level onboarding policy; setup remains shared across assemblies. */
+  onboarding?: {
+    tourEnabled?: boolean;
+  };
+  /** Product chrome policy. Defaults preserve the shared Interface shell. */
+  chrome?: {
+    showSessionSwitcher?: boolean;
+  };
 }
 
 function KeyboardRouter({ host }: { host: AppHostBootstrapResult['host'] }): null {
@@ -51,7 +60,7 @@ function KeyboardRouter({ host }: { host: AppHostBootstrapResult['host'] }): nul
   return null;
 }
 
-export function App({ overrides }: AppProps = {}): React.ReactElement | null {
+export function App({ overrides, onboarding, chrome }: AppProps = {}): React.ReactElement | null {
   const { t } = useTranslation();
   const fullscreen         = useShellStore((s) => s.fullscreen);
   const sidebarCollapsed   = useShellStore((s) => s.sidebarCollapsed);
@@ -116,7 +125,7 @@ export function App({ overrides }: AppProps = {}): React.ReactElement | null {
         <KeyboardRouter host={host} />
         <PanelRenderersProvider value={renderers}>
           <div className="studio-shell studio-shell--preview-skin">
-            <OnboardingController />
+            <OnboardingController tourEnabled={onboarding?.tourEnabled} />
             <DialogHost />
           </div>
         </PanelRenderersProvider>
@@ -134,9 +143,10 @@ export function App({ overrides }: AppProps = {}): React.ReactElement | null {
           data-sidebar-collapsed={sidebarCollapsed ? '1' : undefined}
           data-chatpanel-collapsed={chatpanelCollapsed ? '1' : undefined}
         >
-          <OnboardingController />
+          <OnboardingController tourEnabled={onboarding?.tourEnabled} />
           <ConnectModelPrompt />
-          <TopBar />
+          <TopBar showSessionSwitcher={chrome?.showSessionSwitcher} />
+          <PassiveFeedbackHost />
           <div className="studio-body">
             {/* The page-tab strip governs the Layout area only (DockShell +
                 AuxBar), so it lives atop the main column and ends before the

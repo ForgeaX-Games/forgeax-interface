@@ -35,10 +35,15 @@ async function fetchOnce(providerId?: string | null, force = false): Promise<Mod
   const hit = cached.get(key);
   if (hit && !force) return hit;
   const current = inflight.get(key);
-  if (current) return current;
+  if (current) {
+    if (!force) return current;
+    // A key change must not reuse a response requested with the old key.
+    await current.catch(() => {});
+    return fetchOnce(providerId, true);
+  }
   const next = (async () => {
     try {
-      const payload = await listModelsWithMeta(providerId);
+      const payload = await listModelsWithMeta(providerId, force);
       cached.set(key, payload);
       for (const cb of subscriberSet(key)) cb(payload);
       return payload;

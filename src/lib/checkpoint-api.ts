@@ -52,8 +52,9 @@ async function post<T>(url: string, body: Record<string, unknown>): Promise<T> {
 
 export async function fetchCheckpoints(
   sid: string,
+  signal?: AbortSignal,
 ): Promise<{ checkpoints: CheckpointEntry[]; pending: PendingRewindInfo | null }> {
-  const r = await fetch(`/api/sessions/${encodeURIComponent(sid)}/checkpoints`);
+  const r = await fetch(`/api/sessions/${encodeURIComponent(sid)}/checkpoints`, { signal });
   if (!r.ok) throw new Error(`GET checkpoints ${r.status}`);
   return (await r.json()) as { checkpoints: CheckpointEntry[]; pending: PendingRewindInfo | null };
 }

@@ -1,8 +1,8 @@
 /**
- * Phase A3 — iframe-mounted workbench plugin.
+ * Phase A3 — iframe-mounted page plugin.
  *
  * Renders the plugin's standalone dev server inside an iframe and wires it to
- * the host RPC channel via `createExtensionPort` from `@forgeax/host-sdk`. This
+ * the host RPC channel via `createExtensionPort` from `@forgeax/extension-platform/transport`. This
  * is the new path that will eventually replace the import-tree-based
  * `MAINAREA_PLUGIN_LOADERS` map. Today (A3) it's gated behind the
  * `VITE_FX_USE_IFRAME=true` env flag and only kicks in when a plugin
@@ -24,7 +24,7 @@ import { getSessionClient } from '../../store-parts/session-client';
 import { ExtensionIframeHost } from '../ExtensionHost/ExtensionIframeHost';
 import { usePanelRenderers } from '../DockShell/panelRenderers';
 
-/** Split-surface pane (Doc 06 WORKBENCH-THREE-PANE-V2). The plugin's
+/** Split-surface extension Page pane. The extension's
  *  index.html reads `?pane=` and tags `<body data-pane=...>`; CSS hides the
  *  irrelevant regions so left/center can be embedded as sibling iframes that
  *  sync via same-origin BroadcastChannel. */
@@ -46,18 +46,20 @@ interface Props {
   reloadNonce?: number;
 }
 
-function buildIframeSrc(
+export function buildIframeSrc(
   plugin: ExtensionInfo,
   pane?: ExtensionIframePane,
   slug?: string | null,
 ): string | null {
   const sa = plugin.entry?.standalone;
-  if (!sa) return null;
+  if (!plugin.frontendUrl && !sa && !plugin.entry?.frontend) return null;
+  // Explicit host-validated dev URLs win. Existing embedded/proxy/port modes
+  // remain for installed extensions and never infer a Toolkit registration.
   // Four address modes:
   //   1. embeddedAlso=true — plugin ships a built dist served by the host at
   //      /extensions/<id>/. Prefer this when set: the studio doesn't launch the
   //      plugin's own dev server, and declared `port` may collide with other
-  //      services (e.g. wb-character's 15173 collides with the engine).
+  //      services (e.g. extension-character's 15173 collides with the engine).
   //   2. anydev/cloud proxy mode — keep the browser on Studio's HTTPS origin and
   //      let Vite proxy to the plugin's plain-HTTP dev server inside the container.
   //   3. plugin declares `port` — use http://<host>:<port>/<readyProbe?>
@@ -66,12 +68,13 @@ function buildIframeSrc(
   const encodedShortId = encodeURIComponent(shortId);
   const embeddedSrc = `/extensions/${encodedShortId}/`;
   let base: string;
-  if (sa.embeddedAlso === true) base = embeddedSrc;
+  if (plugin.frontendUrl) base = plugin.frontendUrl;
+  else if (plugin.entry?.frontend || sa?.embeddedAlso === true) base = embeddedSrc;
   else if (import.meta.env.VITE_FORGEAX_STANDALONE_PROXY === '1') {
-    const probe = sa.readyProbe ?? '/';
+    const probe = sa?.readyProbe ?? '/';
     const path = probe.startsWith('/') ? probe : `/${probe}`;
     base = `/__fx-plugin/${encodedShortId}${path}`;
-  } else if (typeof sa.port === 'number') {
+  } else if (typeof sa?.port === 'number') {
     const probe = sa.readyProbe ?? '/';
     const path = probe.startsWith('/') ? probe : `/${probe}`;
     // Match the parent page's protocol. When the Studio UI is served over HTTPS
@@ -81,7 +84,7 @@ function buildIframeSrc(
     // transparently when the parent is http.
     base = `${window.location.protocol}//${window.location.hostname}:${sa.port}${path}`;
   } else base = embeddedSrc;
-  // 多游戏：把当前 game slug 喂进 iframe URL，让 wb-scene 等"per-game data"
+  // 多游戏：把当前 game slug 喂进 iframe URL，让 extension-scene 等"per-game data"
   // 类型的插件能在自己空间里读出。其它插件忽略此参数即可。
   const params: string[] = [];
   if (pane) params.push(`pane=${encodeURIComponent(pane)}`);
@@ -91,12 +94,12 @@ function buildIframeSrc(
   return base + (base.includes('?') ? '&' : '?') + params.join('&');
 }
 
-/** localStorage key the host writes the cross-workbench handoff payload to.
- *  Same-origin so the target plugin iframe (e.g. wb-anim) can read it on boot
- *  + via the 'storage' event. Mirrored constant lives in wb-anim's bridge. */
+/** localStorage key the host writes the cross-page handoff payload to.
+ *  Same-origin so the target plugin iframe (e.g. extension-anim) can read it on boot
+ *  + via the 'storage' event. Mirrored constant lives in extension-anim's bridge. */
 const ANIM_HANDOFF_KEY = 'forgeax:anim-handoff';
 
-/** Resolve the target plugin's workbench tab id + flip the store so MainArea
+/** Resolve the target plugin's page tab id + flip the store so MainArea
  *  takes over with the target plugin. Writes the handoff payload (charId/role/
  *  slug) to localStorage first so the target iframe can pick it up. */
 function doNavigate(targetPluginId: string, payload?: Record<string, unknown>): void {
@@ -132,6 +135,17 @@ export function StandaloneExtensionIframe({ plugin, pane, active = true, reloadN
   const rawSrc = slugReady ? buildIframeSrc(plugin, pane, effectiveSlug) : null;
   const src = rawSrc ? rawSrc + (rawSrc.includes('?') ? '&' : '?') + `fxv=${encodeURIComponent(iframeCacheKey)}` : null;
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    console.info('[forgeax:dev-extension] iframe selection', {
+      extensionId: plugin.id,
+      runtimeMode: plugin.runtimeMode,
+      frontendUrl: plugin.frontendUrl,
+      allowedOrigin: plugin.allowedOrigin,
+      src,
+    });
+  }, [plugin.id, plugin.runtimeMode, plugin.frontendUrl, plugin.allowedOrigin, src]);
+
   const handleNavigate = useCallback((targetPluginId: string, payload?: Record<string, unknown>) => {
     doNavigate(targetPluginId, payload);
   }, []);
@@ -162,7 +176,7 @@ export function StandaloneExtensionIframe({ plugin, pane, active = true, reloadN
         body: JSON.stringify({
           toolId: call.toolId,
           args: call.args ?? {},
-          caller: { kind: 'workbench', agentId: plugin.id },
+          caller: { kind: 'extension', extensionId: plugin.id, instanceId: `standalone:${plugin.id}` },
         }),
       });
       const body = (await r.json()) as { ok: boolean; result?: unknown; error?: string };
@@ -194,6 +208,7 @@ export function StandaloneExtensionIframe({ plugin, pane, active = true, reloadN
       onChatPost={handleChatPost}
       onEditorAssetImport={editor?.importAssetSource}
       onToolCall={handleToolCall}
+      allowedOrigin={plugin.allowedOrigin}
       loadErrorText={(error) => t('standaloneExtension.iframeLoadFailed', { error })}
     />
   );

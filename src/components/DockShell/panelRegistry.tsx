@@ -25,20 +25,17 @@ import { usePanelRenderers } from './panelRenderers';
 import { DockPanelHost } from './DockPanelHost';
 import { withDockTitleRestore } from './dockTitle';
 import { t as panelT } from '../../i18n';
-import type { DetachedWindowCapability } from '../../lib/platform';
+import type { DetachedWindowCapability } from '@forgeax/app-shell/window';
+import { SurfacePlaceholder } from '@forgeax/app-shell/react';
 
-// Agents panel body — injected by studio from `@forgeax/ai-workbench`.
+// Agents panel body — injected by Studio from `@forgeax/chat`.
 // When absent (interface-alone / standalone editor) render a neutral placeholder
 // so the dock/pop-out slot stays valid. Exported so Sidebar can reuse the same
 // placeholder path (consistent UX between dock-panel and sidebar mount).
 export function AgentsPanelSlot(): ReactNode {
   const SidebarAgents = usePanelRenderers().slots?.SidebarAgents;
   if (SidebarAgents) return <div data-fx-slot="SidebarAgents" style={{ display: 'contents' }}><SidebarAgents /></div>;
-  return (
-    <div className="surface-placeholder">
-      <div className="surface-placeholder-title">No agents app configured</div>
-    </div>
-  );
+  return <SurfacePlaceholder title="No agents app configured" />;
 }
 
 export interface PanelDef {
@@ -89,8 +86,8 @@ export const CORE_PANELS: PanelDef[] = [
       <Sidebar />
     </div>
   ) },
-  // 'main' is the plugin-launcher / catalog panel (formerly titled 'Workbench',
-  // which was redundant with the top-level workbench tab strip). It renders MainArea.
+  // 'main' is the plugin-launcher / catalog panel (formerly titled 'Page',
+  // which was redundant with the top-level page tab strip). It renders MainArea.
   // Single-panel group → hide its dockview tab bar (like tools) so the in-panel
   // plugin header (CenterExtensionLayer) sits at the very top of the column.
   { id: 'main', title: 'Studio', group: 'core', windowing: panelWindowing('main', 'Studio'), render: () => (
@@ -171,7 +168,9 @@ function tourWrap(tourId: string | undefined, render: () => ReactNode): () => Re
 export const BASE_PANEL_COMPONENTS: Record<string, (props: IDockviewPanelProps) => ReactNode> =
   Object.fromEntries(ALL_PANELS.map((p) => [
     p.id,
-    withDockTitleRestore(withBoundary(`panel:${p.id}`, tourWrap(p.tourId, p.render))),
+    p.id === 'viewport'
+      ? withBoundary(`panel:${p.id}`, tourWrap(p.tourId, p.render))
+      : withDockTitleRestore(withBoundary(`panel:${p.id}`, tourWrap(p.tourId, p.render))),
   ]));
 
 /** Static titles for interface-owned panels only. */

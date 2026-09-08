@@ -2,9 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import {
   decodeSurfaceFromLocation,
   encodeSurfaceQuery,
-  encodeSurfaceWindowQuery,
   surfaceKey,
   surfaceWindowLabel,
+} from '@forgeax/app-shell/window';
+import {
+  encodeSurfaceWindowQuery,
   surfaceWindowUrl,
 } from './surface';
 
@@ -79,9 +81,17 @@ describe('detached surface carrier query', () => {
     expect(colonLabel).toBe(surfaceWindowLabel(colon));
     expect(colonLabel).not.toBe(surfaceWindowLabel(escapedLookalike));
     expect(colonLabel).toMatch(/^fx-surface-[A-Za-z0-9_-]+$/);
+    expect(surfaceKey({ kind: 'panel', id: 'chat' })).toBe('panel:chat');
     expect(surfaceWindowLabel({ kind: 'panel', id: 'chat' }))
       .toBe('fx-surface-cGFuZWw6Y2hhdA');
     const unicode = { kind: 'plugin' as const, id: '@demo/工具', instance: '页面：一' };
     expect(decodeWindowLabel(surfaceWindowLabel(unicode))).toBe(surfaceKey(unicode));
+  });
+
+  test('keeps the established empty-instance normalization', () => {
+    expect(encodeSurfaceQuery({ kind: 'panel', id: 'chat', instance: '' }))
+      .toBe('surface=panel&id=chat');
+    expect(decodeSurfaceFromLocation('?surface=panel&id=chat&instance='))
+      .toEqual({ kind: 'panel', id: 'chat', pane: undefined, instance: undefined });
   });
 });

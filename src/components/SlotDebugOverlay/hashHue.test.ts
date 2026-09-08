@@ -3,7 +3,7 @@ import { hashHue } from './hashHue';
 
 describe('hashHue', () => {
   it('returns an integer in [0, 360) for any string', () => {
-    for (const name of ['Edit', 'renderChat', 'DockShell', '', 'a', 'workbenchPanels:wb-plugin-author']) {
+    for (const name of ['Edit', 'renderChat', 'DockShell', '', 'a', 'extensionPanels:plugin-author']) {
       const h = hashHue(name);
       expect(Number.isInteger(h)).toBe(true);
       expect(h).toBeGreaterThanOrEqual(0);
@@ -20,10 +20,10 @@ describe('hashHue', () => {
     const names = [
       'SceneEditor', 'renderChat', 'Dashboard',
       'Settings', 'StatusFeeds', 'SidebarAgents',
-      'CornerAgentPicker', 'DockShell', 'StatusBar', 'WorkbenchSwitcher',
+      'CornerAgentPicker', 'DockShell', 'StatusBar', 'PageSwitcher',
       'MainAreaBody', 'AgentsBrowser', 'FilesBrowser',
       'renderEditorPanel:hierarchy', 'renderEditorPanel:assets',
-      'workbenchPanels:wb-plugin-author',
+      'extensionPanels:plugin-author',
     ];
     const hues = new Set(names.map(hashHue));
     // Allow up to 1 collision across 14 names; >2 means the hash is too clumpy.

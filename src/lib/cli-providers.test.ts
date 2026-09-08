@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { displayableKernelCapabilities, fetchCliProviders } from './cli-providers';
+import { displayableKernelCapabilities, fetchCliProviders, pendingCliProviders } from './cli-providers';
 
 const realFetch = globalThis.fetch;
 
@@ -36,5 +36,27 @@ describe('fetchCliProviders', () => {
       sessions: true,
       jsonlReplay: true,
     })).toEqual({ streaming: false, thinking: false, toolCalls: false });
+  });
+});
+
+describe('pending CLI catalog', () => {
+  test('shows known providers without starting detection or claiming availability', () => {
+    globalThis.fetch = (() => { throw new Error('catalog must be synchronous'); }) as typeof fetch;
+    const rows = pendingCliProviders();
+    expect(rows.find((p) => p.id === 'codex')?.displayName).toBe('OpenAI Codex');
+    expect(rows.find((p) => p.id === 'claude-code')?.displayName).toBe('the reference agent CLI');
+    expect(rows.every((p) => p.health.pending && !p.health.ok)).toBe(true);
+    expect(rows.every((p) => Object.keys(p.capabilities).length === 0)).toBe(true);
+    rows[0].health.ok = true;
+    expect(pendingCliProviders()[0].health.ok).toBe(false);
+  });
+
+  test('passes cancellation through to health detection', async () => {
+    const controller = new AbortController();
+    globalThis.fetch = (async (_url, options) => {
+      expect(options?.signal).toBe(controller.signal);
+      return new Response(JSON.stringify({ providers: [] }));
+    }) as typeof fetch;
+    await fetchCliProviders(false, controller.signal);
   });
 });

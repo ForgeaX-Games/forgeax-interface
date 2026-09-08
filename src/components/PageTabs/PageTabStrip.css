@@ -35,7 +35,7 @@
   display: none;
 }
 
-.page-tab {
+.page-tab-strip .page-tab {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -46,6 +46,8 @@
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: 7px 7px 0 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
@@ -197,6 +199,11 @@
 .page-tab-new .page-tab-btn__icon {
   width: 13px;
   height: 13px;
+}
+
+/* "+" new-page menu: title only, no type-id column. */
+.page-tab-new-menu.fx-searchable-menu {
+  width: 220px;
 }
 .page-tab-btn__icon {
   width: 12px;

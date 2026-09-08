@@ -17,7 +17,7 @@
 // single `applyModelRoute` that writes both consistently. No ghost field.
 
 import { useShellStore } from '../../store';
-import { getAgentModel, listModels, setAgentModels } from '../model-config';
+import { getAgentModel, listModels, setAgentModels, type ModelCatalogEntry } from '../model-config';
 import { getLastModel } from '../model-prefs';
 
 /** Closed union of model sources the UI can present + switch between. */
@@ -95,6 +95,33 @@ export async function applyModelRoute(source: ModelSource): Promise<void> {
 /** The catalog provider id currently in effect, derived from providerOverride. */
 export function currentCatalogProvider(providerOverride: string | null): string | null {
   return providerOverride && providerOverride !== 'forgeax' ? providerOverride : null;
+}
+
+/** Preserve the last explicit user pick when it still belongs to this catalog;
+ * otherwise use the provider's first visible/default entry. */
+export function preferredCatalogModel(
+  catalog: readonly ModelCatalogEntry[],
+  remembered: string | null,
+): string | undefined {
+  if (remembered && catalog.some((model) => model.id === remembered && !model.hidden)) {
+    return remembered;
+  }
+  return catalog.find((model) => !model.hidden)?.id ?? catalog[0]?.id;
+}
+
+/** Model seeding policy for a newly scaffolded session. Native sessions only
+ * override their scaffold default when the user has an applicable remembered
+ * pick; CLI sessions must always land on a model from that driver's catalog. */
+export function initialSessionCatalogModel(
+  catalog: readonly ModelCatalogEntry[],
+  catalogProviderId: string | null,
+  remembered: string | null,
+): string | undefined {
+  const rememberedEntry = remembered
+    ? catalog.find((model) => model.id === remembered && !model.hidden)
+    : undefined;
+  if (rememberedEntry) return rememberedEntry.id;
+  return catalogProviderId ? preferredCatalogModel(catalog, null) : undefined;
 }
 
 /**
@@ -188,8 +215,7 @@ export async function reconcileSessionModelToActiveProvider(
 
   // Mismatch — prefer this provider's last hand-picked model, else its default.
   const remembered = getLastModel(catalogProviderId);
-  const rememberedOk = !!remembered && catalog.some((m) => m.id === remembered && !m.hidden);
-  const next = rememberedOk ? remembered! : (catalog.find((m) => !m.hidden)?.id ?? catalog[0]?.id);
+  const next = preferredCatalogModel(catalog, remembered);
   if (!next) return null;
   try {
     await setAgentModels(sid, agentPath, [next]);

@@ -87,7 +87,9 @@ import {
 } from '../../lib/menu-registry';
 import { prettyCombo } from '../../lib/global-shortcuts';
 import { useMenubarSurface } from './menubar-surface';
+import { openMenuFromTriggerPointerDown } from './menubar-open-state';
 import { isTauri } from '../../lib/platform/runtime';
+import { captureFocusedTextEditTarget } from '../../lib/text-edit-actions';
 import {
   getRecentGamesRevision,
   subscribeRecentGames,
@@ -312,12 +314,14 @@ interface TopMenuProps {
    *  value so sibling hover can steal the open panel (UE-style). */
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Pointer-down claims ownership before Radix evaluates its controlled root. */
+  onTriggerPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => void;
   /** Pointer entered this trigger. The bar decides whether to switch the open
    *  panel here (only when some OTHER menu is already open). */
   onTriggerEnter: () => void;
 }
 
-function TopMenu({ menu, items, t, execute, open, onOpenChange, onTriggerEnter }: TopMenuProps) {
+export function TopMenu({ menu, items, t, execute, open, onOpenChange, onTriggerPointerDown, onTriggerEnter }: TopMenuProps) {
   const brand = useBrand();
   // The async warm completes after File has rendered. Subscribe so an
   // already-open recent submenu replaces its empty placeholder immediately.
@@ -339,6 +343,12 @@ function TopMenu({ menu, items, t, execute, open, onOpenChange, onTriggerEnter }
           type="button"
           className={isBrand ? 'fx-menubar-btn fx-menubar-btn--brand no-motion-lift' : 'fx-menubar-btn no-motion-lift'}
           data-menu={menu}
+          onPointerDown={(event) => {
+            if (menu === 'edit' || menu === 'select') {
+              captureFocusedTextEditTarget(event.currentTarget.ownerDocument);
+            }
+            onTriggerPointerDown(event);
+          }}
           onPointerEnter={onTriggerEnter}
         >
           {isBrand ? (
@@ -443,6 +453,13 @@ export function MenuBar() {
     [],
   );
 
+  const handleTriggerPointerDown = useCallback(
+    (menu: MenuId) => (event: React.PointerEvent<HTMLButtonElement>) => {
+      setOpenMenu((cur) => openMenuFromTriggerPointerDown(cur, menu, event.nativeEvent));
+    },
+    [],
+  );
+
   // Under Tauri the OS native menu is the SSOT for the whole menu bar (T5
   // bridge) — brand/app menu included — so the HTML bar renders nothing at all
   // (no brand chip, no dropdowns). The trailing divider goes with it.
@@ -461,6 +478,7 @@ export function MenuBar() {
             execute={executeFromClick}
             open={openMenu === 'brand'}
             onOpenChange={handleOpenChange('brand')}
+            onTriggerPointerDown={handleTriggerPointerDown('brand')}
             onTriggerEnter={handleTriggerEnter('brand')}
           />
         )}
@@ -473,6 +491,7 @@ export function MenuBar() {
             execute={executeFromClick}
             open={openMenu === m}
             onOpenChange={handleOpenChange(m)}
+            onTriggerPointerDown={handleTriggerPointerDown(m)}
             onTriggerEnter={handleTriggerEnter(m)}
           />
         ))}

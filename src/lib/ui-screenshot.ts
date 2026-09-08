@@ -60,10 +60,44 @@ function collectSameOriginCss(): string {
 }
 
 /** 克隆并去掉序列化无意义/有害的活性节点(script 不该出现在图里;其余空白节点保留占位)。 */
-function cloneForSerialization(el: HTMLElement): HTMLElement {
+function cloneForSerialization(el: HTMLElement, width: number, height: number): HTMLElement {
   const clone = el.cloneNode(true) as HTMLElement;
   for (const s of Array.from(clone.querySelectorAll('script'))) s.remove();
+  if (el === document.body) {
+    // A nested <body> is invalid XHTML and breaks the percentage-height chain
+    // used by the Studio shell. Replace it with an explicitly sized body-like
+    // root so shorter dock columns do not expose transparent bands.
+    const bodyRoot = document.createElement('div');
+    bodyRoot.className = clone.className;
+    for (const child of Array.from(clone.childNodes)) bodyRoot.appendChild(child);
+    const style = getComputedStyle(el);
+    Object.assign(bodyRoot.style, {
+      position: 'relative',
+      width: `${width}px`,
+      height: `${height}px`,
+      margin: '0',
+      padding: '0',
+      overflow: 'hidden',
+      color: style.color,
+      background: style.background,
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      lineHeight: style.lineHeight,
+    });
+    return bodyRoot;
+  }
   return clone;
+}
+
+function captureBackground(el: HTMLElement): string {
+  let current: HTMLElement | null = el;
+  while (current) {
+    const color = getComputedStyle(current).backgroundColor;
+    if (color && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)') return color;
+    current = current.parentElement;
+  }
+  const bodyColor = getComputedStyle(document.body).backgroundColor;
+  return bodyColor && bodyColor !== 'transparent' ? bodyColor : '#0d0d0d';
 }
 
 /** 栅格化图片加载超时:UI 侧必须先于编排层的通道超时(15s)给出确定答复。 */
@@ -103,7 +137,7 @@ export async function captureUiScreenshot(query: unknown): Promise<ScreenshotOk 
     const outH = Math.max(1, Math.round(h * scale));
 
     const css = collectSameOriginCss();
-    const xhtml = new XMLSerializer().serializeToString(cloneForSerialization(el));
+    const xhtml = new XMLSerializer().serializeToString(cloneForSerialization(el, w, h));
     const svg =
       `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
       `<foreignObject width="100%" height="100%">` +
@@ -116,7 +150,7 @@ export async function captureUiScreenshot(query: unknown): Promise<ScreenshotOk 
     canvas.height = outH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return { captured: false, reason: 'canvas 2d context unavailable', target };
-    ctx.fillStyle = '#ffffff'; // JPEG 无 alpha,先铺白底
+    ctx.fillStyle = captureBackground(el); // JPEG has no alpha; match the live surface instead of flashing white.
     ctx.fillRect(0, 0, outW, outH);
     ctx.drawImage(img, 0, 0, outW, outH);
 

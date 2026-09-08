@@ -6,17 +6,17 @@
 
 `@forgeax/interface` is the front end of ForgeaX Studio: the React + Vite app served at
 **`:18920`** and the Tauri 2 desktop shell that wraps it. It is where the whole experience comes
-together — conversation, a live engine preview, and the visual workbench — in one cohesive,
+together — conversation, a live engine preview, and the extension pages — in one cohesive,
 keyboard-driven workspace that talks to the runtime over HTTP / SSE / WebSocket.
 
 ## Why it matters
 
 - **Chat and result, side by side.** The right column is **Forge** (agent card, thought process,
   composer); the center is a **live engine preview iframe**; the left holds agent sessions,
-  workbench tools, and long-term memory. You describe a game and watch it appear — no context
+  installed extension tools, and long-term memory. You describe a game and watch it appear — no context
   switch between "talking to the AI" and "seeing the game."
 - **One UI, three views.** A top mode switcher flips the center pane between **Preview** (`⌘1`),
-  **Workbench** (`⌘2`), and **Bus** (`⌘3`) while the side columns stay put — so you move between
+  **Extensions** (`⌘2`), and **Bus** (`⌘3`) while the side columns stay put — so you move between
   playing, editing, and inspecting without losing your place.
 - **Web and desktop from one codebase.** The same React app runs in the browser and, via the
   `src-tauri/` Tauri 2 shell, as a native desktop application — no separate desktop UI to
@@ -39,9 +39,9 @@ panels · **Tailwind** · **lucide-react** icons · **Tauri 2** desktop.
 |:--|:--|
 | `main.tsx` / `App.tsx` | entry + the three-column shell |
 | `store.ts` (Zustand) | UI state: mode / active session / active agent |
-| `components/TopBar` | mode switcher (Preview / Workbench / Bus) |
-| `components/Sidebar` | agent sessions · workbench tools · long-term memory |
-| `components/MainArea` | the live preview iframe / workbench editor |
+| `components/TopBar` | mode switcher (Preview / Extensions / Bus) |
+| `components/Sidebar` | agent sessions · installed extension tools · long-term memory |
+| `components/MainArea` | the live preview iframe / extension page |
 | `components/ChatPanel` | Forge card · thought process · composer |
 | `app-kit.ts` | AppKit composition entry |
 | `brand/` · `i18n/` | brand-pack injection · bilingual UI |
@@ -61,9 +61,9 @@ bun dev            # web UI at http://localhost:18920
 bun tauri:dev      # native desktop window onto the same UI
 ```
 
-In normal use the studio's `start.sh` launches this for you (the server spawns it). Note: the
-sibling [`@forgeax/studio`](https://github.com/ForgeaX-Games/forgeax-studio) package is the
-product shell that composes this interface into the full studio served at `:18920`.
+In normal use the studio's `bun fx start` launches this for you. The independently versioned
+[`@forgeax/ide`](https://github.com/ForgeaX-Games/forgeax-ide) package selects the built-in apps
+and composes this interface into the full product served at `:18920`.
 
 ---
 

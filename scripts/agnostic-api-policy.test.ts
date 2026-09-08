@@ -50,14 +50,31 @@ describe("agnostic API policy", () => {
 
   test("confines the game template catalog to its centralized client", () => {
     expect(
-      validateApiCall("/api/game-templates", "src/lib/game-templates.ts"),
+      validateApiCall("/api/projects/templates", "src/lib/game-templates.ts"),
     ).toBeNull();
     expect(
       validateApiCall(
-        "/api/game-templates",
+        "/api/projects/templates",
         "src/components/TopBar/GameSwitcher.tsx",
       ),
     ).toContain("must be called from src/lib/game-templates.ts");
+  });
+
+  test("confines feedback routes to the feedback store", () => {
+    const source = "src/components/Feedback/store.ts";
+    expect(validateApiCall("/api/feedback", source)).toBeNull();
+    expect(
+      validateApiCall(
+        "/api/feedback/${encodeURIComponent(id)}/status",
+        source,
+      ),
+    ).toBeNull();
+    expect(
+      validateApiCall(
+        "/api/feedback",
+        "src/components/Feedback/FeedbackPanel.tsx",
+      ),
+    ).toContain("must be called from src/components/Feedback/store.ts");
   });
 
   test("allows the project version endpoints", () => {
@@ -73,5 +90,17 @@ describe("agnostic API policy", () => {
         "src/components/StatusBar/footer/ProjectVersionPopover.tsx",
       ),
     ).toBeNull();
+  });
+
+  test("rejects file preview reads and writes from the Interface foundation", () => {
+    expect(
+      validateApiCall(
+        "/api/files?path=${encodeURIComponent(path)}",
+        "src/components/Sidebar/FilesPanel.tsx",
+      ),
+    ).toContain("unallowlisted API endpoint");
+    expect(
+      validateApiCall("/api/files", "src/components/Sidebar/FilesPanel.tsx"),
+    ).toContain("unallowlisted API endpoint");
   });
 });

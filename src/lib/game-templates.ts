@@ -15,8 +15,12 @@ function isGameTemplate(value: unknown): value is GameTemplate {
 
 /** Read the engine-owned template catalog used by both onboarding and New Game. */
 export async function listGameTemplates(): Promise<GameTemplate[]> {
-  const response = await fetch('/api/game-templates');
+  const response = await fetch('/api/projects/templates');
   if (!response.ok) throw new Error(`listGameTemplates → HTTP ${response.status}`);
-  const body = (await response.json()) as { templates?: unknown };
-  return Array.isArray(body.templates) ? body.templates.filter(isGameTemplate) : [];
+  const body: unknown = await response.json();
+  if (typeof body !== 'object' || body === null
+    || !('templates' in body) || !Array.isArray(body.templates)) {
+    throw new Error('Invalid template catalog response');
+  }
+  return body.templates.filter(isGameTemplate);
 }

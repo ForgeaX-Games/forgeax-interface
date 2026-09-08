@@ -108,6 +108,11 @@ export function alertDialog(options: AlertOptions = {}): Promise<void> {
   })
 }
 
+export function __resetDialogQueueForTests(): void {
+  queue = []
+  emit()
+}
+
 export function unsavedChangesDialog(options: UnsavedChangesOptions = {}): Promise<UnsavedChangesDecision> {
   return new Promise<UnsavedChangesDecision>((resolve) => {
     queue.push({ id: ++seq, kind: 'unsaved', options, resolve })

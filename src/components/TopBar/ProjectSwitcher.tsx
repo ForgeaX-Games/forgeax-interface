@@ -5,7 +5,7 @@
 // project/game directory to the user.
 import { useState } from 'react';
 import { useTranslation } from '@/i18n';
-import { useShellStore } from '../../store';
+import { getStudioProjectClient, useShellStore } from '../../store';
 import { FsBrowser } from './FsBrowser';
 import './FsBrowser.css';
 import './TopBar.css';
@@ -27,13 +27,8 @@ function OpenGameDirectoryModal({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setErr(null);
     try {
-      const r = await fetch('/api/workbench/games/link', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path: absPath }),
-      });
-      const j = (await r.json()) as { ok?: boolean; error?: string; slug?: string };
-      if (!r.ok || !j.ok || !j.slug) throw new Error(j.error ?? `HTTP ${r.status}`);
+      const j = await getStudioProjectClient().linkProject(absPath);
+      if (!j.ok || !j.slug) throw new Error(j.error ?? 'Unable to link project');
       onClose();
       await setActiveGame(j.slug);
     } catch (e) {

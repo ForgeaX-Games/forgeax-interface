@@ -49,7 +49,9 @@
 
 
 .studio-shell--preview-skin .cp-thread {
-  padding: 74px 14px 14px;
+  /* Chat keeps its agent capsule mounted for controller state but hides the
+     old floating UI, so the preview skin must not recreate its top reserve. */
+  padding: 0 14px 14px;
 }
 
 .studio-shell--preview-skin .day-divider span {
@@ -98,6 +100,19 @@
   margin-top: 8px;
   overflow: visible;
 }
+.studio-shell--preview-skin .composer-bar.cb-at-menu-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.studio-shell--preview-skin .composer-bar .composer-toolbar-controls {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+}
 
 .studio-shell--preview-skin .composer-bar .cb-at,
 .studio-shell--preview-skin .composer-bar .cb-slash {
@@ -112,6 +127,15 @@
 .studio-shell--preview-skin .composer-bar .cb-at,
 .studio-shell--preview-skin .composer-bar .cb-slash {
   flex: 0 0 30px;
+}
+.studio-shell--preview-skin .composer-bar .cb-at.has-summon-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(148px, calc(100vw - 140px));
+}
+.studio-shell--preview-skin .composer-bar .cb-left-group.has-summon-chip {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .studio-shell--preview-skin .composer-bar .cb-mbsel,
@@ -132,7 +156,6 @@
   box-sizing: border-box;
 }
 
-.studio-shell--preview-skin .composer .cb-at-menu,
 .studio-shell--preview-skin .composer .cb-slash-menu {
   bottom: calc(100% + 8px);
   left: 0;

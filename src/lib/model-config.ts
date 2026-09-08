@@ -98,8 +98,8 @@ export interface ModelCatalogWithMeta {
 }
 
 /** listModels + driver 元数据透传(内核目录路径需要;见 CatalogDriverMeta)。 */
-export async function listModelsWithMeta(providerId?: string | null): Promise<ModelCatalogWithMeta> {
-  const args = providerId ? [providerId] : [];
+export async function listModelsWithMeta(providerId?: string | null, forceRefresh = false): Promise<ModelCatalogWithMeta> {
+  const args = forceRefresh ? [providerId ?? '', '--refresh'] : providerId ? [providerId] : [];
   const data = await callQuery<{ models: ModelCatalogEntry[]; driver?: CatalogDriverMeta }>("list_models", args);
   return { models: data.models ?? [], driver: data.driver };
 }

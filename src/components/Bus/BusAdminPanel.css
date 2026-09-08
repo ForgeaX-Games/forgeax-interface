@@ -1,5 +1,5 @@
 /* P2.6d — Bus admin panel styles. Lives in the MainArea slot so the panel
-   fills the same flex column the Preview/Workbench modes own (vertical
+   fills the same flex column the Preview/Page modes own (vertical
    scroll, no horizontal bleed). */
 
 .bus-admin {
@@ -148,7 +148,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ba-chip.k-workbench { background: rgba(212, 255, 72, 0.10); border-color: rgba(212, 255, 72, 0.32); color: var(--primary); }
+.ba-chip.k-extension { background: rgba(212, 255, 72, 0.10); border-color: rgba(212, 255, 72, 0.32); color: var(--primary); }
+.ba-chip.k-extension { background: rgba(212, 255, 72, 0.10); border-color: rgba(212, 255, 72, 0.32); color: var(--primary); }
 .ba-chip.k-agent { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: var(--color-role-orchestrator); }
 .ba-chip.k-cli-provider { background: rgba(108, 196, 255, 0.10); border-color: rgba(108, 196, 255, 0.34); color: var(--color-kind-cli-provider); }
 .ba-chip.k-model-binding { background: rgba(126, 231, 196, 0.10); border-color: rgba(126, 231, 196, 0.32); color: var(--accent-mint); }
@@ -164,7 +165,7 @@
  * same 6-glyph alphabet. Player can now scan either surface by
  * silhouette and the eye trains a single ▦/◆/⌘/◈/★/✦ → kind mapping.
  *
- *   workbench     ▦  panel/board
+ *   extension     ▦  panel/board
  *   agent         ◆  diamond
  *   cli-provider  ⌘  command / process
  *   model-binding ◈  containing diamond
@@ -182,7 +183,8 @@
   opacity: 0.8;
   font-weight: 600;
 }
-.ba-chip.k-workbench .ba-chip-name::before { content: '▦'; }
+.ba-chip.k-extension .ba-chip-name::before { content: '▦'; }
+.ba-chip.k-extension .ba-chip-name::before { content: '▦'; }
 .ba-chip.k-agent .ba-chip-name::before { content: '◆'; }
 .ba-chip.k-cli-provider .ba-chip-name::before { content: '⌘'; }
 .ba-chip.k-model-binding .ba-chip-name::before { content: '◈'; }
@@ -254,7 +256,8 @@
   color: var(--text-secondary, rgba(255, 255, 255, 0.7));
   font-family: var(--font-mono);
 }
-.ba-kind-tag.k-workbench { background: rgba(212, 255, 72, 0.12); color: var(--primary); }
+.ba-kind-tag.k-extension { background: rgba(212, 255, 72, 0.12); color: var(--primary); }
+.ba-kind-tag.k-extension { background: rgba(212, 255, 72, 0.12); color: var(--primary); }
 .ba-kind-tag.k-agent { background: rgba(168, 85, 247, 0.14); color: var(--color-role-orchestrator); }
 .ba-kind-tag.k-cli-provider { background: rgba(108, 196, 255, 0.12); color: var(--color-kind-cli-provider); }
 .ba-kind-tag.k-model-binding { background: rgba(126, 231, 196, 0.1); color: var(--accent-mint); }
@@ -271,7 +274,7 @@
  * reading every label. Glyphs are picked from Geometric Shapes /
  * Misc Symbols Unicode ranges for cross-platform monospace stability:
  *
- *   workbench     ▦  panel/board
+ *   extension     ▦  panel/board
  *   agent         ◆  diamond
  *   cli-provider  ⌘  command / process
  *   model-binding ◈  containing diamond
@@ -290,7 +293,8 @@
   opacity: 0.85;
   font-weight: 600;
 }
-.ba-kind-tag.k-workbench::before { content: '▦'; }
+.ba-kind-tag.k-extension::before { content: '▦'; }
+.ba-kind-tag.k-extension::before { content: '▦'; }
 .ba-kind-tag.k-agent::before { content: '◆'; }
 .ba-kind-tag.k-cli-provider::before { content: '⌘'; }
 .ba-kind-tag.k-model-binding::before { content: '◈'; }
@@ -311,7 +315,8 @@
  * descendant selector. Implemented as inset box-shadow (4px wide) instead
  * of border-left so the existing padding/layout is unchanged.
  */
-.ba-kind-head:has(.ba-kind-tag.k-workbench) { box-shadow: inset 4px 0 0 var(--primary); }
+.ba-kind-head:has(.ba-kind-tag.k-extension) { box-shadow: inset 4px 0 0 var(--primary); }
+.ba-kind-head:has(.ba-kind-tag.k-extension) { box-shadow: inset 4px 0 0 var(--primary); }
 .ba-kind-head:has(.ba-kind-tag.k-agent) { box-shadow: inset 4px 0 0 var(--color-role-orchestrator); }
 .ba-kind-head:has(.ba-kind-tag.k-cli-provider) { box-shadow: inset 4px 0 0 var(--color-kind-cli-provider); }
 .ba-kind-head:has(.ba-kind-tag.k-model-binding) { box-shadow: inset 4px 0 0 var(--accent-mint); }
@@ -452,16 +457,16 @@ button.ba-kind-tag.is-link:active {
   50% { opacity: 1; }
 }
 
-/* P4.33 — workbench section LED. Lives inside the workbench KindSection
+/* P4.33 — extension section LED. Lives inside the extension KindSection
    header (between .ba-kind-count and .ba-kind-desc) only. Driven by the
    parent BusAdminPanel polling /api/bus/ui/surfaces every 10s and joining
-   mounted plugin-layer wb ids against the workbench plugin list. Tone
-   classes mirror .ba-kind-prov-led shape but lean on the workbench tribe
-   color (lime #d4ff48 — same as .ba-kind-tag.k-workbench) so the section
+   mounted plugin-layer wb ids against the extension plugin list. Tone
+   classes mirror .ba-kind-prov-led shape but lean on the extension tribe
+   color (lime #d4ff48 — same as .ba-kind-tag.k-extension) so the section
    header reads as one visual unit. The pulse + warn/down/loading palette
    stays identical to .ba-kind-prov-led for keyboard muscle memory across
    sections. */
-.ba-kind-wb-led {
+.ba-kind-page-led {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -474,46 +479,46 @@ button.ba-kind-tag.is-link:active {
   background: rgba(255, 255, 255, 0.03);
   user-select: none;
 }
-.ba-kind-wb-dot {
+.ba-kind-page-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: rgba(180, 180, 180, 0.55);
   box-shadow: 0 0 0 0 transparent;
 }
-.ba-kind-wb-led.is-ok .ba-kind-wb-dot {
+.ba-kind-page-led.is-ok .ba-kind-page-dot {
   background: var(--primary);
   box-shadow: none;
 }
-.ba-kind-wb-led.is-ok {
+.ba-kind-page-led.is-ok {
   border-color: rgba(212, 255, 72, 0.38);
   color: rgba(228, 255, 168, 0.95);
 }
-.ba-kind-wb-led.is-warn .ba-kind-wb-dot {
+.ba-kind-page-led.is-warn .ba-kind-page-dot {
   background: var(--color-status-amber);
   box-shadow: none;
 }
-.ba-kind-wb-led.is-warn {
+.ba-kind-page-led.is-warn {
   border-color: rgba(245, 178, 67, 0.42);
   color: rgba(248, 213, 153, 0.95);
 }
-.ba-kind-wb-led.is-down .ba-kind-wb-dot {
+.ba-kind-page-led.is-down .ba-kind-page-dot {
   background: var(--accent-error);
   box-shadow: none;
 }
-.ba-kind-wb-led.is-down {
+.ba-kind-page-led.is-down {
   border-color: rgba(255, 107, 107, 0.42);
   color: rgba(255, 196, 196, 0.95);
 }
-.ba-kind-wb-led.is-loading .ba-kind-wb-dot {
-  animation: ba-kind-wb-pulse 1.2s ease-in-out infinite;
+.ba-kind-page-led.is-loading .ba-kind-page-dot {
+  animation: ba-kind-page-pulse 1.2s ease-in-out infinite;
 }
-.ba-kind-wb-count {
+.ba-kind-page-count {
   font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
-@keyframes ba-kind-wb-pulse {
+@keyframes ba-kind-page-pulse {
   0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
 }
@@ -521,7 +526,7 @@ button.ba-kind-tag.is-link:active {
 /* P4.34 — agent section LED. Lives inside the agent KindSection header
    (between .ba-kind-count and .ba-kind-desc) only. Driven by the parent
    BusAdminPanel polling listBusPlugins('agent') + dashApi.daemons.list()
-   every 10s. Tone classes mirror .ba-kind-prov-led / .ba-kind-wb-led shape
+   every 10s. Tone classes mirror .ba-kind-prov-led / .ba-kind-page-led shape
    but the ok state leans on the agent tribe color (violet #c4a3ff — same
    as .ba-kind-tag.k-agent / TabStrip .ts-agent-chip / TopBar tb-agent) so
    the section header reads as one violet visual unit. Warn / down / loading
@@ -723,7 +728,7 @@ button.ba-kind-tag.is-link:active {
 }
 
 /* P4.37 — tool section LED. Closes the BusAdminPanel section-LED grid at
-   6/6 (cli-provider P4.14 + workbench P4.33 + agent P4.34 + model-binding
+   6/6 (cli-provider P4.14 + extension P4.33 + agent P4.34 + model-binding
    P4.35 + skill P4.36 + tool P4.37). Same pill grammar as prior 5 LEDs;
    ok tone leans on the tool tribe color orange #ff8c42 identical to
    .ba-kind-tag.k-tool / .ba-chip.k-tool / cb-tl-strip (P3.84) so the
@@ -822,7 +827,7 @@ button.ba-kind-tag.is-link:active {
 
 /* P4.62 — bumped-version pill in BusAdminPanel rows.
    Extends the "purple = bumped past 0.0.x = real version" language from
-   WorkbenchMode (P4.58 tile chip / P4.59 strip pill / P4.60 corner ᵛ /
+   PageMode (P4.58 tile chip / P4.59 strip pill / P4.60 corner ᵛ /
    P4.61 tile frame) into the 6th surface — the Bus admin table itself.
    Reuses the #c4a3ff purple family verbatim (0.95 text / 0.10 bg / 0.42 border).
    Plain (non-bumped) rows get a neutral pill wrapper for vertical rhythm. */
@@ -841,7 +846,7 @@ button.ba-kind-tag.is-link:active {
 }
 /* P4.63 — row-level bumped accent. Promotes the P4.62 cell pill to row depth
    so a scan of the table catches the bumped manifest at a glance (no need to
-   read the version column). Mirrors WorkbenchMode P4.61's 2px inset left frame
+   read the version column). Mirrors PageMode P4.61's 2px inset left frame
    edge with the same #c4a3ff purple family. Composes with is-expanded — the
    cyan expanded bg is overridden when bumped, keeping the bumped frame the
    dominant identity signal (the chev still flips so expanded state remains
@@ -858,12 +863,12 @@ button.ba-kind-tag.is-link:active {
   background: rgba(196, 163, 255, 0.085);
   border-bottom-color: rgba(196, 163, 255, 0.32);
 }
-.ba-table .c-wb { width: 22%; }
+.ba-table .c-page { width: 22%; }
 .ba-table .c-flags { width: 8%; }
 
 /* P4.64 — column header semantic legend. Under the `version` th, a single-line
    subtitle spells out the 0.0.x = placeholder ↔ 0.1+ = bumped semantic that
-   P4.58–P4.63 painted purple across 6 surfaces (WorkbenchMode tile chip /
+   P4.58–P4.63 painted purple across 6 surfaces (PageMode tile chip /
    strip pill / corner ᵛ / tile frame + BusAdminPanel cell pill / row tint).
    Inline-block second line inside the th so the table header now has 2-axis
    density (label + meaning) — the player no longer has to remember what the
@@ -971,7 +976,7 @@ button.ba-kind-tag.is-link:active {
   align-self: flex-start;
 }
 /* P4.93 — entry.frontend pill (relative React panel path). Uses the lime
- * accent family (matches the agent tribe / workbench LED) so the player can
+ * accent family (matches the agent tribe / extension LED) so the player can
  * tell at a glance "this is the UI source", visually distinct from the cyan
  * manifest hint pill living in the sibling cell. */
 .ba-detail-entry {
@@ -980,7 +985,7 @@ button.ba-kind-tag.is-link:active {
   border: 1px solid rgba(212, 255, 72, 0.22);
 }
 /* P4.94 — when the entry.frontend pill is rendered as a deep-link <button>
- * (workbench rows), reset native button chrome and add hover/focus affordances
+ * (extension rows), reset native button chrome and add hover/focus affordances
  * so the player learns "this lime path is clickable" without breaking the
  * pill aesthetic. Underline on hover signals the deep-link semantic; bg/border
  * lift gives tactile feedback. Keeps the lime token, no new colors. */
@@ -1096,8 +1101,8 @@ button.ba-detail-version-link.copied {
 /* P3.33 — reverse deep-link button bar. Sky-blue family (matches the .ac-bus-pill
  * forward direction in Sidebar) so the round-trip reads as one consistent
  * navigation vocabulary. Two button variants share the same shell but vary by
- * which target kind is in scope: agent → highlight Sidebar card, workbench →
- * switch to Workbench mode and open that wb-* tab. */
+ * which target kind is in scope: agent → highlight Sidebar card, extension →
+ * switch to Page mode and open that * tab. */
 .ba-backlinks {
   display: flex;
   gap: 8px;
@@ -1217,22 +1222,22 @@ button.ba-detail-version-link.copied {
   overflow: hidden;
 }
 
-.ba-wb-info {
+.ba-page-info {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex-wrap: wrap;
 }
-.ba-wb-icon {
+.ba-page-icon {
   font-size: 14px;
   line-height: 1;
 }
-.ba-wb-id {
+.ba-page-id {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary, rgba(255, 255, 255, 0.7));
 }
-.ba-wb-pill {
+.ba-page-pill {
   font-size: 9px;
   padding: 1px 5px;
   border-radius: 3px;
@@ -1241,7 +1246,7 @@ button.ba-detail-version-link.copied {
   font-family: var(--font-mono);
   text-transform: lowercase;
 }
-.ba-wb-pill.warn {
+.ba-page-pill.warn {
   background: rgba(255, 140, 66, 0.12);
   color: var(--accent-orange);
 }
@@ -1277,7 +1282,7 @@ button.ba-detail-version-link.copied {
 }
 
 /* P2.6g — provides.{skills,tools,events,cliProvider} block inside the detail
-   row. Sits between .ba-detail-grid (kind/version/workbench cells) and
+   row. Sits between .ba-detail-grid (kind/version/extension cells) and
    .ba-detail-note (broken[] reminder). Color tokens reuse the existing kind
    palette so the player keeps the "6 kind = 6 color" muscle memory:
      - cliProvider → sky-blue (.k-cli-provider)
@@ -1703,7 +1708,7 @@ button.ba-detail-version-link.copied {
 }
 
 /* P3.58 — `↑↓` key-cap hint bar between the filter bar and the kind sections.
-   Seventh surface in the key-cap chip family (P3.50 footer / P3.51 WORKBENCH
+   Seventh surface in the key-cap chip family (P3.50 footer / P3.51 extension
    header / P3.53 TopBar mode-tab / P3.54 Dashboard nav / P3.55 ChatPanel
    TabStrip / P3.57 BusAdmin filter chips ←→ / this bar ↑↓). Sits as a thin
    row immediately above the kind sections so the keyboard contract is visible
@@ -2018,7 +2023,7 @@ button.ba-detail-version-link.copied {
    that kind in the filter (same semantics as ba-chip solo), repeat-click
    resets to "all on". Tones reuse the 4-state grammar already established by
    the section LEDs (loading / ok / warn / down) but the is-ok base color is
-   the **per-kind tribe color** (workbench lime · agent violet · cli-provider
+   the **per-kind tribe color** (extension lime · agent violet · cli-provider
    green · model-binding teal · skill gold · tool orange) so the dashboard
    reads as a rainbow strip when all 6 kinds are healthy and visually alarms
    amber/red when any kind degrades. `.is-soloed` adds a stronger bg + ring
@@ -2121,11 +2126,11 @@ button.ba-detail-version-link.copied {
 }
 
 /* is-ok per-kind tribe color — 6 variants */
-.ba-md-k-workbench.is-ok {
+.ba-md-k-extension.is-ok {
   border-color: rgba(212, 255, 72, 0.38);
   color: rgba(228, 255, 168, 0.95);
 }
-.ba-md-k-workbench.is-ok .ba-md-dot {
+.ba-md-k-extension.is-ok .ba-md-dot {
   background: var(--primary);
   box-shadow: none;
 }
@@ -2175,7 +2180,7 @@ button.ba-detail-version-link.copied {
   background: rgba(255, 255, 255, 0.07);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
-.ba-md-k-workbench.is-soloed {
+.ba-md-k-extension.is-soloed {
   background: rgba(212, 255, 72, 0.1);
   box-shadow: 0 0 0 1px rgba(212, 255, 72, 0.32);
 }
@@ -2205,7 +2210,7 @@ button.ba-detail-version-link.copied {
    (P4.38) and section-header LEDs (P4.14–P4.37), but compressed to a 5px round
    dot so the existing chip layout (6px gap, 10px label, count pill) keeps the
    same height + cap-line. Each kind paints its own tribe color on `is-ok`
-   (workbench lime · agent violet · cli-provider lime-green · model-binding
+   (extension lime · agent violet · cli-provider lime-green · model-binding
    teal · skill gold · tool orange) so the dashboard at the top and the chip
    row right below it light up the same color on the same 10s tick. */
 .ba-chip-dot {
@@ -2237,7 +2242,7 @@ button.ba-detail-version-link.copied {
 /* Per-kind tribe color when ok — matches `.ba-md-k-{kind}.is-ok` (P4.38) and
    `.ba-kind-{kind}-led.is-ok` (P4.14–P4.37) so the eye reads "same kind, same
    color" across all three Bus admin surfaces. */
-.ba-chip.k-workbench .ba-chip-dot.is-ok {
+.ba-chip.k-extension .ba-chip-dot.is-ok {
   background: var(--primary);
   box-shadow: none;
 }

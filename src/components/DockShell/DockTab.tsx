@@ -21,6 +21,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -32,6 +33,9 @@ import type { IDockviewDefaultTabProps } from 'dockview';
 import { barePanelId, iconForDockPanel } from '../../lib/panel-tab-icons';
 import { EDGE_PIN_CLASS, pinnedPanelIdIn, subscribeEdgePins } from './edgePinStore';
 import { useTranslation } from '@/i18n';
+import { useHealthStore } from '../StatusBar/healthStore';
+
+const EMPTY_HEALTH_ENTRIES = Object.freeze([]);
 
 /** Track the live tab title (dockview mutates it via `api.setTitle`). */
 function useTitle(api: IDockviewDefaultTabProps['api']): string | undefined {
@@ -61,6 +65,20 @@ function useDockTabName(api: IDockviewDefaultTabProps['api']): string | undefine
   const key = `dockShell.panelTitles.${barePanelId(api.id)}`;
   const localized = t(key);
   return localized !== key ? localized : stored;
+}
+
+function useInfoIssueCounts(panelId: string): { error: number; warn: number } | null {
+  const entries = useHealthStore((s) => (barePanelId(panelId) === 'info' ? s.entries : EMPTY_HEALTH_ENTRIES));
+  return useMemo(() => {
+    if (barePanelId(panelId) !== 'info') return null;
+    let error = 0;
+    let warn = 0;
+    for (const entry of entries) {
+      if (entry.level === 'error') error++;
+      else if (entry.level === 'warn') warn++;
+    }
+    return { error, warn };
+  }, [entries, panelId]);
 }
 
 /**
@@ -106,6 +124,7 @@ export function DockTab({
   ...rest
 }: IDockviewDefaultTabProps): ReactElement {
   const title = useDockTabName(api);
+  const infoIssueCounts = useInfoIssueCounts(api.id);
   const Icon = iconForDockPanel(api.id);
   const { isEdge, pinned } = useEdgePin(api);
   const isMiddleMouseButton = useRef(false);
@@ -171,7 +190,25 @@ export function DockTab({
       className="dv-default-tab"
     >
       <Icon className="fx-dock-tab-icon" size={14} aria-hidden />
-      <span className="dv-default-tab-content">{title}</span>
+      <span className="dv-default-tab-content">
+        <span className="fx-dock-tab-title">{title}</span>
+        {infoIssueCounts !== null && (infoIssueCounts.error > 0 || infoIssueCounts.warn > 0) && (
+          <span className="fx-info-tab-counts" aria-label={`${infoIssueCounts.error} errors, ${infoIssueCounts.warn} warnings`}>
+            {infoIssueCounts.error > 0 && (
+              <span className="fx-info-tab-count fx-info-tab-count--error">
+                <span className="fx-info-tab-count-icon" aria-hidden>✖</span>
+                <span className="fx-info-tab-count-value">{infoIssueCounts.error}</span>
+              </span>
+            )}
+            {infoIssueCounts.warn > 0 && (
+              <span className="fx-info-tab-count fx-info-tab-count--warn">
+                <span className="fx-info-tab-count-icon" aria-hidden>⚠</span>
+                <span className="fx-info-tab-count-value">{infoIssueCounts.warn}</span>
+              </span>
+            )}
+          </span>
+        )}
+      </span>
       {!hideClose &&
         (isEdge ? (
           // The toggle itself is driven by edgeDrawer's capture-phase click

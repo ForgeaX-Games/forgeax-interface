@@ -1,6 +1,12 @@
 import { buildReferenceFor, REFERENCE_LABEL, requestComposerInsert, type PillPayload } from '../../lib/composer-bridge';
 import { aiIntentsFor, intentPill, actionIntentPill } from '../../lib/ai-intents';
 import { t } from '@/i18n';
+import {
+  executeTextEditAction,
+  selectedText,
+  textEditTargetFrom,
+  type TextEditTarget,
+} from '../../lib/text-edit-actions';
 
 export type MenuItem =
   | { kind: 'item'; label: string; onClick: () => void; danger?: boolean; disabled?: boolean; icon?: string; shortcut?: string; forge?: boolean; children?: MenuItem[] }
@@ -16,11 +22,13 @@ const copy = (text: string) => {
 
 const textOf = (el: Element | null): string => (el?.textContent ?? '').trim();
 
-const isInput = (el: Element | null): el is HTMLInputElement | HTMLTextAreaElement =>
-  !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
-
-function buildInputMenu(input: HTMLInputElement | HTMLTextAreaElement, selection: string): MenuItem[] {
+function buildInputMenu(input: TextEditTarget, selection: string): MenuItem[] {
   const hasSel = selection.length > 0;
+  const execute = (action: 'cut' | 'copy' | 'paste' | 'selectAll'): void => {
+    void executeTextEditAction(action, input).catch((error: unknown) => {
+      console.warn(`[ContextMenu] ${action} failed`, error);
+    });
+  };
   return [
     {
       kind: 'item',
@@ -28,43 +36,20 @@ function buildInputMenu(input: HTMLInputElement | HTMLTextAreaElement, selection
       disabled: !hasSel,
       onClick: () => {
         if (!hasSel) return;
-        copy(selection);
-        const start = input.selectionStart ?? 0;
-        const end = input.selectionEnd ?? 0;
-        const v = input.value;
-        input.value = v.slice(0, start) + v.slice(end);
-        input.setSelectionRange(start, start);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
+        execute('cut');
       },
     },
-    { kind: 'item', label: t('contextMenu.copy'), disabled: !hasSel, onClick: () => copy(selection) },
+    { kind: 'item', label: t('contextMenu.copy'), disabled: !hasSel, onClick: () => execute('copy') },
     {
       kind: 'item',
       label: t('contextMenu.paste'),
-      onClick: async () => {
-        try {
-          const text = await navigator.clipboard.readText();
-          const start = input.selectionStart ?? input.value.length;
-          const end = input.selectionEnd ?? input.value.length;
-          const v = input.value;
-          input.value = v.slice(0, start) + text + v.slice(end);
-          const caret = start + text.length;
-          input.setSelectionRange(caret, caret);
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.focus();
-        } catch (err) {
-          console.warn('[ContextMenu] paste failed', err);
-        }
-      },
+      onClick: () => execute('paste'),
     },
     { kind: 'sep' },
     {
       kind: 'item',
       label: t('contextMenu.selectAll'),
-      onClick: () => {
-        input.focus();
-        input.setSelectionRange(0, input.value.length);
-      },
+      onClick: () => execute('selectAll'),
     },
   ];
 }
@@ -118,13 +103,10 @@ export function buildMenu(target: EventTarget | null, selection: string): MenuIt
   if (!(target instanceof Element)) return [];
 
   // 1) Native inputs — cut/copy/paste/select-all.
-  const inputEl = isInput(target) ? target : (target.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null);
+  const inputEl = textEditTargetFrom(target);
   if (inputEl) {
-    const selText =
-      typeof inputEl.selectionStart === 'number' && typeof inputEl.selectionEnd === 'number'
-        ? inputEl.value.slice(inputEl.selectionStart, inputEl.selectionEnd)
-        : '';
-    return buildInputMenu(inputEl, selText || selection);
+    const selText = selectedText(inputEl);
+    return buildInputMenu(inputEl, selText);
   }
 
   // 2) Code blocks — copy only.

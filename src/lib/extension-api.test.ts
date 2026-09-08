@@ -8,7 +8,7 @@
  * raised in DockShell's boot effect before the fix.
  */
 import { describe, it, expect, afterEach } from 'bun:test';
-import { extensionIdSlug, extensionManifestPathHint, listExtensions } from './extension-api';
+import { extensionIdSlug, extensionManifestSourceLabel, listExtensions } from './extension-api';
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -21,67 +21,66 @@ const mockFetch = (status: number, contentType: string, body: string) => {
 describe('listExtensions — no-bus degrade', () => {
   it('404 + json (--game game-backend) → empty list, no throw', async () => {
     mockFetch(404, 'application/json', JSON.stringify({ error: 'not found' }));
-    const res = await listExtensions('workbench');
-    expect(res).toEqual({ kind: 'workbench', count: 0, items: [] });
+    const res = await listExtensions('extension');
+    expect(res).toEqual({ kind: 'extension', count: 0, items: [] });
   });
 
   it('200 + html (no-game SPA fallback) → empty list, no throw', async () => {
     mockFetch(200, 'text/html', '<!doctype html><html></html>');
-    const res = await listExtensions('workbench');
-    expect(res).toEqual({ kind: 'workbench', count: 0, items: [] });
+    const res = await listExtensions('extension');
+    expect(res).toEqual({ kind: 'extension', count: 0, items: [] });
   });
 
   it('200 + json (real bus) → parsed payload', async () => {
-    const payload = { kind: 'workbench', count: 1, items: [{ id: 'p1' }] };
+    const payload = { kind: 'extension', count: 1, items: [{ id: 'p1' }] };
     mockFetch(200, 'application/json', JSON.stringify(payload));
-    const res = await listExtensions('workbench');
+    const res = await listExtensions('extension');
     expect(res).toEqual(payload);
   });
 
   it('200 + incomplete json → empty list, no throw', async () => {
     mockFetch(200, 'application/json', JSON.stringify({}));
-    const res = await listExtensions('workbench');
-    expect(res).toEqual({ kind: 'workbench', count: 0, items: [] });
+    const res = await listExtensions('extension');
+    expect(res).toEqual({ kind: 'extension', count: 0, items: [] });
   });
 });
 
 describe('extensionIdSlug — strip known package scopes', () => {
-  it('strips @forgeax-extension/, @forgeax-plugin/, and @forgeax/', () => {
-    expect(extensionIdSlug('@forgeax-extension/wb-reel')).toBe('wb-reel');
-    expect(extensionIdSlug('@forgeax-plugin/wb-observatory')).toBe('wb-observatory');
-    expect(extensionIdSlug('@forgeax/wb-game-video')).toBe('wb-game-video');
+  it('strips @forgeax-extension/ and @forgeax/', () => {
+    expect(extensionIdSlug('@forgeax-extension/reel')).toBe('reel');
+    expect(extensionIdSlug('@forgeax-extension/video-game')).toBe('video-game');
   });
 
   it('leaves bare slugs unchanged and does not mangle @forgeax-extension as @forgeax', () => {
-    expect(extensionIdSlug('wb-game-video')).toBe('wb-game-video');
-    expect(extensionIdSlug('@forgeax-extension/wb-reel')).not.toBe('extension/wb-reel');
+    expect(extensionIdSlug('video-game')).toBe('video-game');
+    expect(extensionIdSlug('@forgeax-extension/reel')).not.toBe('extension/reel');
   });
 });
 
-describe('extensionManifestPathHint — flat Marketplace path', () => {
-  it('maps @forgeax-extension/<slug> to packages/marketplace/extensions/<slug>/forgeax-extension.json', () => {
-    expect(extensionManifestPathHint('@forgeax-extension/wb-character')).toBe(
-      'packages/marketplace/extensions/wb-character/forgeax-extension.json',
-    );
+describe('extensionManifestSourceLabel — runtime source descriptor', () => {
+  it('labels product-selected packages without inventing a Marketplace source path', () => {
+    const label = extensionManifestSourceLabel({
+      id: '@forgeax-extension/character-3d',
+      version: '0.5.1',
+      source: { origin: 'npm', relativeManifestPath: 'character-3d/forgeax-extension.json' },
+    });
+
+    expect(label).toBe('npm:@forgeax-extension/character-3d@0.5.1/forgeax-extension.json');
+    expect(label).not.toContain('marketplace/extensions');
   });
 
-  it('maps legacy @forgeax-plugin/<slug> the same way (persisted / pre-rename ids)', () => {
-    expect(extensionManifestPathHint('@forgeax-plugin/wb-observatory')).toBe(
-      'packages/marketplace/extensions/wb-observatory/forgeax-extension.json',
-    );
+  it('keeps mutable origins explicit and browser-safe', () => {
+    expect(extensionManifestSourceLabel({
+      id: '@forgeax-extension/local',
+      version: '0.1.0',
+      source: { origin: 'project', relativeManifestPath: 'local/forgeax-extension.json' },
+    })).toBe('project:local/forgeax-extension.json');
   });
 
-  it('maps @forgeax/<slug> (arrival-style package scope) the same way', () => {
-    expect(extensionManifestPathHint('@forgeax/wb-game-video')).toBe(
-      'packages/marketplace/extensions/wb-game-video/forgeax-extension.json',
-    );
-  });
-
-  it('accepts a bare slug and stays flat (no kind bucket)', () => {
-    expect(extensionManifestPathHint('agent-iori')).toBe(
-      'packages/marketplace/extensions/agent-iori/forgeax-extension.json',
-    );
-    expect(extensionManifestPathHint('@forgeax-extension/wb-character')).not.toContain('/workbench/');
-    expect(extensionManifestPathHint('@forgeax-extension/wb-character')).not.toContain('manifest.json');
+  it('falls back to package identity when an older server omits source metadata', () => {
+    expect(extensionManifestSourceLabel({
+      id: '@forgeax-extension/legacy-client',
+      version: '0.1.0',
+    })).toBe('extension:@forgeax-extension/legacy-client@0.1.0');
   });
 });

@@ -1,7 +1,7 @@
 // P2.6d — Bus admin panel: full visibility into what the bus actually loaded.
 // Top-level mode, mounted by MainArea when store.mode === 'bus'. Lists every
 // plugin returned by GET /api/extensions/list, grouped by `kind`, with one row per
-// plugin: id / displayName.zh / version / workbench info (icon + panelSize +
+// plugin: id / displayName.zh / version / extension info (icon + panelSize +
 // position) when applicable, plus an experimental flag chip.
 //
 // P2.6e — adds a filter bar above the groups: one colored chip per kind (with
@@ -12,7 +12,7 @@
 // P2.6f — row click expands an inline detail panel: chevron column toggles
 // between ▸ (collapsed) and ▾ (expanded); expanded rows insert a colSpan row
 // below with full zh + en descriptions (no line-clamp), the canonical manifest
-// id rendered as plugins-dir hint, full workbench manifest dump, and a note
+// id rendered as plugins-dir hint, full extension manifest dump, and a note
 // about provides[]/broken[] still being P3 territory. Expanded ids persist
 // across filter/search changes so the player can "search → expand → narrow
 // further" without losing place.
@@ -31,7 +31,7 @@
 // lockstep every 10s; tone is ok (≥1 daemon running) / warn (registered
 // but 0 running) / down (registered = 0 or fetch failed) / loading. This
 // is the 3rd Bus admin section LED (after cli-provider P4.14 +
-// workbench P4.33), bringing section LED coverage to 3/5 kinds.
+// extension P4.33), bringing section LED coverage to 3/5 kinds.
 //
 // P3.21 — for the cli-provider KindSection only, render a sticky compact
 // capability matrix between the kind header and the table. 4 cli × 5
@@ -49,17 +49,17 @@
 // `.ba-head` title row (above `.ba-ui-surfaces` and `.ba-filterbar`) so the
 // player landing on ⌘3 Bus admin sees a one-row, zero-scroll snapshot of all
 // 6 bus kinds before any group rolls into view: 6 colored mini-LED pills
-// (workbench lime · agent violet · cli-provider sky-blue / amber when not all
+// (extension lime · agent violet · cli-provider sky-blue / amber when not all
 // ok · model-binding teal · skill gold · tool orange) each reading `<dot>
 // <KIND> <ok/total>`. Tones reuse the 6 section-LED snapshots already polled
-// at panel level (cliProv / wbSurfaces / agentSnap / mbSnap / skillSnap /
+// at panel level (cliProv / pageSurfaces / agentSnap / mbSnap / skillSnap /
 // toolSnap from P4.14/33/34/35/36/37) — no new endpoint, no extra poll, no
 // new store key. Click a pill → solo that kind (same semantics as ba-chip
 // solo: first click solos, repeat click resets to all); also fires
 // setPendingSidebarKindFlash(kind) so the Sidebar BUS KINDS chip flashes in
 // sympathy (P3.38 reverse-echo channel). Hover title surfaces the same
 // multi-line breakdown each section LED already exposes, so the player can
-// read "which workbench panels are mounted / which providers are healthy /
+// read "which extension panels are mounted / which providers are healthy /
 // which agent daemons are running / which skills/tools are experimental"
 // without scrolling to that section's header. Completes the BusAdminPanel
 // section-LED 6/6 collection (P4.14 → P4.37 across 23 phases) by giving
@@ -83,12 +83,12 @@
 // glyph swaps `↺ → ⤺` to signal "this click will UNDO that filter" rather
 // than just refresh. 0 server / 0 store / 0 marketplace changes · 0 new
 // endpoint · 0 new poll — fully derived from the 6 snapshots already at
-// panel scope (cliProv / wbSurfaces / agentSnap / mbSnap / skillSnap /
+// panel scope (cliProv / pageSurfaces / agentSnap / mbSnap / skillSnap /
 // toolSnap).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, type TFunction } from '@/i18n';
-import { extensionManifestPathHint, listExtensions, pickLang, type ExtensionInfo } from '../../lib/extension-api';
+import { extensionManifestSourceLabel, listExtensions, pickLang, type ExtensionInfo } from '../../lib/extension-api';
 import { dashApi, type ProviderHealth } from '../../lib/dashboard-api';
 import { useShellStore } from '../../store';
 import { emitDeepLink, useDeepLink } from '../../lib/deep-link-bus';
@@ -110,10 +110,10 @@ interface CliProvSnapshot {
   rows: ProviderHealth[];
 }
 
-// P4.33 — health roll-up for the **workbench** KindSection header LED.
-// Lives only inside the workbench section (kind === 'workbench'). Polls
+// P4.33 — health roll-up for the **extension** KindSection header LED.
+// Lives only inside the extension section (kind === 'extension'). Polls
 // /api/bus/ui/surfaces every 10s and counts plugin-layer surfaces whose
-// id starts with `${wb.id}.` for each workbench plugin in `group.items`.
+// id starts with `${wb.id}.` for each extension plugin in `group.items`.
 // Tone: ok (lime) when at least one wb panel is currently mounted (player
 // has visited that tab), warn (amber) when zero wb panels are mounted but
 // the registry has ≥1 plugin (typical lazy-load state — player hasn't
@@ -124,13 +124,13 @@ interface CliProvSnapshot {
 // hover title lists every wb plugin and a ✓ / · marker for whether its
 // panel surface is currently registered, so the player can see *which*
 // panels are live without leaving the section. Counts use the wb id
-// (not plugin id) so a future renaming of `@forgeax-plugin/wb-*` won't
+// (not plugin id) so a future renaming of `@forgeax-plugin/*` won't
 // break the mount join.
-interface WbSurfacesSnapshot {
+interface PageSurfacesSnapshot {
   tone: ProvHealthTone;
   mounted: number;
   total: number;
-  mountedWbIds: Set<string>;
+  mountedPageIds: Set<string>;
 }
 
 // P4.34 — health roll-up for the **agent** KindSection header LED. After the
@@ -155,7 +155,7 @@ interface AgentSnapshot {
 // color matching .ba-kind-tag.k-model-binding / .ba-chip.k-model-binding) when
 // ≥1 binding is live; warn (amber) when registered ≥1 but live = 0; down (red)
 // when fetch failed or registered = 0; loading on first paint. 4th of 5 Bus
-// admin section LEDs (after cli-provider P4.14 + workbench P4.33 + agent P4.34).
+// admin section LEDs (after cli-provider P4.14 + extension P4.33 + agent P4.34).
 interface ModelBindingSnapshot {
   tone: ProvHealthTone;
   registered: number;
@@ -192,7 +192,7 @@ const VENDOR_TO_PROVIDER: Record<string, string> = {
 // experimental; warn (amber) when ready < registered OR all are
 // experimental; down (red) when registered = 0 or fetch failure; loading
 // on first paint. 5th of 5 Bus admin section LEDs (cli-provider P4.14 +
-// workbench P4.33 + agent P4.34 + model-binding P4.35); leaves only `tool`
+// extension P4.33 + agent P4.34 + model-binding P4.35); leaves only `tool`
 // for the 5/5 → 6/6 collection ceiling (note `tool` slot in KIND_ORDER
 // brings total to 6).
 interface SkillSnapshot {
@@ -209,7 +209,7 @@ interface SkillSnapshot {
 }
 
 // P4.37 — health roll-up for the **tool** KindSection header LED. Closes the
-// BusAdminPanel section-LED collection at 6/6 (cli-provider P4.14 + workbench
+// BusAdminPanel section-LED collection at 6/6 (cli-provider P4.14 + extension
 // P4.33 + agent P4.34 + model-binding P4.35 + skill P4.36 + tool P4.37). Tool
 // plugins expose `tools: [{id, exposedToAI?}]` (in-process worker invocations
 // callable from agents) + an optional `events: [{name}]` array (event names
@@ -267,11 +267,11 @@ interface UiSurfaceListResponse {
   items: UiSurfaceRow[];
 }
 
-// Stable kind ordering — workbench first (the player's most-edited surface),
+// Stable kind ordering — extension first (the player's most-edited surface),
 // then agent (next most-touched), then everything else alphabetical. Unknown
 // kinds bucket to the end via the +1000 fallback.
 const KIND_ORDER: Record<string, number> = {
-  workbench: 10,
+  extension: 10,
   agent: 20,
   'cli-provider': 30,
   'model-binding': 40,
@@ -302,7 +302,7 @@ function groupByKind(items: ExtensionInfo[]): KindGroup[] {
 
 // P2.6e — substring match against id + displayName.zh + displayName.en. Case
 // insensitive, '' = match all. Keeps the table dense so the player can type
-// 'wb' to see workbenches, 'cli' to see cli-providers, 'anim' to jump to one.
+// 'wb' to see extensions, 'cli' to see cli-providers, 'anim' to jump to one.
 function matchesQuery(p: ExtensionInfo, q: string): boolean {
   if (!q) return true;
   const hay = [
@@ -347,16 +347,16 @@ export function BusAdminPanel() {
     total: 0,
     rows: [],
   });
-  // P4.33 — workbench section LED snapshot. Refilled by polling
+  // P4.33 — extension section LED snapshot. Refilled by polling
   // /api/bus/ui/surfaces every 10s; the `total` field is overlaid with the
-  // current `group.items.length` of the workbench section at render time, so
+  // current `group.items.length` of the extension section at render time, so
   // the header always reads `mounted/total` against the live registry rather
   // than a snapshot total taken once at fetch time.
-  const [wbSurfaces, setWbSurfaces] = useState<WbSurfacesSnapshot>({
+  const [pageSurfaces, setPageSurfaces] = useState<PageSurfacesSnapshot>({
     tone: 'loading',
     mounted: 0,
     total: 0,
-    mountedWbIds: new Set(),
+    mountedPageIds: new Set(),
   });
   // P4.34 — agent section LED snapshot. After daemon retirement, only the
   // registered plugin count drives this LED. Tone: ok (violet) when ≥1
@@ -501,10 +501,10 @@ export function BusAdminPanel() {
     };
   }, [refreshTs]);
 
-  // P4.33 — poll /api/bus/ui/surfaces for the workbench section LED. Counts
-  // plugin-layer surfaces (layer === 'plugin'); each surface id `<wbId>.<x>`
-  // contributes its `wbId` prefix. `mountedWbIds` is the join key against the
-  // workbench KindSection items array at render time. Tone classification
+  // P4.33 — poll /api/bus/ui/surfaces for the extension section LED. Counts
+  // plugin-layer surfaces (layer === 'plugin'); each surface id `<pageId>.<x>`
+  // contributes its `pageId` prefix. `mountedPageIds` is the join key against the
+  // extension KindSection items array at render time. Tone classification
   // happens in KindSection (needs the live total from `group.items.length`).
   useEffect(() => {
     let cancelled = false;
@@ -521,18 +521,18 @@ export function BusAdminPanel() {
         for (const s of body.items ?? []) {
           if (s.layer !== 'plugin') continue;
           const dot = s.id.indexOf('.');
-          const wbId = dot > 0 ? s.id.slice(0, dot) : s.id;
-          if (wbId) mounted.add(wbId);
+          const pageId = dot > 0 ? s.id.slice(0, dot) : s.id;
+          if (pageId) mounted.add(pageId);
         }
-        setWbSurfaces({
+        setPageSurfaces({
           tone: 'loading', // tone reclassified in KindSection vs live total
           mounted: mounted.size,
           total: 0,
-          mountedWbIds: mounted,
+          mountedPageIds: mounted,
         });
       } catch {
         if (!cancelled)
-          setWbSurfaces({ tone: 'down', mounted: 0, total: 0, mountedWbIds: new Set() });
+          setPageSurfaces({ tone: 'down', mounted: 0, total: 0, mountedPageIds: new Set() });
       }
     };
     void tick();
@@ -732,7 +732,7 @@ export function BusAdminPanel() {
     };
   }, [refreshTs]);
 
-  // P2.7f — apply deep-link request once items have loaded. Guard on items.length
+  // P2.7f — apply deep-link request once items have loaded.
   // so the expand attempt waits for the fetch to resolve (otherwise we'd open
   // an id that isn't in the table yet, and the scroll target ref wouldn't exist).
   useEffect(() => {
@@ -847,7 +847,7 @@ export function BusAdminPanel() {
     emitDeepLink('sidebar:flash-kind', kind);
     setEnabledKinds((prev) => {
       // First click from "all on" → solo that kind (most common UX: "show me
-      // just workbench"). Re-click solo'd kind → back to "all on".
+      // just extension"). Re-click solo'd kind → back to "all on".
       if (prev === null) return new Set([kind]);
       const next = new Set(prev);
       if (next.has(kind)) next.delete(kind);
@@ -869,23 +869,23 @@ export function BusAdminPanel() {
   // P4.39 — derive 4-state tone (loading / ok / warn / down) per kind at panel
   // scope so both the mini-dashboard (P4.38 ba-mini-dashboard) and the kind
   // filter chip row (`.ba-chip`) can read from one source of truth. Same logic
-  // the IIFE already uses for the mini-dashboard: workbench gets re-derived off
-  // mounted-vs-registered (panel-scope wbSurfaces.tone stays 'loading' by
+  // the IIFE already uses for the mini-dashboard: extension gets re-derived off
+  // mounted-vs-registered (panel-scope pageSurfaces.tone stays 'loading' by
   // design); the other five mirror their snapshot.tone directly. Players see
   // the chip dot + the dashboard LED light up in the same 10s tick.
   const kindTones: Record<string, ProvHealthTone> = (() => {
-    const wbRegistered =
-      allGroups.find((g) => g.kind === 'workbench')?.items.length ?? 0;
-    const wbTone: ProvHealthTone =
-      wbSurfaces.tone === 'down'
+    const pageRegistered =
+      allGroups.find((g) => g.kind === 'extension')?.items.length ?? 0;
+    const pageTone: ProvHealthTone =
+      pageSurfaces.tone === 'down'
         ? 'down'
-        : wbRegistered === 0
+        : pageRegistered === 0
           ? 'down'
-          : wbSurfaces.mounted >= 1
+          : pageSurfaces.mounted >= 1
             ? 'ok'
             : 'warn';
     return {
-      workbench: wbTone,
+      extension: pageTone,
       agent: agentSnap.tone,
       'cli-provider': cliProv.tone,
       'model-binding': mbSnap.tone,
@@ -895,7 +895,7 @@ export function BusAdminPanel() {
   })();
 
   return (
-    <div className="bus-admin">
+    <div className="bus-admin" data-presentation="full">
       <div className="ba-head">
         <div className="ba-title">
           <span className="ba-title-text">{t('bus.title')}</span>
@@ -918,9 +918,9 @@ export function BusAdminPanel() {
       {!loading && items.length > 0 && (() => {
         // P4.38 — mini-dashboard row. Builds one descriptor per kind reading
         // the 6 snapshots already populated at panel scope. Order matches
-        // KIND_ORDER (workbench → agent → cli-provider → model-binding →
+        // KIND_ORDER (extension → agent → cli-provider → model-binding →
         // skill → tool) so it lines up with the section sequence below.
-        // Workbench tone reclass — panel-level wbSurfaces.tone stays 'loading'
+        // Page tone reclass — panel-level pageSurfaces.tone stays 'loading'
         // by design (KindSection re-derives against live group total), so the
         // mini-dashboard recomputes here off mounted vs registered counts:
         //   fetch failed → down · registered=0 → down · mounted≥1 → ok ·
@@ -928,20 +928,20 @@ export function BusAdminPanel() {
         //   yet). Brief first-paint flash shows warn (mounted=0) before the
         //   first poll completes — acceptable, since the section LED has the
         //   same property.
-        const wbRegistered = allGroups.find((g) => g.kind === 'workbench')?.items.length ?? 0;
-        const wbTone: ProvHealthTone =
-          wbSurfaces.tone === 'down'
+        const pageRegistered = allGroups.find((g) => g.kind === 'extension')?.items.length ?? 0;
+        const pageTone: ProvHealthTone =
+          pageSurfaces.tone === 'down'
             ? 'down'
-            : wbRegistered === 0
+            : pageRegistered === 0
               ? 'down'
-              : wbSurfaces.mounted >= 1
+              : pageSurfaces.mounted >= 1
                 ? 'ok'
                 : 'warn';
-        const wbCount = `${wbSurfaces.mounted}/${Math.max(wbSurfaces.mounted, wbRegistered)}`;
-        const wbTitle =
-          wbTone === 'down' && wbSurfaces.tone === 'down'
-            ? 'Workbench — fetch failed (/api/bus/ui/surfaces)'
-            : `Workbench — ${wbSurfaces.mounted}/${Math.max(wbSurfaces.mounted, wbRegistered)} panels mounted · ${wbRegistered} registered · ${t('bus.mdFocusKind', { kind: 'workbench' })}`;
+        const pageCount = `${pageSurfaces.mounted}/${Math.max(pageSurfaces.mounted, pageRegistered)}`;
+        const pageTitle =
+          pageTone === 'down' && pageSurfaces.tone === 'down'
+            ? 'Page — fetch failed (/api/bus/ui/surfaces)'
+            : `Page — ${pageSurfaces.mounted}/${Math.max(pageSurfaces.mounted, pageRegistered)} panels mounted · ${pageRegistered} registered · ${t('bus.mdFocusKind', { kind: 'extension' })}`;
         const agentCount =
           agentSnap.tone === 'loading'
             ? '…'
@@ -981,7 +981,7 @@ export function BusAdminPanel() {
           title: string;
           aria: string;
         }> = [
-          { kind: 'workbench', label: 'WB', tone: wbTone, count: wbCount, title: wbTitle, aria: `Workbench ${wbSurfaces.mounted} of ${Math.max(wbSurfaces.mounted, wbRegistered)} panels mounted` },
+          { kind: 'extension', label: 'PAGE', tone: pageTone, count: pageCount, title: pageTitle, aria: `Page ${pageSurfaces.mounted} of ${Math.max(pageSurfaces.mounted, pageRegistered)} panels mounted` },
           { kind: 'agent', label: 'AGENT', tone: agentSnap.tone, count: agentCount, title: agentTitle, aria: `Agent ${agentSnap.registered} plugins registered` },
           { kind: 'cli-provider', label: 'PROV', tone: cliProv.tone, count: provCount, title: provTitle, aria: `CLI Providers ${cliProv.ok} of ${cliProv.total} healthy` },
           { kind: 'model-binding', label: 'MB', tone: mbSnap.tone, count: mbCount, title: mbTitle, aria: `Model Binding ${mbSnap.live} of ${mbSnap.registered} live` },
@@ -1308,7 +1308,7 @@ export function BusAdminPanel() {
             kind glyph alphabet
           </span>
           {[
-            { g: '▦', c: 'rgba(212,255,72,0.95)', n: 'workbench' },
+            { g: '▦', c: 'rgba(212,255,72,0.95)', n: 'extension' },
             { g: '◆', c: 'rgba(196,163,255,0.95)', n: 'agent' },
             { g: '⌘', c: 'rgba(125,211,252,0.95)', n: 'cli-provider' },
             { g: '◈', c: 'rgba(123,231,196,0.95)', n: 'model-binding' },
@@ -1346,7 +1346,7 @@ export function BusAdminPanel() {
             onSetFocusedRowId={setFocusedRowId}
             onMoveRowFocus={moveRowFocus}
             cliProv={cliProv}
-            wbSurfaces={wbSurfaces}
+            pageSurfaces={pageSurfaces}
             agentSnap={agentSnap}
             mbSnap={mbSnap}
             skillSnap={skillSnap}
@@ -1355,7 +1355,7 @@ export function BusAdminPanel() {
         ))}
       </div>
       <div className="ba-footnote">
-        {t('bus.footnoteSource')}<code>GET /api/extensions/list</code> · slim shape · provides.{'{'}workbench / modelBinding /
+        {t('bus.footnoteSource')}<code>GET /api/extensions/list</code> · slim shape · provides.{'{'}extension / modelBinding /
         skills / tools / events / cliProvider{'}'} {t('bus.footnoteExpanded')} · {t('bus.footnoteBroken')} ·
         {' '}{t('bus.footnoteRowHint')}
       </div>
@@ -1374,7 +1374,7 @@ interface KindSectionProps {
   onSetFocusedRowId: (id: string) => void;
   onMoveRowFocus: (currentId: string, key: string) => void;
   cliProv: CliProvSnapshot;
-  wbSurfaces: WbSurfacesSnapshot;
+  pageSurfaces: PageSurfacesSnapshot;
   agentSnap: AgentSnapshot;
   mbSnap: ModelBindingSnapshot;
   skillSnap: SkillSnapshot;
@@ -1392,17 +1392,13 @@ function KindSection({
   onSetFocusedRowId,
   onMoveRowFocus,
   cliProv,
-  wbSurfaces,
+  pageSurfaces,
   agentSnap,
   mbSnap,
   skillSnap,
   toolSnap,
 }: KindSectionProps) {
   const { t } = useTranslation();
-  // P4.14 — only the cli-provider section gets the health LED (only kind with
-  // a real health channel today). Hover title lists every provider's ok/down
-  // line so the player can see *why* a tone is amber without leaving the
-  // section. Mirrors PreviewMode pt-prov / TopBar tb-providers detail format.
   const showProvLed = group.kind === 'cli-provider';
   const provTitle = showProvLed
     ? cliProv.tone === 'loading'
@@ -1422,50 +1418,50 @@ function KindSection({
       ? '…/…'
       : `${cliProv.ok}/${cliProv.total} ok`
     : '';
-  // P4.33 — workbench section LED. Mirrors the cli-provider LED above but
-  // joins the polled /api/bus/ui/surfaces mountedWbIds set against the live
-  // workbench plugin list (`group.items`). The total `M` is always derived
+  // P4.33 — extension section LED. Mirrors the cli-provider LED above but
+  // joins the polled /api/bus/ui/surfaces mountedPageIds set against the live
+  // extension plugin list (`group.items`). The total `M` is always derived
   // from `group.items.length` so the LED count tracks live bus registry, not
   // the snapshot taken at fetch time. Tone: ok (lime) when ≥1 wb panel is
   // mounted, warn (amber) when 0 mounted with ≥1 registered, down (red)
   // when the fetch failed (state.tone === 'down'), loading otherwise.
-  const showWbLed = group.kind === 'workbench';
-  const wbTotal = showWbLed ? group.items.length : 0;
-  const wbMounted = showWbLed
+  const showPageLed = group.items.some((item) => (item.contributes?.pages?.length ?? 0) > 0);
+  const pageTotal = showPageLed ? group.items.length : 0;
+  const pageMounted = showPageLed
     ? group.items.reduce((n, p) => {
-        const wbId = p.workbench?.id;
-        return wbId && wbSurfaces.mountedWbIds.has(wbId) ? n + 1 : n;
+        const pageId = p.contributes?.pages?.[0]?.id;
+        return pageId && pageSurfaces.mountedPageIds.has(pageId) ? n + 1 : n;
       }, 0)
     : 0;
-  const wbTone: ProvHealthTone = !showWbLed
+  const pageTone: ProvHealthTone = !showPageLed
     ? 'loading'
-    : wbSurfaces.tone === 'down'
+    : pageSurfaces.tone === 'down'
       ? 'down'
-      : wbSurfaces.tone === 'loading' && wbSurfaces.mountedWbIds.size === 0
+      : pageSurfaces.tone === 'loading' && pageSurfaces.mountedPageIds.size === 0
         ? 'loading'
-        : wbMounted >= 1
+        : pageMounted >= 1
           ? 'ok'
-          : wbTotal > 0
+          : pageTotal > 0
             ? 'warn'
             : 'loading';
-  const wbTitle = showWbLed
-    ? wbTone === 'loading'
-      ? 'Workbench — checking /api/bus/ui/surfaces …'
-      : wbTone === 'down'
-        ? 'Workbench — /api/bus/ui/surfaces fetch failed'
+  const pageTitle = showPageLed
+    ? pageTone === 'loading'
+      ? 'Page — checking /api/bus/ui/surfaces …'
+      : pageTone === 'down'
+        ? 'Page — /api/bus/ui/surfaces fetch failed'
         : [
-            `Workbench — ${wbMounted}/${wbTotal} panel surfaces mounted`,
+            `Page — ${pageMounted}/${pageTotal} panel surfaces mounted`,
             ...group.items.map((p) => {
-              const wbId = p.workbench?.id ?? '?';
-              const live = wbSurfaces.mountedWbIds.has(wbId);
-              return `${live ? '✓' : '·'} ${wbId}  (${p.id})`;
+              const pageId = p.contributes?.pages?.[0]?.id ?? '?';
+              const live = pageSurfaces.mountedPageIds.has(pageId);
+              return `${live ? '✓' : '·'} ${pageId}  (${p.id})`;
             }),
           ].join('\n')
     : undefined;
-  const wbDisplay = showWbLed
-    ? wbTone === 'loading'
+  const pageDisplay = showPageLed
+    ? pageTone === 'loading'
       ? '…/…'
-      : `${wbMounted}/${wbTotal} mounted`
+      : `${pageMounted}/${pageTotal} mounted`
     : '';
   // P4.34 — agent section LED. After daemon retirement (R3), driven only by
   // listExtensions('agent') every 10s. Tone is `agentSnap.tone` (ok-violet
@@ -1608,14 +1604,14 @@ function KindSection({
             <span className="ba-kind-prov-count">{provDisplay}</span>
           </span>
         )}
-        {showWbLed && (
+        {showPageLed && (
           <span
-            className={`ba-kind-wb-led is-${wbTone}`}
-            title={wbTitle}
-            aria-label={`Workbench panels ${wbMounted} of ${wbTotal} mounted`}
+            className={`ba-kind-page-led is-${pageTone}`}
+            title={pageTitle}
+            aria-label={`Page panels ${pageMounted} of ${pageTotal} mounted`}
           >
-            <span className="ba-kind-wb-dot" aria-hidden />
-            <span className="ba-kind-wb-count">{wbDisplay}</span>
+            <span className="ba-kind-page-dot" aria-hidden />
+            <span className="ba-kind-page-count">{pageDisplay}</span>
           </span>
         )}
         {showAgentLed && (
@@ -1677,7 +1673,7 @@ function KindSection({
                 0.0.x · placeholder ↔ 0.1+ · <em>bumped</em>
               </span>
             </th>
-            <th className="c-wb">workbench</th>
+            <th className="c-page">extension</th>
             <th className="c-flags">flags</th>
           </tr>
         </thead>
@@ -1727,10 +1723,10 @@ function ExtensionRow({
   const nameZh = p.naming?.title || pickLang(p.displayName, 'zh', p.id);
   const descZh = pickLang(p.description, 'zh', '');
   const descEn = pickLang(p.description, 'en', '');
-  const wb = p.workbench;
+  const page = p.contributes?.pages?.[0];
   // P4.63 — lift the P4.62 cell-level verBumped derivation to row scope so the
   // bumped purple language can be expressed at row depth too (whole-row tint +
-  // left frame edge), giving Workbench tile-frame parity inside Bus admin.
+  // left frame edge), giving Page tile-frame parity inside Bus admin.
   const ver = p.version ?? '0.0.0';
   const verBumped = !/^0\.0\./.test(ver);
   const handleClick = () => {
@@ -1807,16 +1803,12 @@ function ExtensionRow({
             <span className="ba-ver-pill">{ver}</span>
           )}
         </td>
-        <td className="c-wb">
-          {wb ? (
-            <div className="ba-wb-info">
-              <span className="ba-wb-icon">{wb.icon ?? '·'}</span>
-              <span className="ba-wb-id">{wb.id}</span>
-              {wb.panelSize && <span className="ba-wb-pill">{wb.panelSize}</span>}
-              {typeof wb.position === 'number' && (
-                <span className="ba-wb-pill">pos {wb.position}</span>
-              )}
-              {wb.hidden && <span className="ba-wb-pill warn">hidden</span>}
+        <td className="c-page">
+          {page ? (
+            <div className="ba-page-info">
+              <span className="ba-page-icon">{page.icon ?? '·'}</span>
+              <span className="ba-page-id">{page.id}</span>
+              <span className="ba-page-pill">{page.cardinality}</span>
             </div>
           ) : (
             <span className="ba-dim">—</span>
@@ -1849,12 +1841,12 @@ function ExtensionDetail({
   onSoloKind: (kind: string) => void;
 }) {
   const { t } = useTranslation();
-  const wb = p.workbench;
+  const page = p.contributes?.pages?.[0];
   // P3.33 — reverse deep-link wiring. kind=agent rows offer "← 在 Sidebar 高亮"
   // (sets store.pendingSidebarFocusExtensionId → AgentsPanel scrolls + flashes the
-  // matching card). kind=workbench rows offer "← 打开 wb-* tab" (setMode
-  // Workbench rows open the extension-owned Page through the shell port.
-  // Together with P3.32's forward AgentsPanel pill + P2.7f's wb-tab "在 Bus
+  // matching card). kind=extension rows offer "← 打开 extension-* tab" (setMode
+  // Page rows open the extension-owned Page through the shell port.
+  // Together with P3.32's forward AgentsPanel pill + P2.7f's extension-tab "在 Bus
   // 详情查看 →" button, this completes the Sidebar ⇄ Bus admin round-trip.
   // R5/P2 — reverse deep-links now emit bus intents (their consumers —
   // AgentsPanel scroll / Sidebar kind-flash — were lost in R4 and are re-added
@@ -1864,8 +1856,7 @@ function ExtensionDetail({
     // Stay on the bus tab — Sidebar is always visible. Player sees flash in
     // the Sidebar without losing the BusAdminPanel context they came from.
   };
-  const onOpenWbTab = () => {
-    if (!wb) return;
+  const onOpenPage = () => {
     void openExtensionPage(p.id);
   };
   const onFlashKindFooter = () => {
@@ -1874,11 +1865,11 @@ function ExtensionDetail({
     // 1.5s pulse is visible in the player's peripheral vision (left edge).
   };
   const hasAgentLink = p.kind === 'agent';
-  const hasWbLink = p.kind === 'workbench' && !!wb;
-  const hasKindLink = !hasAgentLink && !hasWbLink;
-  // Flat built-in extension path hint from id — see extensionManifestPathHint (no kind bucket /
-  // PluginSourceDescriptor; those were reverted with the kind-layout experiment).
-  const manifestHint = extensionManifestPathHint(p.id);
+  const hasPageLink = (p.contributes?.pages?.length ?? 0) > 0;
+  const hasKindLink = !hasAgentLink && !hasPageLink;
+  // Runtime origin descriptor: npm package identity or a browser-safe mutable
+  // origin path. Never synthesize a Marketplace implementation path from id.
+  const manifestHint = extensionManifestSourceLabel(p);
   const extensionRootHint = manifestHint.replace(/\/forgeax-extension\.json$/, '');
   // P4.95 — manifest hint pill becomes click-to-copy. Parallel move to P4.94
   // (entry.frontend lime pill → deep-link button): the cyan manifest path was
@@ -2025,21 +2016,21 @@ function ExtensionDetail({
             >
               ui (frontend)
             </div>
-            {/* P4.94 — when the row is a workbench plugin (wb present), upgrade
+            {/* P4.94 — when the row is a extension plugin (wb present), upgrade
              * the lime entry.frontend pill from read-only <code> to a clickable
-             * deep-link <button> that reuses onOpenWbTab. This closes the loop
+             * deep-link <button> that reuses onOpenPage. This closes the loop
              * opened in P4.93: instead of just showing the player WHERE the
              * panel source lives, one click now actually navigates into the
-             * Workbench mode + opens that wb-* tab to see the panel rendered.
-             * Falls back to <code> for any non-workbench plugin that ever ends
+             * Page mode + opens that extension-* tab to see the panel rendered.
+             * Falls back to <code> for any non-extension plugin that ever ends
              * up exposing entry.frontend (slim policy strips them today, but
              * the policy could relax). */}
-            {wb ? (
+            {page ? (
               <button
                 type="button"
                 className="ba-detail-code ba-detail-entry ba-detail-entry-link"
-                onClick={(e) => { e.stopPropagation(); onOpenWbTab(); }}
-                title={t('bus.entryOpenWbTitle', { wbId: wb.id, path: `${extensionRootHint}/${p.entry.frontend.replace(/^\.\//, '')}` })}
+                onClick={(e) => { e.stopPropagation(); onOpenPage(); }}
+                title={t('bus.entryOpenPageTitle', { pageId: page.id, path: `${extensionRootHint}/${p.entry.frontend.replace(/^\.\//, '')}` })}
               >
                 {p.entry.frontend}
               </button>
@@ -2053,19 +2044,13 @@ function ExtensionDetail({
             )}
           </div>
         )}
-        {wb && (
+        {page && (
           <div className="ba-detail-cell ba-detail-cell-wide">
-            <div className="ba-detail-label">workbench manifest</div>
-            <div className="ba-wb-info">
-              <span className="ba-wb-icon">{wb.icon ?? '·'}</span>
-              <code className="ba-detail-code">{wb.id}</code>
-              {wb.panelSize && (
-                <span className="ba-wb-pill">panelSize={wb.panelSize}</span>
-              )}
-              {typeof wb.position === 'number' && (
-                <span className="ba-wb-pill">position={wb.position}</span>
-              )}
-              {wb.hidden && <span className="ba-wb-pill warn">hidden</span>}
+            <div className="ba-detail-label">page contribution</div>
+            <div className="ba-page-info">
+              <span className="ba-page-icon">{page.icon ?? '·'}</span>
+              <code className="ba-detail-code">{page.id}</code>
+              <span className="ba-page-pill">{page.cardinality}</span>
             </div>
           </div>
         )}
@@ -2082,14 +2067,14 @@ function ExtensionDetail({
             ← {t('bus.backlinkAgent')}
           </button>
         )}
-        {hasWbLink && (
+        {hasPageLink && (
           <button
             type="button"
-            className="ba-backlink ba-backlink-wb"
-            onClick={onOpenWbTab}
-            title={t('bus.backlinkWbTitle', { wbId: wb!.id })}
+            className="ba-backlink ba-backlink-page"
+            onClick={onOpenPage}
+            title={t('bus.backlinkPageTitle', { pageId: page?.id ?? p.id })}
           >
-            ← {t('bus.backlinkWb')}
+            ← {t('bus.backlinkPage')}
           </button>
         )}
         {hasKindLink && (
@@ -2114,7 +2099,7 @@ function ExtensionDetail({
 // P2.6g — render the slim provides.{skills,tools,events,cliProvider} subsets
 // the server projects (file paths + runner cmd/args + httpAdapter.auth all
 // stripped). Returns null when the plugin advertises none of these — keeps
-// the detail row visually identical for plugins where only workbench /
+// the detail row visually identical for plugins where only extension /
 // modelBinding apply (those have their own dedicated cells / strips upstream).
 function ProvidesDetail({ p }: { p: ExtensionInfo }) {
   const { t } = useTranslation();
@@ -2374,8 +2359,8 @@ function shortCliId(id: string): string {
 
 function kindDescription(kind: string, t: TFunction): string {
   switch (kind) {
-    case 'workbench':
-      return t('bus.kindDescWorkbench');
+    case 'extension':
+      return t('bus.kindDescExtension');
     case 'agent':
       return t('bus.kindDescAgent');
     case 'cli-provider':

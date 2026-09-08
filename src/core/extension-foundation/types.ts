@@ -5,9 +5,9 @@ export type {
   BusEvent,
   Cleanup,
   EventMap,
-  ExtensionManifest,
   Listener,
   ListenerErrorHandler,
   Middleware,
   SetupReturn,
-} from '@forgeax/extension-platform';
+} from '@forgeax/extension-platform/base';
+export type { ExtensionManifest } from '@forgeax/extension-platform/extensions';

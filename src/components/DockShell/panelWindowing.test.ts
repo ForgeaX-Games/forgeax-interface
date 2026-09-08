@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import type { DetachedWindowCapability } from '../../lib/platform';
+import { surfaceKey, type DetachedWindowCapability } from '@forgeax/app-shell/window';
 import {
   canOpenPanelWindow,
   detachedDockPanelForSurface,
+  injectedPanelDescriptorId,
   openPanelWindow,
   pageRuntimeOwnsPanel,
   resolvePanelWindowing,
@@ -89,7 +90,7 @@ describe('openPanelWindow', () => {
     const surface = { kind: 'plugin' as const, id: '@demo/tool', instance: 'page-a::main' };
     expect(shouldShowDetachedPlaceholder({ [encodeURIComponent('unrelated')]: true }, surface)).toBe(false);
     expect(shouldShowDetachedPlaceholder({
-      'plugin:@demo/tool:instance=page-a%3A%3Amain': true,
+      [surfaceKey(surface)]: true,
     }, surface)).toBe(true);
   });
 });
@@ -114,6 +115,11 @@ describe('resolvePanelWindowing', () => {
     }),
   };
 
+  it('maps Dockview ep:* placements to bare injected descriptor ids', () => {
+    expect(injectedPanelDescriptorId('ep:hierarchy')).toBe('hierarchy');
+    expect(injectedPanelDescriptorId('viewport')).toBe('viewport');
+  });
+
   it('uses BASE capability for a same-name viewport Page placement', () => {
     expect(resolvePanelWindowing('viewport', {
       basePanelIds: new Set(['viewport']),
@@ -132,13 +138,13 @@ describe('resolvePanelWindowing', () => {
     })).toBeUndefined();
   });
 
-  it('keeps ep:* dock-only regardless of Page or injected declarations', () => {
+  it('uses the injected editor descriptor capability for ep:* panels', () => {
     expect(resolvePanelWindowing('ep:inspector', {
       basePanelIds: new Set(),
       baseWindowing: {},
       pageWindowing: { 'ep:inspector': pageCapability },
       injectedWindowing: injectedCapability,
-    })).toBeUndefined();
+    })).toBe(injectedCapability);
   });
 
   it('uses an ordinary Page capability before an injected descriptor', () => {

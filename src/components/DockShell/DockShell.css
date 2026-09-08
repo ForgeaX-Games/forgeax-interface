@@ -62,6 +62,12 @@
   --dv-color-abyss-light:   var(--color-background-overlay, #1e1e22);
   --dv-color-abyss-lighter: var(--color-background-raised, #252529);
   --dv-color-abyss-accent:  var(--lime, #7ee04a);
+
+  /* Tab context menu base chrome — PageTabStrip DropdownMenu (bg-popover). */
+  --dv-context-menu-background-color: var(--color-background-elevated, #242424);
+  --dv-context-menu-color:            var(--color-text-secondary, rgba(255, 255, 255, 0.60));
+  --dv-floating-box-shadow:           0 4px 16px rgba(0, 0, 0, 0.45);
+  --dv-border-radius:                 var(--radius-md, 8px);
 }
 
 /* Dockview paints its root with the group color by default. Override only the
@@ -544,6 +550,78 @@
   flex: 0 0 auto;
 }
 
+:root {
+  /* Shared by the open-drawer group and the popover rule that must stay above
+     it — both live in the dock shell's stacking context. */
+  --fx-edge-drawer-z: 1000;
+}
+
+/* A keep-alive viewport is portalled outside dockview's stacking tree. While
+   an edge drawer owns foreground interaction, make the underlying surface
+   click-through so drawer controls cannot be intercepted by its canvas. */
+html.fx-edge-drawer-visible .fx-surface-keepalive-item {
+  pointer-events: none !important;
+}
+
+/* Body-level host for the open edge-drawer flyout (see edgeDrawer.ts). Sits
+   above the keep-alive viewport (z-index: 40) but below footer drop overlays
+   (100) and dock popovers (1000). Viewport stays visible underneath. */
+.fx-edge-drawer-portal-host {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+.fx-edge-drawer-portal-host > .fx-edge-drawer-grip {
+  pointer-events: auto;
+}
+
+/* Tab context menu — PageTabStrip DropdownMenu parity (lime hover + black text).
+   Scope under .fx-dockwrap (popover anchor lives on .dv-shell inside it).
+   CSS only; do NOT relocate .dv-popover-anchor (breaks edgeDrawer portal). */
+.fx-dockwrap .dv-context-menu {
+  min-width: 186px;
+  padding: 4px !important;
+  background-color: var(--color-background-elevated, #242424) !important;
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.60));
+  border: 1px solid var(--color-border-default, #404040);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+.fx-dockwrap .dv-context-menu-item {
+  height: auto;
+  min-height: 28px;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.60));
+}
+.fx-dockwrap .dv-context-menu-item .dv-svg,
+.fx-dockwrap .dv-context-menu-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.fx-dockwrap .dv-context-menu-item:not(.dv-context-menu-item--disabled):hover {
+  background-color: var(--color-brand-primary, #d4ff48) !important;
+  color: var(--color-text-on-bright-primary, #000000) !important;
+}
+.fx-dockwrap .dv-context-menu-item:not(.dv-context-menu-item--disabled):hover .dv-svg,
+.fx-dockwrap .dv-context-menu-item:not(.dv-context-menu-item--disabled):hover svg {
+  color: var(--color-text-on-bright-primary, #000000);
+  fill: currentcolor;
+}
+.fx-dockwrap .dv-context-menu-item.dv-context-menu-item--disabled {
+  opacity: 0.5;
+}
+.fx-dockwrap .dv-context-menu-separator {
+  height: 1px;
+  margin: 4px;
+  background: var(--color-divider-subtle, rgba(255, 255, 255, 0.05));
+}
+
 /* ── Edge-group DRAWER overlay (see edgeDrawer.ts) ───────────────────────────
    dockview keeps the edge group permanently collapsed (its splitview cell stays
    at collapsedSize, so the grid NEVER shifts). When edgeDrawer.ts marks the
@@ -562,10 +640,22 @@
      dockview's sash/drop layers are siblings and otherwise win hit-testing on
      the 1px boundary between the drawer and the underlying panel. */
   position: relative;
-  z-index: 1000 !important;
+  z-index: var(--fx-edge-drawer-z) !important;
 }
 
-.dv-groupview-edge.fx-edge-drawer-open > .dv-content-container {
+/* dockview mounts tab context menus (and the tab-overflow dropdown) into a
+   `.dv-popover-anchor` that is a SIBLING of the edge group, with an INLINE
+   `z-index: var(--dv-overlay-z-index)` = 999. An open drawer raises its group
+   past that, so right-clicking an edge tab built the menu but painted it
+   behind the flyout — the menu looked gone while the drawer was open, and
+   worked while it was closed. A popover is always the topmost dock chrome;
+   `!important` is what it takes to beat dockview's inline z-index. */
+.dv-popover-anchor > * {
+  z-index: calc(var(--fx-edge-drawer-z) + 1) !important;
+}
+
+.dv-groupview-edge.fx-edge-drawer-open > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container {
   /* UE-style: the flyout is INSET on its cross axis (the axis parallel to the
      strip) so its far edges never sit flush on the shell's layout separators —
      a full-height/width overlay reads as "no panel" because its border merges
@@ -613,7 +703,8 @@
   to   { clip-path: inset(0 0 0 0);    opacity: 1; }
 }
 /* Left strip → flyout to the right; right strip → flyout to the left. */
-.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-open > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-open > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-left {
   /* Own the shared boundary while the drawer is open. The small overlap keeps
      the underlying split sash from winning when the pointer lands exactly on
      the panel border. */
@@ -622,41 +713,50 @@
   /* keep the full border; only cast the shadow AWAY from the strip (rightward). */
   box-shadow: 4px 0 12px rgba(0, 0, 0, 0.30), 1px 0 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-animating > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-animating > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-left.fx-edge-drawer-animating {
   animation: fx-edge-drawer-in-left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-open > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-open > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-right {
   right: calc(var(--fx-edge-drawer-right) - 3px);
   width: calc(var(--fx-edge-drawer-width, 300px) + 3px);
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.30), -1px 0 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-animating > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-animating > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-right.fx-edge-drawer-animating {
   animation: fx-edge-drawer-in-right 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* Top/bottom strips → full-width flyout dropping down / rising up. */
 .dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open > .dv-content-container,
-.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-top,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-bottom {
   /* top/bottom strips: cross axis = horizontal → inset left + right, and reset
      the vertical inset the base rule applied for left/right strips. */
   left: calc(var(--fx-edge-strip-left) + var(--fx-edge-drawer-inset));
   width: calc(var(--fx-edge-strip-width) - 2 * var(--fx-edge-drawer-inset));
   height: var(--fx-edge-drawer-height, 300px);
 }
-.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-top {
   top: calc(var(--fx-edge-drawer-top) - 3px);
   height: calc(var(--fx-edge-drawer-height, 300px) + 3px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-animating > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-animating > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-top.fx-edge-drawer-animating {
   animation: fx-edge-drawer-in-top 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-bottom {
   top: auto;
   bottom: calc(var(--fx-edge-drawer-bottom) - 3px);
   height: calc(var(--fx-edge-drawer-height, 300px) + 3px);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.30), 0 -1px 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-animating > .dv-content-container {
+.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-animating > .dv-content-container,
+.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-bottom.fx-edge-drawer-animating {
   animation: fx-edge-drawer-in-bottom 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* Our self-drawn resize grip (edgeDrawer.ts positions it inline via `fixed`).
@@ -712,8 +812,47 @@
 /* ChatDock — the fixed-width chat column right of the ActivityRail. Same
    fixed-basis override as AuxBar so the inline width from useChatWidth wins
    instead of splitting space with DockShell (which keeps .fx-dockwrap's
-   flex:1). Left border restores the separator the old .studio-chat-col drew. */
-.fx-dockregion-ChatDock { flex: 0 0 auto; position: relative; border-left: 1px solid var(--color-border-default); }
+   flex:1). Separation from the rail comes from the rail's 6px canvas gutter;
+   overflow:hidden is structural: the outer width pushes the editor while
+   clipping a full-width inner dock so chat cards never reflow through unusably
+   narrow intermediate states. */
+.fx-dockregion-ChatDock {
+  flex: 0 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+/* Collapse is a shell visibility flag, not a width mutation: preserve the
+   last drag-restored width in the store so expanding returns to the same size. */
+.studio-shell[data-chatpanel-collapsed="1"] .fx-dockregion-ChatDock {
+  display: none;
+}
+/* The shared resizer normally occupies the 6px gutter at left:-6px. ChatDock
+   must clip its fixed-width inner dock during collapse/expand, which also clips
+   that outside child from hit-testing. Keep this instance inside the boundary;
+   the 6px edge remains draggable without weakening animation containment. */
+.fx-dockregion-ChatDock > .fx-chat-resizer {
+  left: 0;
+}
+.fx-dockregion-ChatDock.is-anim {
+  transition: width var(--motion-duration-panel) var(--motion-ease-standard);
+}
+body.fx-chat-resizing .fx-dockregion-ChatDock { transition: none; }
+
+.fx-chatdock-inner {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* While a chat panel is being UE-dragged, collapse its fixed shell column so the
+   layout reflows exactly like lifting any grid panel (UE). The lifted panel is
+   re-parented into the body overlay for the live preview, so hiding the column
+   here never hides the drag preview. Removing the class on drop restores the
+   column when chat lands back home; a cross-instance drop into DockShell instead
+   fires onDidRemovePanel → chatColumnMounted:false, keeping it collapsed. */
+html.fx-ue-dragging-chat .fx-dockregion-ChatDock { display: none !important; }
 
 /* While dragging a dockview TAB/GROUP (fx-dock-dragging is scoped to tab-strip
    drags in DockRegion — NOT in-panel HTML5 drags like Hierarchy rows), make the
@@ -736,7 +875,7 @@
 
    IMPORTANT: disable the body CHILDREN (.dv-react-part > *), NOT .dv-react-part
    itself — dockview's per-panel drop detection lives on the content wrapper;
-   disabling the wrapper breaks docking onto NON-iframe panels (chat / workbench).
+   disabling the wrapper breaks docking onto NON-iframe panels (chat / extension).
    Global on <html> since dockview portals floating groups to <body>.
 
    The tab strip must be SUBTRACTED: `dv-react-part` is dockview's class for EVERY
@@ -750,6 +889,11 @@
 html.fx-dock-dragging iframe,
 html.fx-dock-dragging .fx-surface-keepalive-item { pointer-events: none !important; }
 html.fx-dock-dragging
+  .fx-dockshell
+  .dv-react-part:not(.dv-tabs-and-actions-container *) > * { pointer-events: none !important; }
+/* The UE tab-drag controller uses its own drag state. Keep the same stable
+   body hit target for that path so viewport children cannot swallow drops. */
+html.fx-ue-dragging
   .fx-dockshell
   .dv-react-part:not(.dv-tabs-and-actions-container *) > * { pointer-events: none !important; }
 
@@ -821,14 +965,14 @@ html.fx-dock-dragging
 .ep-frame-unavailable-desc { color: var(--color-text-tertiary, #778); line-height: 1.45; }
 
 /* WbPluginDockPanel — plugin as a top-level dock leaf */
-.wb-dock-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.wb-dock-standalone { position: relative; }
-.wb-dock-loading, .wb-dock-placeholder { padding: 16px; font-size: 13px; color: var(--color-text-secondary, #aaa); }
-.wb-dock-error { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.wb-dock-error button { color: inherit; border: 1px solid currentColor; border-radius: 4px; padding: 4px 10px; }
-.wb-dock-name { font-weight: 700; color: var(--color-text-primary, #eee); margin-bottom: 4px; }
-.wb-dock-desc { font-size: 12px; margin-bottom: 8px; }
-.wb-dock-id { font-family: monospace; font-size: 10px; opacity: 0.5; }
+.page-dock-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.page-dock-standalone { position: relative; }
+.page-dock-loading, .page-dock-placeholder { padding: 16px; font-size: 13px; color: var(--color-text-secondary, #aaa); }
+.page-dock-error { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.page-dock-error button { color: inherit; border: 1px solid currentColor; border-radius: 4px; padding: 4px 10px; }
+.page-dock-name { font-weight: 700; color: var(--color-text-primary, #eee); margin-bottom: 4px; }
+.page-dock-desc { font-size: 12px; margin-bottom: 8px; }
+.page-dock-id { font-family: monospace; font-size: 10px; opacity: 0.5; }
 
 /* AuxBar resize handle — 6px column on the LEFT edge. Cursor col-resize + a
    subtle hover to signal draggability. During drag we overlay a full-viewport
@@ -840,11 +984,13 @@ html.fx-dock-dragging
   top: 0;
   bottom: 0;
   width: 6px;
+  margin: 0;
   cursor: col-resize;
   z-index: 10;
   background: transparent;
   transition: background 120ms ease;
 }
+.resize-handle.fx-auxbar-resizer::after { content: none; }
 .fx-auxbar-resizer:hover,
 body.fx-auxbar-resizing .fx-auxbar-resizer {
   background: rgba(120, 200, 255, 0.35);
@@ -861,3 +1007,12 @@ body.fx-auxbar-resizing::after {
   cursor: col-resize;
 }
 body.fx-auxbar-resizing iframe { pointer-events: none; }
+.fx-page-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  background: var(--color-bg-canvas);
+  pointer-events: none;
+}

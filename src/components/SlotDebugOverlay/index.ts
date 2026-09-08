@@ -1,3 +1,5 @@
-export { SlotDebugOverlay } from './SlotDebugOverlay';
-export { isSlotDebugEnabled } from './isSlotDebugEnabled';
-export { hashHue } from './hashHue';
+export {
+  SlotDebugOverlay,
+  hashSlotHue as hashHue,
+  isSlotDebugEnabled,
+} from '@forgeax/app-shell/react';

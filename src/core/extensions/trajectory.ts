@@ -40,7 +40,7 @@ export const trajectoryExtension: AppExtension = {
       id: 'trajectory.read',
       title: '读取操作轨迹',
       description:
-        'Read the recent trajectory of UI operations performed on the page by BOTH the human and the AI, ordered oldest→newest. Every operation dispatched through the action registry is recorded (page mode switches, panel toggles, session/game/role/workbench ops, etc.). Use this to understand what the user just did before asking you something. Params: limit (default 50, max ' +
+        'Read the recent trajectory of UI operations performed on the page by BOTH the human and the AI, ordered oldest→newest. Every operation dispatched through the action registry is recorded (page mode switches, panel toggles, session/game/role/extension ops, etc.). Use this to understand what the user just did before asking you something. Params: limit (default 50, max ' +
         TRAJECTORY_MAX +
         '), source ("human"|"ai" to filter by who performed it). Returns { total, count, entries:[{seq,ts,id,title,source,capability,args}] } in the result.',
       schema: {

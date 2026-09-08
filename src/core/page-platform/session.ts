@@ -15,6 +15,7 @@ import type {
   PageSessionSnapshot,
 } from './types';
 import { PagePlatformError } from './types';
+import { getCurrentProject, subscribeCurrentProject } from '../../lib/project-context';
 
 interface SessionEntry {
   readonly instance: PageInstance;
@@ -56,6 +57,30 @@ export function createPageSession(
   let generation = 0;
   let activeKey: string | undefined;
   let snapshot: PageSessionSnapshot = { generation, instances: [] };
+  let registryUnsubscribe: () => void = () => undefined;
+  let projectUnsubscribe: () => void = () => undefined;
+  let restoring = false;
+
+  const recentKey = (policy: 'session' | 'project'): string => policy === 'project'
+    ? `forgeax:project:${getCurrentProject()}:recent-page`
+    : 'forgeax:session:recent-page';
+
+  const persistRecent = (): void => {
+    if (typeof localStorage === 'undefined') return;
+    if (!activeKey) return;
+    const entry = entries.get(activeKey);
+    if (!entry) return;
+    const resolved = registry.get(entry.instance.typeId);
+    if (!resolved || resolved.status !== 'available') return;
+    const policy = resolved.definition.restorePolicy ?? 'never';
+    if (policy === 'never') return;
+    const request: PageOpenRequest = {
+      typeId: entry.instance.typeId,
+      ...(entry.instance.resource ? { resource: entry.instance.resource } : {}),
+      ...(Object.keys(entry.instance.context).length > 0 ? { context: entry.instance.context } : {}),
+    };
+    try { localStorage.setItem(recentKey(policy), JSON.stringify(request)); } catch { /* quota/private mode */ }
+  };
 
   const publish = (): void => {
     generation++;
@@ -209,6 +234,7 @@ export function createPageSession(
       bindTitle(encoded, controller);
       activeKey = encoded;
       publish();
+      persistRecent();
       return key;
     },
 
@@ -217,6 +243,7 @@ export function createPageSession(
       if (activeKey === encoded) return;
       activeKey = encoded;
       publish();
+      persistRecent();
     },
 
     getContextMenuItems(key): readonly PageMenuItem[] {
@@ -251,6 +278,7 @@ export function createPageSession(
       unbindTitle(encoded);
       if (activeKey === encoded) activeKey = [...entries.keys()].at(-1);
       publish();
+      if (activeKey) persistRecent();
     },
 
     getSnapshot(): PageSessionSnapshot {
@@ -286,8 +314,35 @@ export function createPageSession(
       activeKey = undefined;
       if (all.length > 0) publish();
       listeners.clear();
+      registryUnsubscribe();
+      projectUnsubscribe();
     },
   };
+
+  const tryRestoreRecent = async (): Promise<void> => {
+    if (restoring || entries.size > 0 || typeof localStorage === 'undefined') return;
+    for (const policy of ['project', 'session'] as const) {
+      const key = recentKey(policy);
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      let request: PageOpenRequest;
+      try { request = JSON.parse(raw) as PageOpenRequest; } catch { localStorage.removeItem(key); continue; }
+      const resolved = registry.get(request.typeId);
+      if (!resolved) continue;
+      if (resolved.status !== 'available' || (resolved.definition.restorePolicy ?? 'never') !== policy) {
+        localStorage.removeItem(key);
+        continue;
+      }
+      restoring = true;
+      try { await session.open(request); } catch { localStorage.removeItem(key); }
+      finally { restoring = false; }
+      return;
+    }
+  };
+
+  registryUnsubscribe = registry.subscribe(() => { void tryRestoreRecent(); });
+  projectUnsubscribe = subscribeCurrentProject(() => { void tryRestoreRecent(); });
+  void tryRestoreRecent();
 
   return session;
 }

@@ -17,8 +17,10 @@
   padding: 6px 0 12px;
   position: relative;
   background: var(--color-background-base);
-  border-left: 1px solid var(--color-border-subtle);
-  border-right: 1px solid var(--color-border-subtle);
+  /* Match the dockview grid's 6px inter-group gap: open a canvas-dark gutter on
+     each side (studio-body paints the canvas behind) instead of a hairline
+     border, so the plugin rail sits like a floating dock cell. */
+  margin: 0 6px;
 }
 .activity-rail::-webkit-scrollbar { width: 0; }
 .activity-rail-group {
@@ -124,6 +126,7 @@
 
 /* ── More plugins popover ── */
 .activity-rail-more {
+  z-index: var(--z-menu, 10100);
   width: 300px;
   max-height: min(70vh, 560px);
   padding: 0;

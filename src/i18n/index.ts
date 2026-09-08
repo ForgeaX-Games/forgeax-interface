@@ -45,7 +45,7 @@ export interface LocaleMeta {
 /** Adding a language = append here + drop a sibling JSON in ./locales. */
 export const SUPPORTED_LOCALES: readonly LocaleMeta[] = [
   { code: 'en', label: 'English', nativeLabel: 'English' },
-  { code: 'zh', label: 'Chinese', nativeLabel: '中文' },
+  { code: 'zh', label: 'Chinese', nativeLabel: '简体中文' },
 ] as const;
 
 export const DEFAULT_LOCALE: Locale = 'en';

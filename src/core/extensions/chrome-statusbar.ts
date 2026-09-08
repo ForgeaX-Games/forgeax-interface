@@ -2,7 +2,7 @@
 //
 // ADR-0030 §2.4 — interface's status-bar registry. Every footer chip that lives
 // UNDER interface is registered HERE, inside interface, through the single
-// panels channel: health / dev surface overlay, the project-version &
+// panels channel: dev surface overlay, the project-version &
 // diagnostics popovers, and the BUS/MB/RES/… pulse feeds. This extension is
 // auto-loaded by appHostBootstrap, so the product assembler (studio/root) never
 // imports or lists any of these chips — the imports converge inside interface.
@@ -10,10 +10,9 @@
 // extension's `contributes.panels.stripItems`, no root edit required.
 import type { AppExtension } from '../app-shell/types';
 import type { StatusItemContribution } from '../panels';
-import { healthStatusItem } from '../../components/StatusBar/HealthIndicator';
 import { surfaceOverlayStatusItem } from '../../components/Surfaces/SurfaceOverlay';
 import { pulseStatusItems } from '../../components/StatusBar/feeds/PulseFeeds';
-import { projectVersionStatusItem } from '../../components/StatusBar/footer/ProjectVersionPopover';
+import { forgeaxBuildVersionStatusItem } from '../../components/StatusBar/footer/ForgeaxBuildPopover';
 import { diagnosticsStatusItem } from '../../components/StatusBar/footer/DiagnosticsPopover';
 
 /** Fold an ordered list of status items into the keyed `stripItems` record the
@@ -32,9 +31,8 @@ export const chromeStatusBarExtension: AppExtension = {
   contributes: {
     panels: {
       stripItems: toStripItems([
-        projectVersionStatusItem,
+        forgeaxBuildVersionStatusItem,
         diagnosticsStatusItem,
-        healthStatusItem,
         surfaceOverlayStatusItem,
         ...pulseStatusItems,
       ]),

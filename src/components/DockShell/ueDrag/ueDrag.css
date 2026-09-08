@@ -1,0 +1,199 @@
+/* UE-style dock drag overlay. Drawn by overlay.ts into a single body-level,
+   viewport-fixed layer. Everything is pointer-events:none — hit-testing lives
+   in the controller against the geometry, never the DOM. */
+
+.fx-ue-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000; /* above floating dock groups + surface keep-alive */
+  pointer-events: none;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+/* Translucent slab previewing where the panel will land. Transitioned so it
+   glides between zones like UE's ghosted target. */
+.fx-ue-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--lime, #7ee04a) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent);
+  transition:
+    transform 90ms ease-out,
+    width 90ms ease-out,
+    height 90ms ease-out;
+  will-change: transform, width, height;
+}
+
+/* Tab-strip target: the landing hint is the ghost slot INSIDE the strip, so the
+   overlay only frames the strip — a fill would sit on top of that slot. */
+.fx-ue-preview--strip {
+  background: none;
+  border-color: var(--lime, #7ee04a);
+}
+
+/* ── Ghost tab slot ──────────────────────────────────────────────────────── */
+/* Inserted into the hovered strip's real tabs container (controller.ts), so the
+   neighbouring tabs reflow around it and a drag along the strip reorders live.
+   Never a hit target: all hit-testing runs against the strip geometry. */
+.fx-ue-tab-slot {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px dashed var(--lime, #7ee04a);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--lime, #7ee04a) 12%, transparent);
+  color: var(--lime, #7ee04a);
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.fx-ue-tab-slot[data-axis='x'] {
+  width: var(--fx-ue-slot-size, 104px);
+}
+
+/* Vertical (left/right) strips: the slot grows along the strip and rotates its
+   label exactly like the edge tabs it sits between. */
+.fx-ue-tab-slot[data-axis='y'] {
+  height: var(--fx-ue-slot-size, 104px);
+  writing-mode: vertical-rl;
+  text-orientation: sideways;
+  padding: 8px 4px;
+}
+
+/* ── Dock director (SVG: center square + four trapezoids) ────────────────── */
+.fx-ue-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The director fills the hovered group's content area: a large center rectangle
+   (merge as tab) framed by four trapezoids (dock directions). PURE WIREFRAME —
+   no background fill at rest, only lime lines; the shape under the cursor gets a
+   faint fill to signal the active zone. */
+.fx-ue-dir-trap,
+.fx-ue-dir-center {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lime, #7ee04a) 65%, transparent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  transition: fill 70ms ease;
+}
+.fx-ue-dir-trap.fx-ue-active,
+.fx-ue-dir-center.fx-ue-active {
+  fill: color-mix(in srgb, var(--lime, #7ee04a) 22%, transparent);
+  stroke: var(--lime, #7ee04a);
+}
+
+/* ── Dock-to-region edge buttons ─────────────────────────────────────────── */
+.fx-ue-outer {
+  position: absolute;
+  inset: 0;
+}
+
+.fx-ue-btn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-background-base, #0e0e10) 90%, transparent);
+  border: 1px solid var(--color-border-default, #34343a);
+  box-shadow:
+    0 4px 14px rgb(0 0 0 / 45%),
+    0 0 0 1px rgb(0 0 0 / 30%);
+  transition:
+    background 80ms ease,
+    border-color 80ms ease,
+    transform 80ms ease;
+}
+
+.fx-ue-btn.fx-ue-active {
+  background: color-mix(in srgb, var(--lime, #7ee04a) 26%, var(--color-background-elevated, #17171b));
+  border-color: var(--lime, #7ee04a);
+  transform: scale(1.08);
+}
+
+/* Mini-layout glyph: a framed box with the docking side filled. */
+.fx-ue-btn-glyph {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1.5px solid var(--color-text-secondary, #9aa);
+  background:
+    linear-gradient(var(--fx-ue-fill, transparent), var(--fx-ue-fill, transparent));
+  background-repeat: no-repeat;
+  background-size: var(--fx-ue-fill-w, 0) var(--fx-ue-fill-h, 0);
+  background-position: var(--fx-ue-fill-pos, 0 0);
+}
+
+.fx-ue-btn.fx-ue-active .fx-ue-btn-glyph {
+  border-color: var(--lime, #7ee04a);
+  --fx-ue-fill: color-mix(in srgb, var(--lime, #7ee04a) 80%, transparent);
+}
+
+.fx-ue-btn--top    .fx-ue-btn-glyph { --fx-ue-fill-w: 100%; --fx-ue-fill-h: 50%;  --fx-ue-fill-pos: 0 0; }
+.fx-ue-btn--bottom .fx-ue-btn-glyph { --fx-ue-fill-w: 100%; --fx-ue-fill-h: 50%;  --fx-ue-fill-pos: 0 100%; }
+.fx-ue-btn--left   .fx-ue-btn-glyph { --fx-ue-fill-w: 50%;  --fx-ue-fill-h: 100%; --fx-ue-fill-pos: 0 0; }
+.fx-ue-btn--right  .fx-ue-btn-glyph { --fx-ue-fill-w: 50%;  --fx-ue-fill-h: 100%; --fx-ue-fill-pos: 100% 0; }
+
+/* ── Drag ghost chip ─────────────────────────────────────────────────────── */
+.fx-ue-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 220px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-primary, #fff);
+  background: color-mix(in srgb, var(--color-background-elevated, #17171b) 92%, transparent);
+  border: 1px solid var(--lime, #7ee04a);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 50%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Body-level host for the live panel preview. Fixed + zero-size so it takes no
+   space; the parked carrier positions itself in viewport coords. */
+.fx-ue-live-host {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The lifted panel's floating carrier is the panel's REAL DOM (moved into a
+   floating group to force a grid reflow, then parked in .fx-ue-live-host). The
+   controller repositions it over the predicted landing rect as a LIVE,
+   translucent preview — non-interactive, no window chrome/shadow — so the user
+   sees the actual render, UE-style. Hidden (`--hidden`) when there's no target. */
+.fx-ue-lifted {
+  pointer-events: none !important;
+  opacity: 0.9;
+  box-shadow: none !important;
+}
+.fx-ue-lifted--hidden { display: none !important; }
+html.fx-ue-dragging iframe,
+html.fx-ue-dragging .fx-surface-keepalive-item { pointer-events: none !important; }
+html.fx-ue-dragging { cursor: grabbing !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-ue-preview,
+  .fx-ue-dir-trap,
+  .fx-ue-dir-center,
+  .fx-ue-btn { transition: none; }
+}

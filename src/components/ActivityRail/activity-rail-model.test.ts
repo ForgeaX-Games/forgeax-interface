@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { qualifyContributionId } from '@forgeax/types';
 import {
+  addDefaultPinnedActivity,
   activityRailCategory,
   DEFAULT_PINNED_ACTIVITY_SLUGS,
   defaultPinnedActivityIds,
@@ -27,20 +28,20 @@ function activity(
 
 describe('activityRailCategory', () => {
   it('uses declared product categories and sends invalid or missing values to general', () => {
-    expect(activityRailCategory(activity('@forgeax-extension/wb-character', 'main', {
+    expect(activityRailCategory(activity('@forgeax-extension/character', 'main', {
       category: '3D',
     }))).toBe('3D');
-    expect(activityRailCategory(activity('@forgeax-extension/wb-gen3d', 'main', {
-      category: 'workbench',
+    expect(activityRailCategory(activity('@forgeax-extension/gen3d', 'main', {
+      category: 'legacy',
     }))).toBe('general');
-    expect(activityRailCategory(activity('@forgeax-extension/wb-items', 'main'))).toBe('general');
+    expect(activityRailCategory(activity('@forgeax-extension/items', 'main'))).toBe('general');
     expect(activityRailCategory(activity('@example/new-plugin', 'main'))).toBe('general');
   });
 });
 
 describe('localizeActivityRailEntries', () => {
   it('re-resolves activity metadata when the locale changes', () => {
-    const entry = activity('@forgeax-extension/wb-character', 'launcher', {
+    const entry = activity('@forgeax-extension/character', 'launcher', {
       title: 'Character Editor',
       titleI18n: { zh: '角色编辑', en: 'Character Editor' },
       description: 'Edit a character',
@@ -62,9 +63,9 @@ describe('groupDiscoverableActivities', () => {
   const entries = [
     activity('@forgeax/core', 'editor', { sourceLayer: 'builtin' }),
     activity('@example/general-first', 'alpha', { title: 'Alpha Tool', description: 'Paint worlds' }),
-    activity('@forgeax-extension/wb-gen3d', 'zeta', { title: 'Zeta Mesh', category: '3D' }),
-    activity('@forgeax-extension/wb-skill', 'beta', { title: 'Beta VFX', category: '3D' }),
-    activity('@forgeax-extension/wb-items', 'icons', {
+    activity('@forgeax-extension/gen3d', 'zeta', { title: 'Zeta Mesh', category: '3D' }),
+    activity('@forgeax-extension/skill', 'beta', { title: 'Beta VFX', category: '3D' }),
+    activity('@forgeax-extension/items', 'icons', {
       title: 'Inventory',
       description: 'Item atlas',
       category: '2D',
@@ -95,7 +96,7 @@ describe('groupDiscoverableActivities', () => {
     expect(groupDiscoverableActivities(entries, 'paint').flatMap((group) => group.items)).toEqual([entries[1]]);
     expect(groupDiscoverableActivities(entries, 'zeta').flatMap((group) => group.items)).toEqual([entries[2]]);
     expect(groupDiscoverableActivities(entries, '#activity/icons').flatMap((group) => group.items)).toEqual([entries[4]]);
-    expect(groupDiscoverableActivities(entries, 'wb-skill').flatMap((group) => group.items)).toEqual([entries[3]]);
+    expect(groupDiscoverableActivities(entries, 'skill').flatMap((group) => group.items)).toEqual([entries[3]]);
   });
 
   it('keeps the full discoverable catalog when every activity is pinned', () => {
@@ -113,16 +114,16 @@ describe('groupDiscoverableActivities', () => {
 
 describe('migrateLegacyPinnedActivityIds', () => {
   it('preserves qualified IDs and resolves legacy owner slugs or activity IDs', () => {
-    const gen3d = activity('@forgeax-extension/wb-gen3d', 'main');
+    const gen3d = activity('@forgeax-extension/gen3d', 'main');
     const custom = activity('@example/custom-plugin', 'custom-rail');
     const staleQualified = '@missing/plugin#activity/main';
 
     expect(migrateLegacyPinnedActivityIds([
-      'wb-gen3d',
+      'gen3d',
       'custom-rail',
       staleQualified,
       'does-not-exist',
-      'wb-gen3d',
+      'gen3d',
     ], [gen3d, custom])).toEqual([
       gen3d.id,
       custom.id,
@@ -132,14 +133,81 @@ describe('migrateLegacyPinnedActivityIds', () => {
 });
 
 describe('defaultPinnedActivityIds', () => {
-  it('reproduces the historical 12-plugin screenshot order without pinning new catalog entries', () => {
-    const historical = DEFAULT_PINNED_ACTIVITY_SLUGS.map((slug) =>
-      activity(`@forgeax-extension/${slug}`, `${slug}.launcher`));
+  it('preserves product activities when npm packages consolidate multiple launchers', () => {
+    const skill = activity('@forgeax-extension/skill', 'main');
+    const gen3d = activity('@forgeax-extension/gen3d', 'main');
+    const sceneGenerator = activity(
+      '@forgeax-extension/scene-generator',
+      'scene-generator.launcher',
+    );
+    const lowpoly = activity(
+      '@forgeax-extension/scene-generator',
+      'scene-generator.3d-model.launcher',
+    );
+    const sceneAssetGenerator = activity(
+      '@forgeax-extension/scene-generator',
+      'scene-generator.2d-assets.launcher',
+    );
+    const character = activity('@forgeax-extension/character', 'main');
+    const items = activity('@forgeax-extension/items', 'main');
+    const anim = activity('@forgeax-extension/anim', 'main');
+    const ui = activity('@forgeax-extension/ui', 'ui.launcher');
+    const narrative = activity('@forgeax-extension/narrative', 'main');
+    const videoGame = activity('@forgeax-extension/video-game', 'video-game.launcher');
+    const reel = activity('@forgeax-extension/reel', 'main');
+    const bgm = activity('@forgeax-extension/bgm', 'main');
     const newPlugin = activity('@example/new-plugin', 'main');
 
-    expect(DEFAULT_PINNED_ACTIVITY_SLUGS).toHaveLength(12);
-    expect(defaultPinnedActivityIds([...historical, newPlugin])).toEqual(
-      historical.map((entry) => entry.id),
-    );
+    const catalog = [
+      lowpoly,
+      sceneAssetGenerator,
+      sceneGenerator,
+      skill,
+      gen3d,
+      character,
+      items,
+      anim,
+      ui,
+      narrative,
+      videoGame,
+      reel,
+      bgm,
+      newPlugin,
+    ];
+    const expected = [
+      skill.id,
+      gen3d.id,
+      lowpoly.id,
+      character.id,
+      items.id,
+      anim.id,
+      sceneAssetGenerator.id,
+      ui.id,
+      narrative.id,
+      videoGame.id,
+      reel.id,
+      bgm.id,
+      sceneGenerator.id,
+    ];
+
+    expect(DEFAULT_PINNED_ACTIVITY_SLUGS).toHaveLength(13);
+    expect(defaultPinnedActivityIds(catalog)).toEqual(expected);
+    expect(pinnedActivities(catalog, expected).map((entry) => entry.id)).toEqual(expected);
+  });
+
+  it('can append a new curated default to an existing pinned list', () => {
+    const skill = activity('@forgeax-extension/skill', 'main');
+    const videoGame = activity('@forgeax-extension/video-game', 'video-game.launcher');
+    const existing = [skill.id];
+
+    expect(addDefaultPinnedActivity(existing, [skill, videoGame], 'video-game')).toEqual([
+      skill.id,
+      videoGame.id,
+    ]);
+    expect(addDefaultPinnedActivity([skill.id, videoGame.id], [skill, videoGame], 'video-game')).toEqual([
+      skill.id,
+      videoGame.id,
+    ]);
+    expect(addDefaultPinnedActivity(existing, [skill], 'video-game')).toEqual(existing);
   });
 });

@@ -6,11 +6,11 @@ import { createObservabilityState } from './store-parts/observability';
 import { createShellState } from './store-parts/shell';
 import { getSessionClient } from './store-parts/session-client';
 import {
-  getWorkbenchClient,
-  hasWorkbenchClient,
-  type ActiveGameSelection,
+  getStudioProjectClient,
+  hasStudioDomainClients,
+  type ActiveProjectSelection,
   type RuntimeScopeState,
-} from './store-parts/workbench-client';
+} from './store-parts/domain-clients';
 import { mostRecentSid, pickActiveSid } from './store-parts/session-pick';
 import {
   cleanupLegacySessionKeys,
@@ -21,34 +21,42 @@ import {
   persistAgentBySid,
   saveProviderOverride,
 } from './store-parts/persistence';
-import { getWindowManager, surfaceKey, type SurfaceDescriptor } from './lib/platform';
+import { surfaceKey, type SurfaceDescriptor } from '@forgeax/app-shell/window';
+import { getWindowManager } from './lib/platform';
 import { STORAGE_KEYS } from './lib/storageKeys';
-import { getLastModel } from './lib/model-prefs';
 import { resolveKernelForAgent } from './lib/agent-cli-provider';
-import { setCurrentProject } from './lib/workbenches';
+import { setCurrentProject } from './lib/project-context';
+import { dropFileActivitySession } from './lib/file-activity-stream';
+import { dropPermissionSession } from './lib/permission-stream';
 
 export { configureSessionClient, type SessionClient } from './store-parts/session-client';
 export {
-  configureWorkbenchClient,
-  getWorkbenchClient,
-  type WorkbenchClient,
-  type WorkbenchAgent,
-  type WorkbenchAgentsResponse,
+  configureStudioDomainClients,
+  hasStudioDomainClients,
+  getAgentCatalogClient,
+  getStudioProjectClient,
+  getStudioBuildClient,
+  type AgentCatalogClient,
+  type AgentCatalogEntry,
+  type AgentCatalogResponse,
+  type StudioProjectClient,
+  type StudioBuildClient,
+  type StudioDomainClients,
   type EngineRootCandidate,
-  type GameRow,
+  type ProjectRow,
   type AndroidConfig,
-  type PackageGameOptions,
-  type PackageJobStatus,
-  type HistoryRecord,
-  type CleanPackageResult,
-  type ActiveGameSelection,
+  type BuildProjectOptions,
+  type BuildJobStatus,
+  type BuildHistoryRecord,
+  type CleanBuildResult,
+  type ActiveProjectSelection,
   type RuntimeCatalogRoot,
   type RuntimeAssetBinding,
   type RuntimeAssetDiagnostic,
   type RuntimeScopeState,
-} from './store-parts/workbench-client';
+} from './store-parts/domain-clients';
 
-// ③ PreviewFile 已移到 @forgeax/ai-workbench/file-preview（interface foundation 不再持有文件预览态）。
+// File preview state belongs to @forgeax/files; the foundation store keeps no copy.
 
 export interface ToolCall {
   callId: string;
@@ -299,7 +307,7 @@ export interface ChatTab {
   /** Server session id —— 唯一主键。tab 与 session 一一对应。 */
   sid: string;
   /** Server 端 session.json::displayName。可能 undefined（boot-time auto-create
-   *  / 用户没传名）—— UI 渲染规则：`tab.displayName ?? \`session ${sid.slice(0,6)}\``。
+   *  / 用户没传名）—— UI 渲染规则：`tabLabel(tab)`（无名时走 i18n「新对话 / New Session」）。
    *  改名等 server 端 PATCH 接口落地后接，先只读。 */
   displayName: string | undefined;
   /** Which agent this tab is bound to. First-class key for chat state:
@@ -309,6 +317,10 @@ export interface ChatTab {
    *  list_agents resolves (defaulting to the root agent). */
   agentId: string | null;
   providerOverride: string | null;
+  /** Transient handoff to Composer: a freshly scaffolded agent still needs its
+   * provider-scoped remembered/default model applied. Never persisted or
+   * reconstructed from GET /api/sessions. */
+  initialModelSeedAgentId?: string;
   /** Epoch ms of the session's last on-disk activity (server-side: newest
    *  mtime under `<session>/agents/`). Mirrored from GET /api/sessions on
    *  initSessions / refreshSessions. Drives SessionSwitcher dropdown's
@@ -317,35 +329,44 @@ export interface ChatTab {
   lastActivityAt?: number;
 }
 
+export interface SessionOperationError {
+  code: 'SESSION_DELETE_FAILED' | 'SESSION_REPLACEMENT_FAILED' | 'SESSION_LIST_FAILED';
+  message: string;
+}
+
+export type CloseSessionResult =
+  | { status: 'deleted'; activeSid: string | null }
+  | { status: 'deleted-without-active-session'; activeSid: null; error: SessionOperationError }
+  | { status: 'not-deleted'; activeSid: string | null; error: SessionOperationError };
+
+export type RefreshSessionsResult =
+  | { status: 'ok'; count: number }
+  | { status: 'failed'; error: SessionOperationError }
+  | { status: 'superseded' };
+
+export type ApplyActiveGameResult =
+  | { status: 'applied'; sessionCount: number | null }
+  | { status: 'degraded'; sessionCount: number | null; warning: string }
+  | { status: 'superseded' };
+
+export interface SetActiveGameResult {
+  warning?: string;
+}
+
 /** UI label fallback for a tab whose server-side displayName is undefined.
  *  Single helper so all surfaces (TabStrip / SessionSwitcher / TopBar) render
  *  the same string and we never reintroduce a hardcoded "default" anywhere. */
 export function tabLabel(tab: Pick<ChatTab, 'sid' | 'displayName'>): string {
   const n = tab.displayName?.trim();
-  return n && n.length > 0 ? n : `session ${tab.sid.slice(0, 6)}`;
+  return n && n.length > 0 ? n : t('sessionTabs.untitled');
 }
 
 export interface AppState {
   // ── Windowing (detached OS windows) ──
-  // Set of surface keys (see lib/platform/surface.ts `surfaceKey`) currently
-  // hosted in their own OS window instead of the main window's keep-alive
-  // layer. A surface is either `docked` (absent here, hosted in-window via
-  // keep-alive) or `floating` (present here, hosted in a Tauri WebviewWindow).
-  // While floating, the main window MUST NOT also render its keep-alive iframe
-  // (that would spin up a second 3D engine / WS for the same surface), so
-  // KeepAliveExtensionIframes filters these out.
-  //
-  // Browser uses window.open; Tauri uses WebviewWindow. Both carriers converge
-  // through WindowManager and this same lease map.
-  floatingSurfaces: Record<string, true>;
+  // App Shell owns floating state and redock convergence; these product actions
+  // retain the existing store-facing command seam for callers.
   detachSurface: (d: import('./lib/platform').SurfaceDescriptor, opts?: { title?: string; x?: number; y?: number; width?: number; height?: number }) => Promise<boolean>;
   redockSurface: (d: import('./lib/platform').SurfaceDescriptor) => Promise<void>;
-  /** Plugin IDs currently open as top-level DockShell panels (so Sidebar knows
-   *  to hide their keep-alive iframes to avoid double-rendering). */
-  /** Internal: called by the WindowManager close listener (see main.tsx) when
-   *  the user closes a detached window — redocks without re-closing the window. */
-  markSurfaceDocked: (key: string) => void;
-
   // R5/P2 — 跨-surface 深链槽（原 ~7 个 pending*）已全部移出 store，改走 interface bus
   // （lib/deep-link-bus.ts：emitDeepLink / useDeepLink，retain 快照语义）。producer
   // `emitDeepLink('bus:expand-plugin'|'bus:filter-kind'|'sidebar:focus-plugin'|
@@ -374,16 +395,15 @@ export interface AppState {
   /** Read cache w/ guarded null fallback. */
   getCachedAgentForSid: (sid: string | null) => string | null;
 
-  // ── Workbench file preview（③ 已抽到 @forgeax/ai-workbench/file-preview,走 bus 'workbench:files'）──
-  // openFiles/activeFilePath/openFile/activateFile/closeFile/updatePreviewContent/savePreviewFile
-  // 不再进 interface store。壳侧打开文件走 bus 命令 'workbench:open-file'（见 workbench/file-preview.ts）。
+  // File preview state belongs to @forgeax/files. The shell only publishes
+  // resource-editor bus intents and reads its retained projection.
 
   // ── Active game projection. The server binding is authoritative. ──
   activeGameSlug: string | null;
   activeGameRuntime: RuntimeScopeState;
   activeGameResolved: boolean;
   initActiveGame: () => Promise<void>;
-  applyActiveGame: (selection: ActiveGameSelection) => Promise<void>;
+  applyActiveGame: (selection: ActiveProjectSelection) => Promise<ApplyActiveGameResult>;
 
   // ── Current chat session id (bug #2 fix). null = let server auto-generate
   //    a fresh `sess-<timestamp>` for the next message. Set when we receive
@@ -473,15 +493,18 @@ export interface AppState {
   /** 切到指定 sid。tab 必须已存在（不存在就先 refreshSessions 拉一下）。
    *  内部触发：mirror 切换 / WS 重连 / persist activeSid / agentBySid 缓存恢复。 */
   switchToSession: (sid: string) => Promise<void>;
-  /** 关闭并删除 session。abort in-flight stream → DELETE /api/sessions/:sid →
-   *  remove from tabs → 切到剩余的第一条；空了就再 createSession 建一条新的
-   *  （保证总有一个 active session 可用）。 */
-  closeSession: (sid: string) => Promise<void>;
+  /** 关闭并删除 session。DELETE 成功后才 remove 本地 tab；空了会尝试补建。
+   *  返回结构区分“未删除”“删除完成”“删除完成但补建失败”，避免把部分成功
+   *  压成布尔后诱导调用方重删。 */
+  closeSession: (sid: string) => Promise<CloseSessionResult>;
   /** 重新拉一遍 server sessions 列表，merge 进 tabs（保留本地 messages / 各 tab
    *  in-flight 状态）。手动刷新 / 切换后兜底用。 */
-  refreshSessions: () => Promise<void>;
+  refreshSessions: (options?: {
+    scope?: string;
+    transitionRevision?: number;
+  }) => Promise<RefreshSessionsResult>;
   /** 唯一 active-game 写入口。Server 更新权威绑定，所有页面从变更通知重建投影。 */
-  setActiveGame: (slug: string) => Promise<void>;
+  setActiveGame: (slug: string) => Promise<SetActiveGameResult>;
   renameTab: (sid: string, displayName: string) => void;
   /** Product-assembly sub-agent switcher (P6d step d). For tabs with a server-side thread,
    *  PATCH /api/threads/:id { activeEmitterId } so the next /api/chat turn
@@ -641,11 +664,21 @@ function patchTabField(
 let _initSessionsPending: Promise<void> | null = null;
 let _sessionsInitialized = false;
 let _activeGameUnsubscribe: (() => void) | null = null;
-let _activeGameTransition: { key: string; promise: Promise<void> } | null = null;
+let _activeGameTransition: { key: string; promise: Promise<ApplyActiveGameResult> } | null = null;
 let _activeGameTransitionRevision = 0;
+let _sessionSwitchRevision = 0;
 const _activeGameGenerationByScope = new Map<string, number>();
 const _busyMutationVersionBySid = new Map<string, number>();
 const _runningSyncGenerationBySid = new Map<string, number>();
+
+/**
+ * Invalidate every async switch that began before another activation decision.
+ * Returning the new revision lets switchToSession use the same gate for
+ * switch→switch ordering without maintaining a second source of truth.
+ */
+function invalidatePendingSessionSwitches(): number {
+  return ++_sessionSwitchRevision;
+}
 
 function bumpBusyMutationVersion(sid: string): void {
   _busyMutationVersionBySid.set(sid, (_busyMutationVersionBySid.get(sid) ?? 0) + 1);
@@ -868,17 +901,17 @@ export const useShellStore = create<AppState>((set, get) => ({
   activeGameRuntime: { status: 'unbound' },
   activeGameResolved: false,
   initActiveGame: async () => {
-    if (!hasWorkbenchClient()) {
+    if (!hasStudioDomainClients()) {
       set({ activeGameResolved: true });
       return;
     }
-    const client = getWorkbenchClient();
+    const client = getStudioProjectClient();
     if (!_activeGameUnsubscribe) {
-      _activeGameUnsubscribe = client.subscribeActiveGame((selection) => {
+      _activeGameUnsubscribe = client.subscribeActiveProject((selection) => {
         void get().applyActiveGame(selection);
       });
     }
-    const selection = await client.getActiveGame();
+    const selection = await client.getActiveProject();
     if (!get().activeGameResolved) {
       const initialBinding = selection.runtime?.binding;
       if (initialBinding !== undefined) {
@@ -901,7 +934,9 @@ export const useShellStore = create<AppState>((set, get) => ({
     const incomingBinding = runtime.binding;
     if (incomingBinding !== undefined) {
       const knownGeneration = _activeGameGenerationByScope.get(incomingBinding.scopeId);
-      if (knownGeneration !== undefined && incomingBinding.generation < knownGeneration) return;
+      if (knownGeneration !== undefined && incomingBinding.generation < knownGeneration) {
+        return { status: 'superseded' };
+      }
       if (knownGeneration === undefined || incomingBinding.generation > knownGeneration) {
         _activeGameGenerationByScope.set(incomingBinding.scopeId, incomingBinding.generation);
       }
@@ -909,16 +944,40 @@ export const useShellStore = create<AppState>((set, get) => ({
     const key = `${slug ?? '_none'}:${runtime.binding?.scopeId ?? '_unbound'}:${runtime.binding?.generation ?? 0}:${runtime.status}`;
     const currentRuntime = get().activeGameRuntime;
     const currentKey = `${get().activeGameSlug ?? '_none'}:${currentRuntime.binding?.scopeId ?? '_unbound'}:${currentRuntime.binding?.generation ?? 0}:${currentRuntime.status}`;
-    if (get().activeGameResolved && currentKey === key) return;
+    if (get().activeGameResolved && currentKey === key) {
+      return { status: 'applied', sessionCount: _sessionsInitialized ? get().tabs.length : null };
+    }
     if (_activeGameTransition?.key === key) return _activeGameTransition.promise;
+    // A switch started in the previous game scope must never reconnect or
+    // persist its sid after this accepted transition begins.
+    invalidatePendingSessionSwitches();
     const revision = ++_activeGameTransitionRevision;
     const promise = (async () => {
-      if (revision !== _activeGameTransitionRevision) return;
+      if (revision !== _activeGameTransitionRevision) return { status: 'superseded' } as const;
       set({ activeGameSlug: slug, activeGameRuntime: runtime, activeGameResolved: true });
       setCurrentProject(slug ?? 'default');
-      if (!_sessionsInitialized) return;
-      await get().refreshSessions();
-      if (revision !== _activeGameTransitionRevision || !slug) return;
+      if (!_sessionsInitialized) {
+        return {
+          status: 'degraded',
+          sessionCount: null,
+          warning: 'active game changed, but the session projection is not initialized yet',
+        } as const;
+      }
+      const refreshed = await get().refreshSessions({
+        scope: slug ?? undefined,
+        transitionRevision: revision,
+      });
+      if (refreshed.status === 'superseded' || revision !== _activeGameTransitionRevision) {
+        return { status: 'superseded' } as const;
+      }
+      if (refreshed.status === 'failed') {
+        return {
+          status: 'degraded',
+          sessionCount: null,
+          warning: `active game changed, but sessions could not be refreshed: ${refreshed.error.message}`,
+        } as const;
+      }
+      if (!slug) return { status: 'applied', sessionCount: refreshed.count } as const;
       const tabs = get().tabs;
       if (tabs.length === 0) {
         // Observers project authority; they never manufacture downstream state.
@@ -926,20 +985,26 @@ export const useShellStore = create<AppState>((set, get) => ({
         // before publishing its change event, so an empty result is a real
         // degraded state rather than permission for every open page to race.
         getSessionClient().connectForgeaXWs(null);
-        return;
+        return {
+          status: 'degraded',
+          sessionCount: 0,
+          warning: 'active game changed, but no session is available in the new game scope',
+        } as const;
       }
       const recent = mostRecentSid(tabs);
       if (recent) await get().switchToSession(recent);
+      if (revision !== _activeGameTransitionRevision) return { status: 'superseded' } as const;
+      return { status: 'applied', sessionCount: refreshed.count } as const;
     })();
     _activeGameTransition = { key, promise };
     try {
-      await promise;
+      return await promise;
     } finally {
       if (_activeGameTransition?.promise === promise) _activeGameTransition = null;
     }
   },
 
-  // ③ 文件预览态实现整体移到 @forgeax/ai-workbench/file-preview(走 bus 'workbench:files')。
+  // File preview state belongs to @forgeax/files.
 
   // ── Tab-aware messages/streaming state (P6 step 1) ──
   // The data lives in `tabs[active].messages` etc.; these top-level fields
@@ -1003,10 +1068,15 @@ export const useShellStore = create<AppState>((set, get) => ({
     try { await _initSessionsPending; } finally { _initSessionsPending = null; }
   },
 
-  refreshSessions: async () => {
+  refreshSessions: async (options) => {
     const { fetchSessionList } = getSessionClient();
+    const scope = options?.scope ?? get().activeGameSlug ?? undefined;
     try {
-      const metas = await fetchSessionList(get().activeGameSlug ?? undefined);
+      const metas = await fetchSessionList(scope);
+      const staleScope = (get().activeGameSlug ?? undefined) !== scope;
+      const staleTransition = options?.transitionRevision !== undefined
+        && options.transitionRevision !== _activeGameTransitionRevision;
+      if (staleScope || staleTransition) return { status: 'superseded' };
       set((s) => {
         const byOldSid = new Map(s.tabs.map((t) => [t.sid, t] as const));
         const merged: ChatTab[] = metas.map((m) => {
@@ -1039,22 +1109,70 @@ export const useShellStore = create<AppState>((set, get) => ({
           currentSessionId: active,
         };
       });
+      return { status: 'ok', count: metas.length };
     } catch (e) {
       console.warn('[refreshSessions] failed', e);
+      return {
+        status: 'failed',
+        error: {
+          code: 'SESSION_LIST_FAILED',
+          message: e instanceof Error ? e.message : String(e),
+        },
+      };
     }
   },
 
   setActiveGame: async (slug) => {
+    const client = getStudioProjectClient();
+    const applySelection = async (selection: ActiveProjectSelection): Promise<SetActiveGameResult> => {
+      const applied = await get().applyActiveGame(selection);
+      if (applied.status === 'superseded') {
+        throw new Error(`game switch to "${slug}" was superseded by a newer active-game selection`);
+      }
+      const runtime = selection.runtime ?? { status: 'unbound' as const };
+      const runtimeWarning = runtime.status === 'ready' || runtime.status === 'unbound'
+        ? undefined
+        : runtime.error ?? `runtime status is ${runtime.status}`;
+      const warning = runtimeWarning ?? (applied.status === 'degraded' ? applied.warning : undefined);
+      if (warning) {
+        void alertDialog({
+          title: t('gameSwitcher.activateFailedTitle'),
+          body: t('gameSwitcher.activatePartialBody', { slug, message: warning }),
+        });
+        return { warning };
+      }
+      return {};
+    };
+
+    let selection: ActiveProjectSelection;
     try {
-      const selection = await getWorkbenchClient().setActiveGame(slug);
-      await get().applyActiveGame(selection);
+      selection = await client.setActiveProject(slug);
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      let authority: ActiveProjectSelection | null = null;
+      try {
+        authority = await client.getActiveProject();
+      } catch {
+        authority = null;
+      }
+      if (authority?.activeSlug === slug) {
+        return applySelection(authority);
+      }
+      if (authority && authority.activeSlug !== null) {
+        const activeSlug = authority.activeSlug;
+        void alertDialog({
+          title: t('gameSwitcher.activateFailedTitle'),
+          body: t('gameSwitcher.activateFailedBody', { slug, activeSlug, message }),
+        });
+        throw new Error(`game switch to "${slug}" was not applied; active game remains "${activeSlug}" (${message})`);
+      }
       void alertDialog({
         title: t('gameSwitcher.activateFailedTitle'),
-        body: t('gameSwitcher.activateFailedBody', { slug, message: (e as Error).message }),
+        body: t('gameSwitcher.activateUnknownBody', { slug, message }),
       });
-      throw e;
+      throw new Error(`game switch to "${slug}" could not be confirmed (${message})`);
     }
+    return applySelection(selection);
   },
 
   createNewSession: async (opts) => {
@@ -1077,42 +1195,18 @@ export const useShellStore = create<AppState>((set, get) => ({
       const seedOverride = opts?.providerOverride !== undefined
         ? opts.providerOverride
         : get().providerOverride;
-      // Seed the bootstrapped agent's model. The scaffold default is
-      // AGENT_DEFAULTS.models.model (claude-opus-4-8), which is fine for the
-      // native path but wrong for a CLI driver (that id isn't in the driver's
-      // catalog). Precedence:
-      //   1. the model the user last HAND-PICKED for this provider (model-prefs)
-      //      — "new session resumes where I left off";
-      //   2. else, for a CLI driver, its catalog default (first non-hidden) so
-      //      the model belongs to the active provider;
-      //   3. else (native, nothing remembered) leave the scaffold default.
-      // Only cases 1/2 write; awaited-before-activate so the composer never
-      // flashes a stale id; best-effort so a catalog hiccup can't block create.
-      if (bootstrappedAgent) {
-        try {
-          const catalogProviderId =
-            seedOverride && seedOverride !== 'forgeax' ? seedOverride : null;
-          const remembered = getLastModel(catalogProviderId);
-          if (remembered || catalogProviderId) {
-            const { listModels, setAgentModels } = await import('./lib/model-config');
-            const catalog = await listModels(catalogProviderId);
-            const rememberedOk =
-              !!remembered && catalog.some((m) => m.id === remembered && !m.hidden);
-            const next = rememberedOk
-              ? remembered
-              : catalogProviderId
-                ? (catalog.find((m) => !m.hidden)?.id ?? catalog[0]?.id)
-                : undefined;
-            if (next) await setAgentModels(sid, bootstrappedAgent, [next]);
-          }
-        } catch { /* best-effort — leave the scaffold default */ }
-      }
+      // Activate as soon as POST /api/sessions succeeds. Composer already owns
+      // the model-catalog reconciliation (with a loading placeholder), so doing
+      // the same network work here would serialize tab activation behind a
+      // second request and create two competing model writers.
+      invalidatePendingSessionSwitches();
       set((s) => {
         const newTab: ChatTab = {
           sid,
           displayName: opts?.displayName,
           agentId: null,
           providerOverride: seedOverride,
+          ...(bootstrappedAgent ? { initialModelSeedAgentId: bootstrappedAgent } : {}),
         };
         const tabs = [...s.tabs, newTab];
         persistActiveSid(sid);
@@ -1133,10 +1227,15 @@ export const useShellStore = create<AppState>((set, get) => ({
   },
 
   switchToSession: async (sid) => {
+    // Session activation includes async model reconciliation. Multiple UI
+    // surfaces can request switches concurrently, so only the latest intent
+    // may commit activeSid/persistence/WS side effects after an await.
+    const revision = invalidatePendingSessionSwitches();
     const tab = get().tabs.find((t) => t.sid === sid);
     if (!tab) {
       // 不在 tabs 里 —— 可能其它地方刚建好但本地 list 还没刷新，refresh 再试。
       await get().refreshSessions();
+      if (revision !== _sessionSwitchRevision) return;
       const t2 = get().tabs.find((tb) => tb.sid === sid);
       if (!t2) return;
     }
@@ -1154,6 +1253,7 @@ export const useShellStore = create<AppState>((set, get) => ({
         await reconcileSessionModelToActiveProvider(sid, agentPath);
       } catch { /* never block a session switch on model reconcile */ }
     }
+    if (revision !== _sessionSwitchRevision || !get().tabs.some((t) => t.sid === sid)) return;
     // provider 是全局单一设置（Settings › Providers；chat 内切换器已隐藏），切
     // session 绝不改动它——否则 Settings 的激活 provider 会跟着目标 tab 的历史值乱跳。
     // session 与全局 provider 的错配只对齐「模型」（上面 reconcile 已做），不动 provider。
@@ -1183,22 +1283,53 @@ export const useShellStore = create<AppState>((set, get) => ({
       const { [sid]: _bb, ...busyByAgentBySid } = s.busyByAgentBySid;
       return { liveAgents, agentFileActivity, agentBySid, busyByAgentBySid };
     };
-    // case-10: file-activity-stream 的模块级 _state Map 按 sid 累积(file-activity
-    // 事件触发 getOrInit),只增不删 → 每个关闭的 session 永久滞留一个条目。随 tab
-    // 一起摘除(与 closeThreadHistoryTails 同为 per-sid 模块清理)。
-    void import('./lib/file-activity-stream').then((m) => m.dropFileActivitySession(sid));
-    void import('./lib/permission-stream').then((m) => m.dropPermissionSession(sid));
-
-    // 2. 真删盘 —— DELETE /api/sessions/:sid。失败也照常往下走（盘上残留比 UI
-    //    幽灵 tab 还在更可接受），错误吐到控制台。
+    // 2. 真删盘 —— DELETE /api/sessions/:sid。只有 server 确认删除后，才允许
+    //    摘掉本地 tab 与所有 per-sid 残留；否则刷新历史会把服务端仍存在的 session
+    //    "复活"，并且用户会无从得知删除未成功。
     const { deleteSession, connectForgeaXWs, createSession } = getSessionClient();
-    try { await deleteSession(sid); }
-    catch (e) { console.warn('[closeSession] DELETE failed', e); }
+    try {
+      await deleteSession(sid);
+    } catch (e) {
+      console.warn('[closeSession] DELETE failed', e);
+      void alertDialog({
+        title: t('store.closeSession.failedTitle'),
+        body: t('store.closeSession.failedBody', { message: (e as Error).message }),
+      });
+      return {
+        status: 'not-deleted',
+        activeSid: get().activeSid,
+        error: {
+          code: 'SESSION_DELETE_FAILED',
+          message: e instanceof Error ? e.message : String(e),
+        },
+      };
+    }
+
+    // DELETE is now authoritative. Cancel any switch that still targets the
+    // removed tab before the last-session replacement request can await.
+    invalidatePendingSessionSwitches();
+
+    // case-10: file-activity-stream 的模块级 _state Map 按 sid 累积(file-activity
+    // 事件触发 getOrInit),只增不删 → 每个关闭的 session 永久滞留一个条目。只有
+    // DELETE 成功后才随 tab 一起摘除(与 closeThreadHistoryTails 同为 per-sid 模块清理)。
+    dropFileActivitySession(sid);
+    dropPermissionSession(sid);
 
     // 3. 从 tabs 里摘掉。如果删的是最后一条 → server 立即再 createSession 兜底
     //    保证 UI 永远有一条可用 session，跟 initSessions 的"空就建一条"一致。
     const remainingMetas = get().tabs.filter((t) => t.sid !== sid);
     if (remainingMetas.length === 0) {
+      // The server has already deleted the final sid. Remove it from every
+      // client-facing state before awaiting the replacement POST so composer,
+      // tabs, and WS cannot keep using a session that no longer exists.
+      set((s) => ({
+        tabs: [],
+        activeSid: null,
+        currentSessionId: null,
+        ...omitSessionResidue(s),
+      }));
+      persistActiveSid(null);
+      connectForgeaXWs(null);
       try {
         const { sid: newSid } = await createSession({ autoStart: true });
         const fresh: ChatTab = {
@@ -1207,22 +1338,25 @@ export const useShellStore = create<AppState>((set, get) => ({
           agentId: null,
           providerOverride: loadProviderOverride(),
         };
-        set((s) => ({
+        set({
           tabs: [fresh],
           activeSid: newSid,
           currentSessionId: newSid,
-          ...omitSessionResidue(s),
-        }));
+        });
         persistActiveSid(newSid);
         connectForgeaXWs(newSid);
         void _syncActiveAgentRunning(newSid);
-        return;
+        return { status: 'deleted', activeSid: newSid };
       } catch (e) {
         console.error('[closeSession] auto-create after empty failed', e);
-        set((s) => ({ tabs: [], activeSid: null, currentSessionId: null, ...omitSessionResidue(s) }));
-        persistActiveSid(null);
-        connectForgeaXWs(null);
-        return;
+        return {
+          status: 'deleted-without-active-session',
+          activeSid: null,
+          error: {
+            code: 'SESSION_REPLACEMENT_FAILED',
+            message: e instanceof Error ? e.message : String(e),
+          },
+        };
       }
     }
 
@@ -1240,6 +1374,7 @@ export const useShellStore = create<AppState>((set, get) => ({
     });
     connectForgeaXWs(get().activeSid);
     void _syncActiveAgentRunning(get().activeSid);
+    return { status: 'deleted', activeSid: get().activeSid };
   },
 
   renameTab: (sid, displayName) => {
@@ -1276,7 +1411,7 @@ export const useShellStore = create<AppState>((set, get) => ({
 
 /**
  * @deprecated Renamed to `useShellStore` (T24 · ADR 0024). Kept as an alias
- * so out-of-tree consumers (chat / editor / workbench / dashboard / settings
+ * so out-of-tree consumers (chat / editor / page / dashboard / settings
  * / studio / harness — 74 callsites across 7 submodules) keep booting while
  * they migrate. Both names point to the SAME store instance; there is no
  * behavior difference. Remove this line once every submodule has been

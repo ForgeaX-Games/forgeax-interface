@@ -19,13 +19,13 @@ describe('ui-trajectory', () => {
   });
 
   it('records human + AI ops and derives title/capability from the registry', () => {
-    reg('app.set_mode', 'write');
-    recordTrajectory({ id: 'app.set_mode', source: 'human', args: { mode: 'play' } });
-    recordTrajectory({ id: 'app.set_mode', source: 'ai', args: { mode: 'edit' } });
+    reg('extension.open', 'write');
+    recordTrajectory({ id: 'extension.open', source: 'human', args: { extensionId: 'play' } });
+    recordTrajectory({ id: 'extension.open', source: 'ai', args: { extensionId: 'edit' } });
     const { total, entries } = readTrajectory();
     expect(total).toBe(2);
-    expect(entries[0]).toMatchObject({ id: 'app.set_mode', title: 'T:app.set_mode', source: 'human', capability: 'write', args: { mode: 'play' } });
-    expect(entries[1]).toMatchObject({ source: 'ai', args: { mode: 'edit' } });
+    expect(entries[0]).toMatchObject({ id: 'extension.open', title: 'T:extension.open', source: 'human', capability: 'write', args: { extensionId: 'play' } });
+    expect(entries[1]).toMatchObject({ source: 'ai', args: { extensionId: 'edit' } });
     // seq is monotonic
     expect(entries[1].seq).toBeGreaterThan(entries[0].seq);
   });

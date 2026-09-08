@@ -214,7 +214,7 @@
   --color-role-coding:       var(--accent-orange);          /* #FFB056 */
 
   /* ── bus kind colors ─────────────────────────────────────────────── */
-  --color-kind-workbench:     var(--color-brand-primary);
+  --color-kind-extension:     var(--color-brand-primary);
   --color-kind-agent:         var(--color-role-orchestrator);
   --color-kind-cli-provider:  var(--prim-color-sky-400);    /* #6cc4ff */
   --color-kind-model-binding: var(--accent-mint);           /* #63EACF */

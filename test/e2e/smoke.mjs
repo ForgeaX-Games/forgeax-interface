@@ -9,7 +9,7 @@
 //
 // Checks:
 //   1. Edit layout: viewport dominant, Assets in LEFT column (not full-width bottom)
-//   2. Workbench left pane (options) renders with non-zero height (the CSS-collapse bug)
+//   2. Page left pane (options) renders with non-zero height (the CSS-collapse bug)
 //   3. Layout dropdown: portalled to body, on top, closes on outside-click
 //   4. Right-click a workspace tab → "引用到 Chat" inserts a pill into the composer
 import { createRequire } from 'node:module';
@@ -54,12 +54,12 @@ try {
   // Left column should be narrow; the old bug made Assets span the full width.
   check('edit: Assets not full-width bottom strip', edit.groupW > 0 && edit.groupW < 900, `assets group width=${edit.groupW}`);
 
-  // 2) Workbench left pane (options) non-zero height
+  // 2) Page left pane (options) non-zero height
   await page.locator('.mode-tab', { hasText: /^AI$/ }).first().click({ timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(1200);
-  await page.locator('.sb-icon-btn[aria-label="Workbench"]').first().click({ timeout: 4000 }).catch(() => {});
+  await page.locator('.sb-icon-btn[aria-label="Page"]').first().click({ timeout: 4000 }).catch(() => {});
   await page.waitForTimeout(800);
-  // open the first workbench plugin icon (wait for them to load)
+  // open the first page plugin icon (wait for them to load)
   for (let i = 0; i < 18; i++) { if (await page.locator('.ws-icon-btn').count()) break; await page.waitForTimeout(1000); }
   const icons = page.locator('.ws-icon-btn');
   const n = await icons.count();
@@ -75,7 +75,7 @@ try {
     const f = document.querySelector('.ws-pane-keepalive iframe');
     return { kp: kp ? kp.getBoundingClientRect().height : -1, iframe: f ? f.getBoundingClientRect().height : -1 };
   });
-  check('workbench: left options pane has height', leftPane.iframe > 50, `iframe h=${Math.round(leftPane.iframe)}`);
+  check('page: left options pane has height', leftPane.iframe > 50, `iframe h=${Math.round(leftPane.iframe)}`);
 
   // 3) Layout dropdown — top layer + click-outside close
   await page.locator('button[title^="布局"]').first().click({ timeout: 4000 }).catch(() => {});

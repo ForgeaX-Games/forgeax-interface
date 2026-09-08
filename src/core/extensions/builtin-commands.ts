@@ -15,8 +15,11 @@ import type { AppExtension } from '../app-shell/types';
 import { useShellStore } from '../../store';
 import { bumpDockResetEpoch } from '../../components/DockShell/dockResetEpoch';
 import { useChatWidth, CHAT_DEFAULT_WIDTH } from '../../components/ChatColumn/useChatWidth';
-import { isPanelVisible } from '../../components/DockShell/DockRegion';
+import { isDockPanelVisible } from '@forgeax/app-shell/dock';
+import { useFeedbackStore } from '../../components/Feedback/store';
 import { isTauri } from '../../lib/platform/runtime';
+import { getSessionClient, hasSessionClient } from '../../store-parts/session-client';
+import { executeFocusedTextEditAction, type TextEditAction } from '../../lib/text-edit-actions';
 
 const getState = () => useShellStore.getState();
 
@@ -28,20 +31,19 @@ export const builtinCommandsExtension: AppExtension = {
     const { registerCommand } = ctx;
     const cleanups: Array<() => void> = [];
 
-    cleanups.push(registerCommand({
-      id: 'app.set_mode',
-      title: '切换主模式 (scene / ai)',
-      execute: async (args) => {
-        const mode = (args as { mode?: 'scene' | 'ai' })?.mode;
-        if (mode !== 'scene' && mode !== 'ai') throw new Error('app.set_mode: mode must be scene | ai');
-        const owner = mode === 'scene' ? '@forgeax/editor' : '@forgeax/studio-agents';
-        const page = [...ctx.host.pageRegistry.getSnapshot().pageTypes.entries()]
-          .find(([, resolved]) => resolved.owner === owner && resolved.status === 'available');
-        if (!page) throw new Error(`no page is available for ${owner}`);
-        await ctx.host.pages.open({ typeId: page[0] });
-        return { status: 'completed' as const, mode };
-      },
-    }));
+    const registerTextEditCommand = (id: string, title: string, action: TextEditAction): void => {
+      cleanups.push(registerCommand({
+        id,
+        title,
+        execute: async () => ({
+          status: await executeFocusedTextEditAction(action) ? 'completed' as const : 'rejected' as const,
+        }),
+      }));
+    };
+
+    registerTextEditCommand('text.cut', '剪切输入框选区', 'cut');
+    registerTextEditCommand('text.copy', '复制输入框选区', 'copy');
+    registerTextEditCommand('text.paste', '粘贴到输入框', 'paste');
 
     cleanups.push(registerCommand({
       id: 'app.panel.open',
@@ -93,10 +95,10 @@ export const builtinCommandsExtension: AppExtension = {
       execute: (args) => {
         const id = (args as { id?: string })?.id;
         if (!id) throw new Error('app.panel.toggle: missing { id }');
-        // Visibility comes from DockRegion's module-level mirror (kept in sync
-        // via onDidAddPanel/onDidRemovePanel). Command stays thin: it only picks
-        // which existing event to emit; DockRegion owns the open/close logic.
-        if (isPanelVisible(id)) ctx.bus.emit('panel:close', { id });
+        // Visibility comes from App Shell's shared mount registry, which
+        // DockRegion updates from Dockview lifecycle events. This product
+        // command only chooses which existing event to emit.
+        if (isDockPanelVisible(id)) ctx.bus.emit('panel:close', { id });
         else ctx.bus.emit('panel:open', { id });
         return { status: 'completed' as const };
       },
@@ -147,7 +149,7 @@ export const builtinCommandsExtension: AppExtension = {
       id: 'app.dock.layoutToggle',
       title: 'Open the dock layout menu',
       execute: (args) => {
-        ctx.bus.emit('dock:layout-toggle', (args as { workbenchId?: string; rect?: { top: number; bottom: number; left: number; right: number } }) ?? {});
+        ctx.bus.emit('dock:layout-toggle', (args as { pageId?: string; rect?: { top: number; bottom: number; left: number; right: number } }) ?? {});
         return { status: 'completed' as const };
       },
     }));
@@ -175,18 +177,6 @@ export const builtinCommandsExtension: AppExtension = {
     }));
 
     cleanups.push(registerCommand({
-      id: 'workbench.open',
-      title: '打开 Workbench',
-      execute: async () => {
-        const page = [...ctx.host.pageRegistry.getSnapshot().pageTypes.entries()]
-          .find(([, resolved]) => resolved.owner === '@forgeax/studio-agents' && resolved.status === 'available');
-        if (!page) throw new Error('Agents page is unavailable');
-        await ctx.host.pages.open({ typeId: page[0] });
-        return { status: 'completed' as const };
-      },
-    }));
-
-    cleanups.push(registerCommand({
       id: 'overlay.open',
       title: '打开浮层',
       execute: (args) => {
@@ -201,6 +191,28 @@ export const builtinCommandsExtension: AppExtension = {
       id: 'overlay.close',
       title: '关闭浮层',
       execute: () => { getState().closeOverlay(); return { status: 'completed' as const }; },
+    }));
+
+    cleanups.push(registerCommand({
+      id: 'feedback.open',
+      title: '打开反馈面板',
+      execute: () => {
+        useFeedbackStore.getState().openPanel('write');
+        return { status: 'completed' as const };
+      },
+    }));
+
+    cleanups.push(registerCommand({
+      id: 'session.reconnect',
+      title: '重连当前会话',
+      execute: () => {
+        const sid = getState().activeSid;
+        if (!sid || !hasSessionClient()) throw new Error('session.reconnect: no active session client');
+        const client = getSessionClient();
+        client.disconnectForgeaXWs();
+        client.connectForgeaXWs(sid);
+        return { status: 'completed' as const };
+      },
     }));
 
     // Game flows — a game is exactly one game directory.
@@ -237,7 +249,7 @@ export const builtinCommandsExtension: AppExtension = {
       },
     }));
 
-    // Remaining actions (workbench.list_plugins / workbench.open_plugin /
+    // Remaining actions (extension.list / extension.open /
     // console.clear / console.read / network.clear / session.* / game.switch)
     // stay in lib/builtin-actions.ts for now — they're consumed by
     // action-registry (AI's tool registry). PR 3 will unify.

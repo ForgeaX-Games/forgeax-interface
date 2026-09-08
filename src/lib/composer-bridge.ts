@@ -28,8 +28,7 @@
 //   file row      .fp-row.file            data-fp-path (or .fp-name text)
 //   dir row       .fp-row.dir             .fp-name text
 //   agent card    .agent-card             data-agent-id (+ .ac-name text, data-role)
-//   wb agent card .wm-agent-card          data-agent-id, data-agent-name
-//   wb plugin     .ws-icon-btn            data-extension-id, aria-label
+//   agent page card .agents-agent-card        data-agent-id, data-agent-name
 //   preview game  .preview-toolbar        data-game-slug
 //   console line  .console-row            (text content)
 //   workspace tab .mode-tab               data-ws-id, data-ws-name
@@ -267,8 +266,8 @@ export const REFERENCE_REGISTRY: RefDescriptor[] = [
     },
   },
   {
-    kind: 'wb-agent',
-    match: '.wm-agent-card[data-agent-id]',
+    kind: 'agent-page',
+    match: '.agents-agent-card[data-agent-id]',
     build: (el) => {
       const agentId = el.dataset.agentId || '';
       if (!agentId) return null;
@@ -277,20 +276,6 @@ export const REFERENCE_REGISTRY: RefDescriptor[] = [
         kind: 'agent', display: name, icon: '🤝',
         detail: `@${agentId}`,
         tooltip: { title: `🤝 Agent · ${name}`, lines: [`id: ${agentId}`] },
-      };
-    },
-  },
-  {
-    kind: 'wb-plugin',
-    match: '.ws-icon-btn',
-    build: (el) => {
-      const extensionId = el.dataset.extensionId || '';
-      if (!extensionId) return null;
-      const label = el.getAttribute('aria-label') || extensionId;
-      return {
-        kind: 'tool', display: label, icon: '🔧',
-        detail: `[${t('reference.workshop_extension_ref')}: \`${extensionId}\` · ${label}]`,
-        tooltip: { title: `🔧 ${t('reference.workshop_extension')} · ${label}`, lines: [`extension id: ${extensionId}`] },
       };
     },
   },
@@ -394,8 +379,6 @@ export const REFERENCE_REGISTRY: RefDescriptor[] = [
     kind: 'bus-plugin',
     match: '[data-extension-id]',
     build: (el) => {
-      // ws-icon-btn already handled above; skip it here so we don't double-match.
-      if (el.closest('.ws-icon-btn')) return null;
       const extensionId = el.dataset.extensionId || '';
       if (!extensionId) return null;
       const label = truncate(text(el).split('\n')[0] || extensionId, 40);

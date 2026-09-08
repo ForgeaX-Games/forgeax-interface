@@ -61,6 +61,7 @@ export interface ContextualKeybindingsApi {
 }
 
 function normalizeKey(key: string): string {
+  if (!key) return '';
   if (key === ' ') return 'Space';
   if (key.length === 1) return key.toUpperCase();
   const aliases: Record<string, string> = {
@@ -72,6 +73,29 @@ function normalizeKey(key: string): string {
     Down: 'ArrowDown',
   };
   return aliases[key] ?? key;
+}
+
+/** Some browsers omit `event.key` after autocomplete/history selection (e.g. Space). */
+function readKeyboardEventKey(event: KeyboardEvent): string {
+  if (typeof event.key === 'string' && event.key.length > 0) {
+    return event.key;
+  }
+  switch (event.code) {
+    case 'Space': return ' ';
+    case 'Enter': return 'Enter';
+    case 'Escape': return 'Escape';
+    case 'Backspace': return 'Backspace';
+    case 'Delete': return 'Delete';
+    case 'Tab': return 'Tab';
+    case 'ArrowUp': return 'ArrowUp';
+    case 'ArrowDown': return 'ArrowDown';
+    case 'ArrowLeft': return 'ArrowLeft';
+    case 'ArrowRight': return 'ArrowRight';
+    default:
+      if (event.code.startsWith('Key')) return event.code.slice(3);
+      if (event.code.startsWith('Digit')) return event.code.slice(5);
+      return event.code;
+  }
 }
 
 export function detectKeybindingPlatform(): KeybindingPlatform {
@@ -120,7 +144,7 @@ export function normalizeKeyboardEvent(
     event.shiftKey ? 'Shift' : '',
   ].filter(Boolean);
   return {
-    key: [...modifiers, normalizeKey(event.key)].join('+'),
+    key: [...modifiers, normalizeKey(readKeyboardEventKey(event))].join('+'),
     editable: isEditableEventTarget(event.composedPath()[0] ?? event.target),
     composing: event.isComposing || event.keyCode === 229,
   };

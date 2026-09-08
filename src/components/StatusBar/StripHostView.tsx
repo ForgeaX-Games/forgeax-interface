@@ -29,6 +29,10 @@ import './GlobalStatusBar.css';
 
 type StripSlot = 'left' | 'center' | 'right';
 
+/** Mirrors GlobalStatusBar.css and makes the real consumer's visual order
+ * inspectable in DOM evidence without treating a slot name as geometry. */
+const VISUAL_ORDER: Record<StripSlot, number> = { left: 4, center: 2, right: 3 };
+
 const SLOT_OF: Record<StripLocationId, StripSlot> = {
   'statusbar.left': 'left',
   'statusbar.center': 'center',
@@ -94,7 +98,12 @@ function Slot({ slot, items, tick }: { slot: StripSlot; items: StatusItemContrib
   const hiddenCount = isOverflow ? items.length - cap : 0;
 
   return (
-    <div className={`sb-slot sb-slot-${slot}`} data-slot-count={items.length} data-slot-visible={visible.length}>
+    <div
+      className={`sb-slot sb-slot-${slot}`}
+      data-slot-count={items.length}
+      data-slot-visible={visible.length}
+      data-slot-order={VISUAL_ORDER[slot]}
+    >
       {visible.map((it) => (
         <div key={it.id} className="sb-item" data-item-id={it.id}>
           <StatusItemView item={it} />

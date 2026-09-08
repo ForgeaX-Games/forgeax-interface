@@ -102,22 +102,6 @@ input, textarea, [contenteditable="true"] {
   cursor: text;
 }
 
-/* Detached OS window (DetachedSurface): the wrapper is position:fixed inset:0,
-   but the hosted panel (ChatPanel / Agents / Files / plugin iframe) is a flex
-   column with no intrinsic height — without this it collapses to content height,
-   leaving dead BLACK space below in the popped window. Stretch the child to fill. */
-.fx-detached-surface,
-.fx-detached-panel {
-  display: flex;
-  flex-direction: column;
-}
-.fx-detached-surface > *,
-.fx-detached-panel > * {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-}
-
 .forgeax-ctx-menu-panel {
   min-width: 216px;
   padding: 5px;

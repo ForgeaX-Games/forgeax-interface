@@ -70,6 +70,7 @@ function SurfaceOverlayDev(): ReactElement | null {
   // for each surface action whose `id` matches a registered tool. Re-fetched
   // on plugin reload via SSE; cheap, ~1KB payload.
   useEffect(() => {
+    if (!open) return undefined;
     let cancelled = false;
     const reload = () => fetchTools().then((next) => { if (!cancelled) setTools(next); });
     void reload();
@@ -79,7 +80,7 @@ function SurfaceOverlayDev(): ReactElement | null {
       es.addEventListener('event', () => { void reload(); });
     } catch { /* fall back to single fetch */ }
     return () => { cancelled = true; if (es) es.close(); };
-  }, []);
+  }, [open]);
 
   const toolsById = useMemo(() => {
     const m = new Map<string, ToolDescriptorLite>();
@@ -168,7 +169,7 @@ function SurfaceCard({
 /** D2 — single surface-action row. Has a "▶" toggle that opens an inline
  *  SchemaForm seeded with the action's args snapshot + the tool's argsSchema
  *  (when registered). Submitting POSTs `/api/tools/call` as caller=user
- *  (workbench surface — the dev clicked the form). The legacy <pre>args view
+ *  (page surface — the dev clicked the form). The legacy <pre>args view
  *  is preserved for actions with no schema or no matching tool registration. */
 function SurfaceActionRow({
   action,

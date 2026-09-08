@@ -71,7 +71,7 @@ export function pageKindOf(input: { typeId: string; resource?: ResourceDescripto
     if (id.includes(kind)) return kind;
   }
   if (id.includes('scene') || id.includes('level')) return 'scene';
-  if (id.includes('workbench') || id.includes('wb-') || id.includes('plugin')) return 'plugin';
+  if (id.includes('extension') || id.includes('plugin')) return 'plugin';
   return 'config';
 }
 

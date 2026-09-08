@@ -7,12 +7,12 @@
  *    - `getRecentGames(limit)` —— sync 读缓存,按 mtime 降序 (最近打开在前) 取前
  *      N 个,供 dynamicChildren 派生菜单项。
  *
- *  SSOT 仍是 server 的 /api/workbench/games (listGames);缓存只是"展开前已就绪"
+ *  SSOT remains the server's /api/projects collection; the cache is only a
  *  的快照,不是第二真值源 (每次 File 菜单打开都重新 warm)。
  */
-import { getWorkbenchClient, hasWorkbenchClient, type GameRow } from '../store-parts/workbench-client';
+import { getStudioProjectClient, hasStudioDomainClients, type ProjectRow } from '../store-parts/domain-clients';
 
-let cache: GameRow[] = [];
+let cache: ProjectRow[] = [];
 let revision = 0;
 const listeners = new Set<() => void>();
 
@@ -30,9 +30,9 @@ export function getRecentGamesRevision(): number {
  *  opens so `getRecentGames` has data ready by the time the submenu expands.
  *  Failures leave the previous cache intact (stale is better than empty flash). */
 export async function warmRecentGames(): Promise<void> {
-  if (!hasWorkbenchClient()) return;
+  if (!hasStudioDomainClients()) return;
   try {
-    const j = await getWorkbenchClient().listGames();
+    const j = await getStudioProjectClient().listProjects();
     cache = j.games ?? [];
     revision += 1;
     listeners.forEach((listener) => listener());
@@ -44,8 +44,8 @@ export async function warmRecentGames(): Promise<void> {
 /** Sync read: most-recently-modified games first, capped at `limit`.
  *  `GameRow` carries `mtime` under an index signature (typed `unknown`), so
  *  coerce defensively — a missing/NaN mtime sorts last rather than crashing. */
-export function getRecentGames(limit = 8): GameRow[] {
-  const mt = (g: GameRow): number => {
+export function getRecentGames(limit = 8): ProjectRow[] {
+  const mt = (g: ProjectRow): number => {
     const v = Number(g.mtime);
     return Number.isFinite(v) ? v : 0;
   };

@@ -17,16 +17,16 @@
 
 import type { AppExtension } from '../app-shell/types';
 import { registerMenuItem, type MenuItemDef } from '../../lib/menu-registry';
-import { isPanelVisible } from '../../components/DockShell/DockRegion';
+import { isDockPanelVisible } from '@forgeax/app-shell/dock';
 import { useShellStore } from '../../store';
 import { getRecentGames } from '../../lib/recent-games';
 
-// Window-menu `checked()` predicates read from the DockRegion module-level
-// visibility mirror (interface-owned SSOT — kept in sync via
-// onDidAddPanel/onDidRemovePanel). Non-reactive is fine: Radix rebuilds
+// Window-menu `checked()` predicates read from App Shell's shared visibility
+// registry, kept in sync by DockRegion's Dockview lifecycle subscriptions.
+// Non-reactive is fine: Radix rebuilds
 // dropdown content on every open, so `checked()` runs at open-time and
 // reflects the current state.
-const isVisible = (id: string) => () => isPanelVisible(id);
+const isVisible = (id: string) => () => isDockPanelVisible(id);
 // Chat panel visibility lives in the store slice; the panel itself is always
 // mounted, `chatpanelCollapsed` flips its collapsed state — invert for
 // "checked = visible".
@@ -108,11 +108,14 @@ export const builtinMenusExtension: AppExtension = {
         commandId: 'editor.redo', keybinding: 'Ctrl+Shift+Z' },
 
       { id: 'edit.cut', menu: 'edit', group: 'clipboard', order: 10,
-        labelKey: 'menu.edit.cut', icon: 'scissors', keybinding: 'Ctrl+X' },
+        labelKey: 'menu.edit.cut', icon: 'scissors',
+        commandId: 'text.cut', keybinding: 'Ctrl+X' },
       { id: 'edit.copy', menu: 'edit', group: 'clipboard', order: 20,
-        labelKey: 'menu.edit.copy', icon: 'copy', keybinding: 'Ctrl+C' },
+        labelKey: 'menu.edit.copy', icon: 'copy',
+        commandId: 'text.copy', keybinding: 'Ctrl+C' },
       { id: 'edit.paste', menu: 'edit', group: 'clipboard', order: 30,
-        labelKey: 'menu.edit.paste', icon: 'clipboard', keybinding: 'Ctrl+V' },
+        labelKey: 'menu.edit.paste', icon: 'clipboard',
+        commandId: 'text.paste', keybinding: 'Ctrl+V' },
       { id: 'edit.delete', menu: 'edit', group: 'clipboard', order: 40,
         labelKey: 'menu.edit.delete', icon: 'trash-2', danger: true,
         commandId: 'editor.delete' },
@@ -251,7 +254,7 @@ export const builtinMenusExtension: AppExtension = {
         commandId: 'app.open_url', args: { url: 'https://github.com/ForgeaX-Games' } },
       { id: 'help.report', menu: 'help', group: 'about', order: 20,
         labelKey: 'menu.help.report', icon: 'message-circle',
-        commandId: 'app.open_url', args: { url: 'https://github.com/ForgeaX-Games' } },
+        commandId: 'feedback.open' },
       { id: 'help.about', menu: 'help', group: 'about', order: 30,
         labelKey: 'menu.help.about', icon: 'info',
         commandId: 'overlay.open', args: { id: 'settings', param: 'about' } },

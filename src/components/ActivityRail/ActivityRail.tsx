@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useTranslation } from '@/i18n';
 import {
   activityRailCategory,
+  addDefaultPinnedActivity,
   defaultPinnedActivityIds,
   groupDiscoverableActivities,
   localizeActivityRailEntries,
@@ -38,6 +39,14 @@ function writePinned(ids: readonly string[]): void {
   try { localStorage.setItem(STORAGE_KEYS.activityRailPinned, JSON.stringify(ids)); } catch { /* quota */ }
 }
 
+function readMigrationFlag(key: string): boolean {
+  try { return localStorage.getItem(key) === '1'; } catch { return false; }
+}
+
+function writeMigrationFlag(key: string): void {
+  try { localStorage.setItem(key, '1'); } catch { /* quota */ }
+}
+
 export function ActivityRail() {
   const { t, i18n } = useTranslation();
   const host = useHost();
@@ -57,6 +66,9 @@ export function ActivityRail() {
   const firstMoreActionRef = useRef<HTMLButtonElement | null>(null);
   const pinnedRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const migrationComplete = useRef(savedPinned !== null);
+  const videoGameDefaultMigrationComplete = useRef(
+    readMigrationFlag(STORAGE_KEYS.activityRailPinnedVideoGameDefault),
+  );
   const activities = useMemo(
     () => localizeActivityRailEntries(catalog.activities, i18n.language),
     [catalog.activities, i18n.language],
@@ -100,6 +112,16 @@ export function ActivityRail() {
     setSavedPinned(next);
     writePinned(next);
   }, [activities]);
+
+  useEffect(() => {
+    if (videoGameDefaultMigrationComplete.current || savedPinned === null || activities.length === 0) return;
+    const next = addDefaultPinnedActivity(savedPinned, activities, 'video-game');
+    videoGameDefaultMigrationComplete.current = true;
+    writeMigrationFlag(STORAGE_KEYS.activityRailPinnedVideoGameDefault);
+    if (next.length === savedPinned.length) return;
+    setSavedPinned(next);
+    writePinned(next);
+  }, [activities, savedPinned]);
 
   useEffect(() => {
     if (pinned.length === 0) {
@@ -188,7 +210,7 @@ export function ActivityRail() {
     <TooltipProvider delayDuration={260} skipDelayDuration={80}>
       <nav
         className="activity-rail thin-scrollbar"
-        aria-label={t('sidebar.workbenchExtensionsHint')}
+        aria-label={t('sidebar.extensionsHint')}
         data-fx-slot="ActivityRail"
       >
         <div
@@ -196,7 +218,7 @@ export function ActivityRail() {
           data-category="builtin"
           role="toolbar"
           aria-orientation="vertical"
-          aria-label={t('sidebar.workbenchExtensionsHint')}
+          aria-label={t('sidebar.extensionsHint')}
         >
           {builtinPinned.map((activity) => pinnedButton(activity, pinned.indexOf(activity)))}
         </div>
@@ -205,7 +227,7 @@ export function ActivityRail() {
           data-category="pinned"
           role="toolbar"
           aria-orientation="vertical"
-          aria-label={t('sidebar.workbenchExtensionsHint')}
+          aria-label={t('sidebar.extensionsHint')}
         >
           {pluginPinned.map((activity) => pinnedButton(activity, pinned.indexOf(activity)))}
         </div>

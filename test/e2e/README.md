@@ -1,6 +1,6 @@
 # interface e2e smoke checks
 
-Browser-driven smoke checks for the editor-mode UI systems (layout, workbench
+Browser-driven smoke checks for the editor-mode UI systems (layout, extension
 panes, overlays, right-click reference). They固化 the throwaway Playwright
 scripts that were used while fixing the layout / left-pane / dropdown
 regressions — so those regressions can't silently return.
@@ -25,7 +25,7 @@ Sidebar, TopBar overlays, or the reference/pill system.
 | Check | Regression it catches |
 |---|---|
 | Edit: Assets not full-width bottom strip | dockview `buildDefault` column-order bug |
-| Workbench: left options pane has height | `.ws-pane-keepalive` CSS 0-height collapse |
+| Extension page: left options pane has height | `.ws-pane-keepalive` CSS 0-height collapse |
 | Layout dropdown portalled + on top | overlay covered by chat panel (z-index) |
 | Layout dropdown closes on outside-click | mouse-out-close anti-pattern |
 | Workspace tab → no global Radix menu | double-menu conflict (ownMenu opt-out) |

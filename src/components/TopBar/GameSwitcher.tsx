@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useShellStore } from '../../store';
 import { getSessionClient } from '../../store-parts/session-client';
-import { getWorkbenchClient } from '../../store';
+import { getStudioProjectClient } from '../../store';
 import { confirmDialog, alertDialog } from '../../lib/dialog';
 import { listGameTemplates, type GameTemplate } from '../../lib/game-templates';
 import { useTranslation } from '@/i18n';
@@ -73,7 +73,7 @@ export function ProjectSessionRows({
 export async function createSessionForGame(
   slug: string,
   dependencies: {
-    readonly setActiveGame: (slug: string) => Promise<void>;
+    readonly setActiveGame: (slug: string) => Promise<unknown>;
     readonly createNewSession: (options: { readonly scope: string }) => Promise<unknown>;
   },
 ): Promise<boolean> {
@@ -99,7 +99,7 @@ export function GameModalHost() {
 
   const reload = async () => {
     try {
-      const j = await getWorkbenchClient().listGames();
+      const j = await getStudioProjectClient().listProjects();
       setGames((j.games as unknown as GameRow[]) ?? []);
     } catch { /* ignore */ }
   };
@@ -117,7 +117,7 @@ export function GameModalHost() {
   const onDelete = async (slug: string) => {
     if (!(await confirmDialog({ body: t('gameSwitcher.deleteConfirm', { slug }), danger: true }))) return;
     try {
-      await getWorkbenchClient().deleteGame(slug);
+      await getStudioProjectClient().deleteProject(slug);
       await reload();
     } catch (e) {
       void alertDialog({ title: t('gameSwitcher.deleteFailedTitle'), body: (e as Error).message });
@@ -205,7 +205,7 @@ function NewGameModal({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setErr(null);
     try {
-      const j = await getWorkbenchClient().createGame({
+      const j = await getStudioProjectClient().createProject({
         slug: cleaned,
         name: name.trim() || cleaned,
         brief: brief.trim(),

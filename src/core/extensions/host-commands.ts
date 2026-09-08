@@ -1,6 +1,6 @@
 // Host-side command contracts for chat task-flow actions.
 //
-// Interface owns registration and typed dispatch only.  Editor/workbench
+// Interface owns registration and typed dispatch only. Editor/resource-editor
 // owners subscribe to the AppHost bus and provide the concrete side effects.
 
 import type { AppExtension } from '../app-shell/types';
@@ -48,12 +48,10 @@ export const hostCommandsExtension: AppExtension = {
 
     cleanups.push(ctx.registerCommand({
       id: 'app.files.reveal',
-      title: 'Reveal a file in the workbench',
+      title: 'Reveal a file in the resource editor',
       execute: (args) => {
         const path = requiredString('app.files.reveal', args, 'path');
-        // Preserve the existing workbench file-preview handoff while also
-        // exposing a typed AppHost event for standalone editor owners.
-        publish('workbench:open-file', { path });
+        publish('resource-editor:open-file', { path });
         ctx.bus.emit('files:reveal', { path });
         return { status: 'completed' as const, path };
       },

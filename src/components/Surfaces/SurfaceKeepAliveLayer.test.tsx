@@ -46,13 +46,15 @@ describe('SurfaceKeepAliveLayer anchor resize tracking', () => {
     const { SurfaceKeepAliveLayer } = await import('./SurfaceKeepAliveLayer');
     const { setAnchor, _resetSurfaceAnchorsForTests } = await import('../../lib/surfaceAnchors');
     const { useShellStore } = await import('../../store');
+    const { createAppHost, HostProvider } = await import('../../core/app-shell');
 
     resetAnchors = _resetSurfaceAnchorsForTests;
     resetAnchors();
     useShellStore.setState({ mode: 'scene' });
 
+    const { host: appHost } = createAppHost();
     act(() => {
-      root.render(<SurfaceKeepAliveLayer />);
+      root.render(<HostProvider value={appHost}><SurfaceKeepAliveLayer /></HostProvider>);
     });
 
     const anchor = document.createElement('div');

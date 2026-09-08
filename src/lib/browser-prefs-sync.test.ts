@@ -39,15 +39,15 @@ describe('browser-prefs-sync · restoreBrowserLocalStorage (non-destructive)', (
   it('fills keys that are missing locally', async () => {
     const { restoreBrowserLocalStorage } = await import('./browser-prefs-sync');
     const n = restoreBrowserLocalStorage({
-      'forgeax:project:default:workbench-layout:scene': '{"grid":"snapshot"}',
+      'forgeax:project:default:page-layout:editor:center': '{"grid":"snapshot"}',
     });
     expect(n).toBe(1);
-    expect(localStorage.getItem('forgeax:project:default:workbench-layout:scene'))
+    expect(localStorage.getItem('forgeax:project:default:page-layout:editor:center'))
       .toBe('{"grid":"snapshot"}');
   });
 
   it('never overwrites a key that already exists locally (layout reset wins)', async () => {
-    const key = 'forgeax:project:default:workbench-layout:scene';
+    const key = 'forgeax:project:default:page-layout:editor:center';
     // Simulate the just-reset default layout already persisted in localStorage.
     localStorage.setItem(key, '{"grid":"reset-default"}');
 
@@ -60,8 +60,8 @@ describe('browser-prefs-sync · restoreBrowserLocalStorage (non-destructive)', (
   });
 
   it('mixes fill (missing) and skip (present) in one restore', async () => {
-    const present = 'forgeax:project:default:workbenches';
-    const missing = 'forgeax:project:default:workbench-layout:ai';
+    const present = 'forgeax:project:default:recent-page';
+    const missing = 'forgeax:project:default:page-layout:agents:center';
     localStorage.setItem(present, '{"activeId":"local"}');
 
     const { restoreBrowserLocalStorage } = await import('./browser-prefs-sync');

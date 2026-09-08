@@ -1,5 +1,5 @@
 /* Footer panel content styles — the inner bodies of the four demo bottom
- * entries (project version + diagnostics popovers, checkpoints + events
+ * entries (ForgeaX build + diagnostics popovers, checkpoints + events
  * drawers). Ported from the demo's `.sb-*` / `.rt-*` classes onto our tokens.
  * The popover/drawer SHELLS are owned by StripPopover / DrawerHostView; this
  * file owns only the content inside them. */

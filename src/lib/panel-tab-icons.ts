@@ -21,7 +21,6 @@ import {
   History,
   Info,
   LayoutDashboard,
-  LayoutGrid,
   ListChecks,
   ListTree,
   MessageSquare,
@@ -56,7 +55,6 @@ const ICON_BY_PANEL: Record<string, LucideIcon> = {
   history: History,
   capabilities: Puzzle,
   launcher: Rocket,
-  'asset-overview': LayoutGrid,
   'asset-properties': ListChecks,
   'mesh-slots': Grid3x3,
 };
@@ -68,7 +66,7 @@ export function barePanelId(id: string): string {
 
 /**
  * Resolve the Lucide icon for a dock panel id. Never returns undefined — an
- * unmapped id (page-mode document panels, marketplace-injected workbench panels)
+ * unmapped id (page-mode document panels, marketplace-injected page panels)
  * falls back to a neutral `Box` glyph rather than nothing.
  */
 export function iconForDockPanel(id: string): LucideIcon {

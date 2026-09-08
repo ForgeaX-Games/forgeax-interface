@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { createCommandsRegistry } from '../extension-foundation/commands';
 import {
   createContextualKeybindings,
@@ -6,6 +7,8 @@ import {
   normalizeKeyboardEvent,
   normalizeKeybinding,
 } from '../contextual-keybindings';
+
+try { GlobalRegistrator.register(); } catch { /* shared test preload already registered */ }
 
 function keyEvent(
   key: string,
@@ -88,6 +91,26 @@ describe('contextual keybindings', () => {
       ctrlKey: true,
       isComposing: true,
     }))).toEqual({ status: 'passthrough', reason: 'composition' });
+  });
+
+  it('passes through editable input when browser omits event.key after autocomplete', () => {
+    const commands = createCommandsRegistry();
+    commands.register({ id: 'app.space', execute: () => {} });
+    const keybindings = createContextualKeybindings(commands, { platform: 'linux' });
+    keybindings.register({ commandId: 'app.space', keys: 'Space', scope: 'application' });
+    const input = document.createElement('input');
+    const event = keyEvent('', [input, document, window], { code: 'Space' });
+    Object.defineProperty(event, 'key', { value: undefined });
+
+    expect(normalizeKeyboardEvent(event, 'linux')).toEqual({
+      key: 'Space',
+      editable: true,
+      composing: false,
+    });
+    expect(keybindings.resolve(event)).toEqual({
+      status: 'passthrough',
+      reason: 'editable',
+    });
   });
 
   it('normalizes Mod for macOS and non-macOS platforms', () => {

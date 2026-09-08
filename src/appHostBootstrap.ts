@@ -37,13 +37,13 @@ import { chromeStatusBarExtension } from './core/extensions/chrome-statusbar';
 import { chromeDrawerExtension } from './core/extensions/chrome-drawer';
 import './core/extensions/session-client.d'; // side-effect: AppHost.session type augmentation
 import { sessionClientExtension } from './core/extensions/session-client';
-import './core/extensions/workbench-client.d'; // side-effect: AppHost.workbench type augmentation
-import { workbenchClientExtension } from './core/extensions/workbench-client';
+import './core/extensions/studio-domain-clients.d';
+import { studioDomainClientsExtension } from './core/extensions/studio-domain-clients';
 import './core/extensions/observability.d'; // side-effect: AppHost.observability type augmentation
 import { observabilityExtension } from './core/extensions/observability';
 import { trajectoryExtension } from './core/extensions/trajectory';
 import { consoleLogger } from './core/app-shell/logger';
-import { loadCatalogPageExtensions } from './core/app-shell/catalog-page-extensions';
+import { createCatalogPageExtensionRuntime } from './core/app-shell/catalog-page-extensions';
 
 export interface AppHostBootstrapOverrides {
   /** Studio injects dashboard / settings / surfaces / slots / detached /
@@ -127,7 +127,6 @@ export async function bootstrapAppHost(
   });
 
   const overrideIds = new Set((overrides.extensions ?? []).map((extension) => extension.id));
-  const catalogPageExtensions = await loadCatalogPageExtensions(overrideIds);
   const manifests = [
     foundationCommandsExtension,
     foundationBusExtension,
@@ -141,10 +140,9 @@ export async function bootstrapAppHost(
     chromeStatusBarExtension,
     chromeDrawerExtension,
     sessionClientExtension,
-    workbenchClientExtension,
+    studioDomainClientsExtension,
     observabilityExtension,
     trajectoryExtension,
-    ...catalogPageExtensions,
     ...(overrides.extensions ?? []),
   ].map(wrap);
 
@@ -166,8 +164,11 @@ export async function bootstrapAppHost(
 
   await loader.load(manifests);
   await loader.flush();
+  const catalogRuntime = createCatalogPageExtensionRuntime({ control, overriddenIds: overrideIds });
+  await catalogRuntime.start();
 
   const dispose = async (): Promise<void> => {
+    await catalogRuntime.dispose();
     await loader.unload();
     await control.dispose();
   };

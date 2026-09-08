@@ -43,6 +43,24 @@
   height: 28px;
   flex-shrink: 0;
 }
+.composer-bar .composer-toolbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+/* Summon chip may ellipsis on a narrow dock; upload, slash and model stay
+ * content-sized so the picker width does not jump when a specialist is chosen. */
+.composer-bar .cb-left-group.has-summon-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.composer-bar .cb-left-group.has-summon-chip .cb-at.has-summon-chip {
+  flex: 0 1 auto;
+  min-width: 47px;
+}
 
 /* Right group: CLI pill | Send */
 .composer-bar .cb-right-group {
@@ -72,6 +90,19 @@
   flex: 0 0 28px;
 }
 
+/* The specialist chip is a content button, not an icon button. Keep this
+ * explicit class so the preview skin does not rely on :has() support. */
+.composer-bar .cb-at.has-summon-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(148px, calc(100vw - 140px));
+}
+.composer-bar .cb-at.has-summon-chip > .cb-at-chip {
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
 .composer-bar .cb-mbsel,
 .composer-bar .mp-root.cb-mbsel {
   position: relative;

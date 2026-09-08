@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { SurfaceRegion } from '@forgeax/app-shell/react';
 import { setAnchor, type SurfaceKind } from '../../lib/surfaceAnchors';
 
 // SurfaceAnchor — empty flex-fill placeholder that registers its element with the
@@ -17,9 +18,9 @@ function SurfaceAnchor({ kind }: { kind: SurfaceKind }) {
 // The keep-alive layer manages the actual surface rendering.
 export function ViewportPanel() {
   return (
-    <div className="surface-region">
+    <SurfaceRegion>
       <SurfaceAnchor kind="edit" />
-    </div>
+    </SurfaceRegion>
   );
 }
 
@@ -29,8 +30,8 @@ export function ViewportPanel() {
 export { ViewportPanel as EditPanel };
 export function PreviewPanel() {
   return (
-    <div className="surface-region">
+    <SurfaceRegion>
       <SurfaceAnchor kind="play" />
-    </div>
+    </SurfaceRegion>
   );
 }

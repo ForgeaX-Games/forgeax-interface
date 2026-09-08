@@ -14,7 +14,9 @@ try { GlobalRegistrator.register(); } catch { /* already registered by harness *
 import { describe, it, expect, beforeEach } from 'bun:test';
 import {
   buildShortcuts,
+  dispatchGlobalKeydownHandlers,
   registerKeyboardRouterDeps,
+  registerGlobalKeydownHandler,
   isComposing,
   isTypingTarget,
   isKeyboardOwnedSurface,
@@ -23,7 +25,6 @@ import {
   type KeyboardRouterDeps,
 } from './global-shortcuts';
 import { useShellStore } from '../store';
-import { setActiveWorkbench } from './workbenches';
 
 type Calls = {
   dispatch: Array<[unknown, string?]>;
@@ -80,6 +81,22 @@ function findByCombo(sc: ReturnType<typeof buildShortcuts>, combo: string) {
 }
 
 beforeEach(() => { registerKeyboardRouterDeps(null); });
+
+describe('single global keyboard listener — transient interaction owners', () => {
+  it('dispatches a registered owner and removes it deterministically', () => {
+    const calls: string[] = [];
+    const unregister = registerGlobalKeydownHandler((event) => {
+      calls.push(event.key);
+      return event.key === 'Escape';
+    });
+
+    expect(dispatchGlobalKeydownHandlers({ key: 'Escape' } as KeyboardEvent)).toBe(true);
+    expect(calls).toEqual(['Escape']);
+
+    unregister();
+    expect(dispatchGlobalKeydownHandlers({ key: 'Escape' } as KeyboardEvent)).toBe(false);
+  });
+});
 
 describe('keyboard router — UE-parity editor hide (H / Ctrl+H / Shift+H)', () => {
   const keyEvent = (init: { code: string; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; altKey?: boolean }): KeyboardEvent =>
@@ -340,13 +357,17 @@ describe('keyboard router — edit-group surface gate (ADR-0029 Phase 0)', () =>
   // The onKey wrapper skips edit-group shortcuts (letting them escape to the
   // focused component / browser) whenever isEditorSurfaceActive() is false, so
   // Remaining edit keys no longer route to a stale scene selection while the
-  // user is on another workbench tab or under an overlay.
+  // user is on another Page or under an overlay.
   beforeEach(() => {
     useShellStore.setState({ activeOverlay: null });
-    setActiveWorkbench('scene');
+    document.body.replaceChildren();
+    const anchor = document.createElement('div');
+    anchor.dataset.surfaceAnchor = 'edit';
+    anchor.getClientRects = () => [{ width: 1, height: 1 }] as unknown as DOMRectList;
+    document.body.appendChild(anchor);
   });
 
-  it('scene workbench + no overlay → active (edit keys act)', () => {
+  it('editor Page + no overlay → active (edit keys act)', () => {
     expect(isEditorSurfaceActive()).toBe(true);
   });
 
@@ -355,8 +376,8 @@ describe('keyboard router — edit-group surface gate (ADR-0029 Phase 0)', () =>
     expect(isEditorSurfaceActive()).toBe(false);
   });
 
-  it('a non-scene workbench tab → inactive (edit keys escape)', () => {
-    setActiveWorkbench('ai');
+  it('a non-editor Page → inactive (edit keys escape)', () => {
+    document.querySelector('[data-surface-anchor="edit"]')?.remove();
     expect(isEditorSurfaceActive()).toBe(false);
   });
 });

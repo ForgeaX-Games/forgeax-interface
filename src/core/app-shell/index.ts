@@ -5,3 +5,4 @@ export * from './logger';
 export { HostProvider, useHost, useCommand, useContextKey, useKeybindingScope } from './react/HostProvider';
 export * from '../contextual-keybindings';
 export * from '../page-platform';
+export { APP_SHELL_OWNERSHIP } from './ownership';

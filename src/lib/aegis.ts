@@ -54,18 +54,6 @@ export function initAegis(): void {
   if (started) return;
   started = true;
 
-  // Unconditional entry beacon (warn-level so it survives DevTools log filters):
-  // if you see NOTHING after restart + hard refresh, the new bundle isn't
-  // loaded. The flags tell you which gate (below) stops reporting.
-  console.warn('[aegis] initAegis() called', {
-    PROD: import.meta.env.PROD,
-    DEV: import.meta.env.DEV,
-    VITE_AEGIS_DEV: import.meta.env.VITE_AEGIS_DEV,
-    hasId: !!import.meta.env.VITE_AEGIS_ID,
-    hasSdkUrl: !!import.meta.env.VITE_AEGIS_SDK_URL,
-    hasHostUrl: !!import.meta.env.VITE_AEGIS_HOST_URL,
-  });
-
   // Gate: production builds only — dev (`bun dev`) stays silent to keep the
   // dataset clean. Escape hatch for local verification: set VITE_AEGIS_DEV=1 in
   // .env.local to also report in dev (use VITE_AEGIS_ENV=test there so the

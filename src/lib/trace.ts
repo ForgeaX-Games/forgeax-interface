@@ -11,6 +11,11 @@
  * 浏览器自己是 root、自己持 traceId(按 agentId 索引活动 trace),**无需服务端 echo**。
  */
 import { useShellStore, type TelemetrySpan, type TelemetryRecord } from '../store';
+import {
+  reportPassiveFeedbackRecovery,
+  reportPassiveFeedbackSignal,
+  type PassiveFeedbackScope,
+} from './passive-feedback';
 
 // ─── id + 序列化 ──────────────────────────────────────────────────────────
 function randHex(bytes: number): string {
@@ -133,15 +138,28 @@ const active = new Map<string, ActiveTurn>();
 
 // ─── 失速看门狗:浏览器是唯一「永不被冻」的目击者 ──────────────────────────────
 // 后端若卡死/冻结(如 CLI 内核 job-control 冻结整个 server),进程内 trace/log 全失效;
-// 浏览器侧在 STALL_MS 内拿不到首 token 就主动报 `ui.stall`(挂 ui.send 下,红点直观)+
+// 浏览器侧在 AGENT_UNRESPONSIVE_TIMEOUT_MS 内拿不到首 token 就主动报 `ui.stall`(挂 ui.send 下,红点直观)+
 // console.warn(devtools)——把「发送后卡死」从隐形变成有时间戳、带内核名的可见事件。
-const STALL_MS = 30_000;
+/** First passive Agent-unresponsive warning. Long-running generation is normal. */
+export const AGENT_UNRESPONSIVE_TIMEOUT_MS = 600_000;
 
 function clearStall(a: ActiveTurn): void {
-  if (a.stallTimer) {
+  if (a.stallTimer !== undefined) {
     const c = (globalThis as { clearTimeout?: typeof clearTimeout }).clearTimeout;
     c?.(a.stallTimer);
     a.stallTimer = undefined;
+  }
+}
+
+function stallScope(agentId: string, a: ActiveTurn): PassiveFeedbackScope {
+  return { agentId, ...(a.root.sid ? { sid: a.root.sid } : {}) };
+}
+
+function resolveStall(agentId: string, a: ActiveTurn): void {
+  const reported = a.stalls > 0;
+  clearStall(a);
+  if (reported) {
+    reportPassiveFeedbackRecovery({ exceptionKey: 'agent-unresponsive', scope: stallScope(agentId, a) });
   }
 }
 
@@ -151,10 +169,14 @@ function armStall(agentId: string): void {
   const a = active.get(agentId);
   if (!a) return;
   a.stallTimer = setT(() => {
+    // The callback may still run after clearTimeout in a fake timer or a
+    // queued browser task. Clear the handle first, then require identity with
+    // the active turn so an old turn can never report against its replacement.
+    a.stallTimer = undefined;
     const cur = active.get(agentId);
-    if (!cur || cur.firstTokenSeen || cur.ended) return; // 已有响应/已结束 → 不是失速
+    if (cur !== a || cur.firstTokenSeen || cur.ended) return; // 已有响应/已结束 → 不是失速
     cur.stalls += 1;
-    const waitedMs = STALL_MS * cur.stalls;
+    const waitedMs = AGENT_UNRESPONSIVE_TIMEOUT_MS * cur.stalls;
     const kernel = cur.kernel ?? 'unknown';
     const secs = Math.round(waitedMs / 1000);
     // 作 ui.send 的子 span(viewer 里红点)+ 错误状态;即便 server 冻、上传失败,viewer 仍可见。
@@ -173,9 +195,14 @@ function armStall(agentId: string): void {
     } catch {
       /* console 不可用不影响 */
     }
+    reportPassiveFeedbackSignal({
+      code: 'ui.stall',
+      message: `Agent did not respond after ${secs} seconds\nkernel=${kernel}\nsid=${cur.root.sid ?? '-'}`,
+      scope: stallScope(agentId, cur),
+    });
     flushTelemetryUpload();
-    armStall(agentId); // 继续观察:再过 STALL_MS 仍无 → 升级再报(waitedMs 递增)
-  }, STALL_MS);
+    armStall(agentId); // 继续观察:再过 600s 仍无 → 升级再报(waitedMs 递增)
+  }, AGENT_UNRESPONSIVE_TIMEOUT_MS);
 }
 
 /** 提交时调用:起 ui.send(root)+ ui.request,返回 ui.request 的 traceparent(放进 POST payload 下行)。
@@ -183,17 +210,17 @@ function armStall(agentId: string): void {
 export function beginChatTurn(agentId: string, sid?: string, kernel?: string): { traceparent: string } {
   const traceId = newTraceId();
   // 同一 agentId 上一轮若从未收口(后端冻死 / WS 断 / turnEnd 丢失),其失速看门狗仍在续命;
-  // 直接 active.set 覆盖会让旧 timer 失去引用却继续每 STALL_MS 触发(读到新条目重复报)。
+  // 直接 active.set 覆盖会让旧 timer 失去引用却继续每 600s 触发(读到新条目重复报)。
   // 覆盖前先撤掉旧 timer —— active 因此被收敛到「distinct agentId 数」而非「turn 数」。
   const prev = active.get(agentId);
-  if (prev) clearStall(prev);
+  if (prev) resolveStall(agentId, prev);
   const root = startSpan('ui.send', { traceId, sid, agentId, ...(kernel ? { attrs: { kernel } } : {}) });
   const request = startSpan('ui.request', { traceId, parentSpanId: root.spanId, sid, agentId });
   active.set(agentId, { traceId, root, request, firstTokenSeen: false, ended: false, kernel, stalls: 0 });
   // 早 flush:provisional ui.send/ui.request 立即落盘(server 活着时)—— 即便随后卡死,
   //   trace 里也留有「起了但没结束」的可见痕迹(配合失速 span 一起定位)。
   flushTelemetryUpload();
-  armStall(agentId); // 失速看门狗:STALL_MS 内无首 token → 报 ui.stall。
+  armStall(agentId); // 失速看门狗:600s 内无首 token → 报 ui.stall。
   return { traceparent: toTraceparent(request) };
 }
 
@@ -203,9 +230,16 @@ export function chatFirstToken(agentId: string): void {
   const a = active.get(agentId);
   if (!a || a.firstTokenSeen) return;
   a.firstTokenSeen = true;
-  clearStall(a); // 有响应了 → 撤销失速看门狗
+  resolveStall(agentId, a); // 有响应了 → 撤销失速看门狗并收掉旧告警
   if (a.request) endSpan(a.request, { code: 'ok' });
   a.stream = startSpan('ui.stream', { traceId: a.traceId, parentSpanId: a.root.spanId, agentId, sid: a.root.sid });
+}
+
+/** Tool results are positive liveness evidence even when no text token exists. */
+export function chatToolResult(agentId: string): void {
+  const a = active.get(agentId);
+  if (!a || a.ended) return;
+  resolveStall(agentId, a);
 }
 
 /** turn 结束:收尾 ui.request/ui.stream,起 ui.render,rAF 后(真实上屏帧)结束 ui.render + ui.send root。 */
@@ -213,7 +247,7 @@ export function chatTurnEnd(agentId: string, outcome: 'ok' | 'cancelled' | 'erro
   const a = active.get(agentId);
   if (!a || a.ended) return;
   a.ended = true;
-  clearStall(a); // 轮结束 → 撤销失速看门狗
+  resolveStall(agentId, a); // 轮结束 → 撤销失速看门狗并收掉旧告警
   // 三值而不是布尔:取消**不算错误**(标成 error,错误率里就全是用户主动停的假失败),
   // 但也不能就此与成功同形 —— 那等于亲手销毁取消信号,误触取消风暴在监控里会和健康流量
   // 一模一样。所以 status 走 ok,取消另由下面 rootAttrs 的 cancelled 位留痕。

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import type { DrawerPanelContribution } from '../../../core/panels';
 import { useShellStore } from '../../../store';
 import { fetchCheckpoints, type CheckpointEntry, type PendingRewindInfo } from '../../../lib/checkpoint-api';
+import { startResilientPoll } from '../../../lib/resilient-polling';
 import './footer.css';
 
 /** epoch ms → "HH:MM:SS". */
@@ -33,26 +34,19 @@ export function CheckpointsDrawer() {
       setPending(null);
       return;
     }
-    let cancelled = false;
-    const load = async () => {
+    const stop = startResilientPoll(async (signal) => {
       try {
-        const { checkpoints, pending: p } = await fetchCheckpoints(activeSid);
-        if (cancelled) return;
+        const { checkpoints, pending: p } = await fetchCheckpoints(activeSid, signal);
         setItems(checkpoints);
         setPending(p);
       } catch {
-        if (!cancelled) {
-          setItems([]);
-          setPending(null);
-        }
+        if (signal.aborted) throw new Error('checkpoint request timed out');
+        setItems([]);
+        setPending(null);
+        throw new Error('checkpoint request failed');
       }
-    };
-    void load();
-    const timer = setInterval(load, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
+    }, { intervalMs: 5_000, timeoutMs: 5_000 });
+    return stop;
   }, [activeSid]);
 
   if (items.length === 0) {

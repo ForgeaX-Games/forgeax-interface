@@ -3,5 +3,5 @@
 export {
   ExtensionLoader,
   createExtensionLoader,
-} from '@forgeax/extension-platform';
-export type { ExtensionLoaderOptions } from '@forgeax/extension-platform';
+} from '@forgeax/extension-platform/extensions';
+export type { ExtensionLoaderOptions } from '@forgeax/extension-platform/extensions';

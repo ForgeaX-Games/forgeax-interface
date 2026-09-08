@@ -11,7 +11,7 @@
  *
  *    - `useFileLocks(sid)` — Map<absPath, { agentPath, op, since }> of files
  *      currently being edited. Drives the 🔒 indicator on AgentsPanel /
- *      WorkbenchMode rows.
+ *      Page rows.
  *    - `useFileActivityVersion(sid)` — monotonically increasing counter that
  *      bumps every time a 'done' event arrives. Panels that fetch the
  *      ledger via REST (`/api/sessions/:sid/file-activity`) include this

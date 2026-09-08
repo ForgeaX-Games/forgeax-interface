@@ -6,11 +6,7 @@
  *   Ctrl+Shift+B  toggle Sidebar
  *   Ctrl+Shift+C  toggle ChatPanel
  *   Ctrl+Shift+D  toggle Dashboard overlay
- *   Ctrl+Shift+1..9  switch to workbench N (Blender parity — index into the
- *                    persisted workbench list, so custom workbenches also
- *                    reachable by ordinal)
- *   Ctrl+Shift+0  open Settings → Plugins (was Ctrl+Shift+3 before P3.5 —
- *                 relocated so 1..9 are free for workbench switching)
+ *   Ctrl+Shift+0  open Settings → Plugins
  *   Ctrl+/        focus chat composer
  *   Ctrl+Shift+H  open Settings → Changelog (was Ctrl+H before 2026-08-04 —
  *                 UE-parity editor hide claimed Ctrl+H for "show all hidden")
@@ -29,7 +25,6 @@
 import { useEffect } from 'react';
 import { t } from '@/i18n';
 import { useShellStore } from '../store';
-import { loadWorkbenchList, setActiveWorkbench, getWorkbenchListSnapshot } from './workbenches';
 import { toggleCommandPalette } from './command-palette-store';
 import type { ContextualKeybindingsApi } from '../core/contextual-keybindings';
 
@@ -104,14 +99,15 @@ function mod(e: KeyboardEvent): boolean {
 // import, no focus/DOM resolver — that larger redesign is ADR-0029 scope; this
 // is its Phase 0 short-term mitigation):
 //   1. an overlay (Dashboard / Settings) is covering the shell, or
-//   2. the active workbench tab is not the built-in Scene workbench that hosts
-//      the viewport / Hierarchy / Content Browser.
+//   2. the editor Page anchor is not currently visible.
 // Read live at event time (cached snapshot — cheap) so switching tab / opening
 // an overlay takes effect immediately.
 export function isEditorSurfaceActive(): boolean {
   if (useShellStore.getState().activeOverlay) return false;
-  if (getWorkbenchListSnapshot().activeId !== 'scene') return false;
-  return true;
+  const anchor = typeof document === 'undefined'
+    ? null
+    : document.querySelector<HTMLElement>('[data-surface-anchor="edit"]');
+  return Boolean(anchor && anchor.getClientRects().length > 0);
 }
 
 // ── Editor keyboard-router deps (keyboard-router convergence, M4 T4-1..T4-3) ──
@@ -163,11 +159,36 @@ export interface KeyboardRouterDeps {
   undo: () => void;
   redo: () => void;
   save: () => void;
+  /** Recreate the active Play/runtime surface after a terminal viewport failure. */
+  restartPreview?: () => void;
   /** Viewport W/E/R/F handling, including fly-mode/input ownership policy. */
   handleViewportKeyDown: (event: KeyboardEvent) => void;
 }
 
 let routerDeps: KeyboardRouterDeps | null = null;
+
+/**
+ * Register a short-lived keydown owner for an interaction that is not a
+ * discoverable editor command (for example, Escape while a dock drag is
+ * armed). The owner still runs through the single global keyboard listener;
+ * feature modules must not install competing window-level listeners.
+ */
+export type GlobalKeydownHandler = (event: KeyboardEvent) => boolean;
+
+const transientKeydownHandlers = new Set<GlobalKeydownHandler>();
+
+export function registerGlobalKeydownHandler(handler: GlobalKeydownHandler): () => void {
+  transientKeydownHandlers.add(handler);
+  return () => transientKeydownHandlers.delete(handler);
+}
+
+export function dispatchGlobalKeydownHandlers(event: KeyboardEvent): boolean {
+  for (const handler of [...transientKeydownHandlers]) {
+    if (handler(event)) return true;
+  }
+  return false;
+}
+
 /** Inject the editor-side callbacks the router needs. Called once at host boot
  *  (forgeax-editor standalone/main.tsx) BEFORE the App mounts (useGlobalShortcuts
  *  reads this at effect time, which is after mount, so registration first is safe). */
@@ -243,7 +264,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Ctrl+D',
       group: 'edit',
-      label: 'Duplicate selection',
+      label: t('shortcuts.duplicateSelection'),
       match: (e) => mod(e) && !e.shiftKey && !e.altKey
         && (e.code === 'KeyD' || safeKeyLower(e) === 'd'),
       run: routeCtrlD,
@@ -272,7 +293,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Shift+G',
       group: 'edit',
-      label: 'Toggle viewport Game View',
+      label: t('shortcuts.toggleViewportGameView'),
       match: (e) => !mod(e) && e.shiftKey && !e.altKey
         && (e.key === 'g' || e.key === 'G'),
       run: routeShiftG,
@@ -280,7 +301,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'G',
       group: 'edit',
-      label: 'Toggle viewport Game View',
+      label: t('shortcuts.toggleViewportGameView'),
       match: (e) => !mod(e) && !e.shiftKey && !e.altKey
         && !deps.isPlayMode() && deps.getInputTarget() !== 'game'
         && (e.key === 'g' || e.key === 'G'),
@@ -289,7 +310,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Ctrl+Z',
       group: 'edit',
-      label: 'Undo',
+      label: t('shortcuts.undo'),
       allowInInput: true,
       match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyZ' || safeKeyLower(e) === 'z'),
       run: () => { deps.undo(); return true; },
@@ -297,7 +318,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Ctrl+Shift+Z',
       group: 'edit',
-      label: 'Redo',
+      label: t('shortcuts.redo'),
       allowInInput: true,
       match: (e) => mod(e) && !e.altKey && e.shiftKey && (e.code === 'KeyZ' || safeKeyLower(e) === 'z'),
       run: () => { deps.redo(); return true; },
@@ -305,7 +326,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Ctrl+Y',
       group: 'edit',
-      label: 'Redo',
+      label: t('shortcuts.redo'),
       allowInInput: true,
       match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyY' || safeKeyLower(e) === 'y'),
       run: () => { deps.redo(); return true; },
@@ -313,7 +334,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Ctrl+S',
       group: 'edit',
-      label: 'Save',
+      label: t('shortcuts.save'),
       // Must fire while typing in Input Map / MI fields (⌘/Ctrl+S is a document
       // command, not a text-editing key). Without this, focus inside `.im-editor`
       // makes isTypingTarget true and silently drops save.
@@ -324,7 +345,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Viewport camera and fly input',
       group: 'edit',
-      label: 'Viewport navigation and gizmo mode',
+      label: t('shortcuts.viewportNavigation'),
       match: (e) => {
         if (deps.getInputTarget() === 'game') return false;
         const key = safeKeyLower(e);
@@ -345,7 +366,7 @@ function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
     {
       combo: 'Play editor input shield',
       group: 'edit',
-      label: 'Shield game input while editor-owned',
+      label: t('shortcuts.shieldGameInput'),
       match: () => deps.isPlayMode() && deps.getInputTarget() !== 'game',
       run: routeEditorOwnedPlayKey,
     },
@@ -463,24 +484,6 @@ export function buildShortcuts(): ShortcutDef[] {
       },
     },
 
-    // ── Workbench switch (Blender parity: Ctrl+Shift+1..9 → workbench N) ──
-    // P3.5 · Was three fixed-mode bindings (Viewport / Workbench / Plugins);
-    // now indexes into loadWorkbenchList().list so custom workbenches are
-    // reachable by ordinal, matching Blender's workspace-tab shortcut
-    // ergonomic and VSCode's Ctrl+N-tab switcher.
-    ...([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((n): ShortcutDef => ({
-      combo: `Ctrl+Shift+${n}`,
-      group: 'mode',
-      label: t('shortcuts.switchWorkbenchN', { n }),
-      match: (e) => mod(e) && e.shiftKey && e.code === `Digit${n}`,
-      run: () => {
-        const { list } = loadWorkbenchList();
-        const wb = list[n - 1];
-        if (!wb) return false; // no Nth workbench — let default browser behavior through
-        setActiveWorkbench(wb.id);
-        return true;
-      },
-    })),
     {
       combo: 'Ctrl+Shift+0',
       group: 'overlay',
@@ -528,7 +531,7 @@ export function buildShortcuts(): ShortcutDef[] {
   shortcuts.push({
     combo: 'Ctrl+K',
     group: 'general',
-    label: 'Toggle command palette',
+    label: t('shortcuts.toggleCommandPalette'),
     match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyK' || safeKeyLower(e) === 'k'),
     run: () => { toggleCommandPalette(); return true; },
   });
@@ -549,19 +552,27 @@ export function useGlobalShortcuts(keybindings?: ContextualKeybindingsApi): void
     const onKey = (e: KeyboardEvent) => {
       // 0. IME composing — bail. Never intercept Chinese pinyin chord.
       if (isComposing(e)) return;
-      // 1. The contextual resolver gets first refusal inside the ONE capture
+      // 1. Short-lived interaction owners (drag cancel, etc.) get priority
+      // inside the same global listener and can consume the event before
+      // discoverable editor commands see it.
+      if (dispatchGlobalKeydownHandlers(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      // 2. The contextual resolver gets first refusal inside the ONE capture
       // listener. A handled or disabled-but-claimed binding must not fall into
       // legacy application shortcuts; passthrough/unclaimed continues below.
       const contextual = keybindings?.handle(e);
       if (contextual?.status === 'handled' || contextual?.status === 'claimed-disabled') return;
-      // 2. Find first matching legacy shortcut.
+      // 3. Find first matching legacy shortcut.
       for (const s of shortcuts) {
         // A focused preview owns camera/fly keys locally. Keep non-edit global
         // shortcuts available, but never route preview input to the main editor.
         if (shouldSkipGlobalShortcut(e, s)) continue;
-        // 2a. Typing target → skip before match() (match may call safeKeyLower).
+        // 3a. Typing target → skip before match() (match may call safeKeyLower).
         if (isTypingTarget(e) && !s.allowInInput) continue;
-        // 2b. Surface gate — edit-group keys only act while the scene editor is
+        // 3b. Surface gate — edit-group keys only act while the scene editor is
         // the foreground surface; otherwise let them escape (fall through to the
         // focused component / browser default). See isEditorSurfaceActive.
         if (s.group === 'edit' && !isEditorSurfaceActive()) continue;
@@ -580,10 +591,12 @@ export function useGlobalShortcuts(keybindings?: ContextualKeybindingsApi): void
 }
 
 // macOS pretty-printing for shortcut combos shown in Settings.
-// Returns the canonical UI string. Not platform-detected — we just always
-// render Ctrl on Linux/Win and ⌘ on Mac.
-export function prettyCombo(combo: string): string {
-  const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+// Returns the canonical UI string. When platform is omitted, auto-detects macOS.
+export function prettyCombo(combo: string, platform?: 'mac' | 'windows'): string {
+  const isMac = platform === 'mac'
+    || (platform === undefined
+      && typeof navigator !== 'undefined'
+      && /mac/i.test(navigator.platform));
   if (!isMac) return combo;
   return combo
     .replace(/Ctrl/g, '⌘')

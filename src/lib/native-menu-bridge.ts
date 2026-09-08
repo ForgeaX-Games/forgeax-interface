@@ -109,12 +109,6 @@ async function pushMenusToNative(
   invoke: (cmd: string, args: Record<string, unknown>) => Promise<unknown>,
   translate: (key: string) => string,
 ): Promise<void> {
-  // Warm the recent-games cache so 打开最近's dynamicChildren serialize with a
-  // current list. Web warms on File-dropdown open; native has no such hook, so
-  // we warm here before every rebuild. Failures leave the last cache intact.
-  trace('push: warmRecentGames…');
-  await warmRecentGames();
-  trace('push: warmRecentGames done, serializing…');
   const raw = serializeMenusForNative(translate);
   // 补顶层 title —— 与 MenuBar.tsx 的 `t('menubar.${menu}')` 保持一致。
   const payload: NativeMenuWithTitle[] = raw.map((m) => ({
@@ -189,7 +183,20 @@ export async function initNativeMenuBridge(opts: InitNativeMenuBridgeOptions): P
     void pushMenusToNative(invoke, translate);
   });
 
-  // 3. 首次推送 —— 让原生菜单栏与当前注册表对齐。
+  // 3. 首次推送必须只依赖同步注册表。最近游戏来自 HTTP；若服务尚未 ready，
+  // 等它会让整套业务菜单（包括静态的“新建游戏”）永久停留在 Tauri 默认菜单。
   await pushMenusToNative(invoke, translate);
   trace('init: first push returned');
+
+  // 4. 原生菜单没有 Web File 下拉的预热时机，因此后台补最近游戏后再投影一次。
+  // 这条增强链失败或卡住都不能撤销上面已经安装好的静态菜单。
+  void warmRecentGames().then(
+    () => {
+      trace('warmRecentGames done, rebuilding native menu…');
+      return pushMenusToNative(invoke, translate);
+    },
+    (error) => {
+      trace(`warmRecentGames REJECTED ${(error as Error)?.message ?? String(error)}`);
+    },
+  );
 }

@@ -5,11 +5,70 @@
 import './telemetry-test-prelude';
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { useShellStore, type TelemetrySpan } from '../store';
-import { beginChatTurn, chatFirstToken, chatTurnEnd, toTraceparent, beginAppBoot, appBootSpan, endAppBoot } from './trace';
+import {
+  AGENT_UNRESPONSIVE_TIMEOUT_MS,
+  beginChatTurn,
+  chatFirstToken,
+  chatToolResult,
+  chatTurnEnd,
+  toTraceparent,
+  beginAppBoot,
+  appBootSpan,
+  endAppBoot,
+} from './trace';
+import { PASSIVE_FEEDBACK_EVENT, PASSIVE_FEEDBACK_RECOVERED_EVENT, type PassiveFeedbackSignal, type PassiveFeedbackResolution } from './passive-feedback';
 
 const spans = (): TelemetrySpan[] =>
   useShellStore.getState().telemetry.filter((r): r is TelemetrySpan => r.kind === 'span');
 const finals = (name: string): TelemetrySpan[] => spans().filter((s) => s.name === name && s.endTs != null);
+
+interface FakeTimer {
+  id: number;
+  callback: () => void;
+  due: number;
+  ms: number;
+  cleared: boolean;
+}
+
+/** Small deterministic clock: unlike a callback-only stub, this proves the 150s/600s boundary. */
+function installFakeTimers() {
+  const realSet = globalThis.setTimeout;
+  const realClear = globalThis.clearTimeout;
+  const timers: FakeTimer[] = [];
+  let now = 0;
+  let nextId = 1;
+  const fakeSet = ((callback: () => void, ms = 0) => {
+    const timer: FakeTimer = { id: nextId++, callback, due: now + ms, ms, cleared: false };
+    timers.push(timer);
+    return timer.id as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  const fakeClear = ((handle: ReturnType<typeof setTimeout>) => {
+    const timer = timers.find((candidate) => candidate.id === (handle as unknown as number));
+    if (timer) timer.cleared = true;
+  }) as typeof clearTimeout;
+  globalThis.setTimeout = fakeSet;
+  globalThis.clearTimeout = fakeClear;
+
+  const advanceBy = (ms: number): void => {
+    const target = now + ms;
+    for (;;) {
+      const next = timers
+        .filter((timer) => !timer.cleared && timer.due <= target)
+        .sort((a, b) => a.due - b.due || a.id - b.id)[0];
+      if (!next) break;
+      next.cleared = true;
+      now = next.due;
+      next.callback();
+    }
+    now = target;
+  };
+  const stallTimers = (): FakeTimer[] => timers.filter((timer) => timer.ms === AGENT_UNRESPONSIVE_TIMEOUT_MS && !timer.cleared);
+  const restore = (): void => {
+    globalThis.setTimeout = realSet;
+    globalThis.clearTimeout = realClear;
+  };
+  return { timers, advanceBy, stallTimers, restore };
+}
 
 beforeEach(() => {
   useShellStore.setState({ telemetry: [] });
@@ -34,6 +93,7 @@ describe('browser tracer chat.turn', () => {
     expect(req.parentSpanId).toBe(send.spanId);
     expect(traceparent).toContain(req.traceId);
     expect(traceparent).toContain(req.spanId);
+    chatTurnEnd('forge', 'ok');
   });
 
   it('full turn → one trace, correct parent chain: send → {request, stream, render}', () => {
@@ -133,35 +193,127 @@ describe('browser tracer chat.turn', () => {
     }
   });
 
-  it('stall watchdog: 久无首 token → 报 ui.stall(带 kernel,error 状态);首 token 后不再报', () => {
-    // 只捕获 STALL_MS(30s)的定时器,避开上传超时(5s)定时器。
-    const stallTimers: Array<() => void> = [];
-    const realSet = (globalThis as { setTimeout?: typeof setTimeout }).setTimeout;
-    const realClear = (globalThis as { clearTimeout?: typeof clearTimeout }).clearTimeout;
-    (globalThis as { setTimeout?: unknown }).setTimeout = ((cb: () => void, ms?: number) => {
-      if (ms === 30_000) stallTimers.push(cb);
-      return stallTimers.length as unknown as number;
-    }) as unknown as typeof setTimeout;
-    (globalThis as { clearTimeout?: unknown }).clearTimeout = (() => {}) as unknown as typeof clearTimeout;
+  it('stall watchdog: 150s of generation remains working; first warning is exactly 600000ms', () => {
+    const clock = installFakeTimers();
     try {
       beginChatTurn('forge', 'sid-stall', 'codebuddy');
-      stallTimers[0]?.(); // 看门狗到点,仍无首 token → 报 ui.stall
+      expect(clock.stallTimers()).toHaveLength(1);
+      clock.advanceBy(150_000);
+      expect(finals('ui.stall')).toHaveLength(0);
+      expect(clock.stallTimers()).toHaveLength(1);
+    } finally {
+      chatTurnEnd('forge', 'ok');
+      clock.restore();
+    }
+  });
+
+  it('stall watchdog: 600s emits one scoped reconnect feedback and keeps observing after the threshold', () => {
+    const clock = installFakeTimers();
+    const signals: PassiveFeedbackSignal[] = [];
+    const onSignal = (event: Event) => signals.push((event as CustomEvent<PassiveFeedbackSignal>).detail);
+    window.addEventListener(PASSIVE_FEEDBACK_EVENT, onSignal);
+    try {
+      beginChatTurn('forge', 'sid-stall', 'codebuddy');
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS - 1);
+      expect(finals('ui.stall')).toHaveLength(0);
+      clock.advanceBy(1);
       const stall = finals('ui.stall')[0];
       expect(stall).toBeTruthy();
       expect(stall!.status?.code).toBe('error');
-      expect((stall!.attrs as { kernel?: string } | undefined)?.kernel).toBe('codebuddy');
-      expect(stall!.parentSpanId).toBe(finals('ui.send').length ? undefined : stall!.parentSpanId); // 挂在 ui.send 下(root 未结束)
-
-      // 有首 token 的轮:看门狗到点也不应报
-      useShellStore.setState({ telemetry: [] });
-      stallTimers.length = 0;
-      beginChatTurn('mochi', 'sid-stall', 'codebuddy');
-      chatFirstToken('mochi'); // 拿到响应
-      stallTimers[0]?.(); // 即便定时器仍被触发
-      expect(spans().some((s) => s.name === 'ui.stall')).toBe(false);
+      expect((stall!.attrs as { waitedMs?: number; kernel?: string } | undefined)?.waitedMs).toBe(600_000);
+      expect((stall!.attrs as { waitedMs?: number; kernel?: string } | undefined)?.kernel).toBe('codebuddy');
+      expect(signals).toHaveLength(1);
+      expect(signals[0]).toMatchObject({ code: 'ui.stall', scope: { sid: 'sid-stall', agentId: 'forge' } });
+      // The diagnostic path remains alive beyond the first warning, but it is
+      // still one 600s cadence rather than a 30/60/90s false-positive loop.
+      expect(clock.stallTimers()).toHaveLength(1);
     } finally {
-      (globalThis as { setTimeout?: unknown }).setTimeout = realSet;
-      (globalThis as { clearTimeout?: unknown }).clearTimeout = realClear;
+      window.removeEventListener(PASSIVE_FEEDBACK_EVENT, onSignal);
+      chatTurnEnd('forge', 'ok');
+      clock.restore();
+    }
+  });
+
+  it('successful assistant response clears the 600s timer and stale alert', () => {
+    const clock = installFakeTimers();
+    const recoveries: PassiveFeedbackResolution[] = [];
+    const onRecovered = (event: Event) => recoveries.push((event as CustomEvent<PassiveFeedbackResolution>).detail);
+    window.addEventListener(PASSIVE_FEEDBACK_RECOVERED_EVENT, onRecovered);
+    try {
+      beginChatTurn('forge', 'sid-response', 'codebuddy');
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS);
+      expect(finals('ui.stall')).toHaveLength(1);
+      chatFirstToken('forge');
+      expect(clock.stallTimers()).toHaveLength(0);
+      expect(recoveries).toEqual([{ exceptionKey: 'agent-unresponsive', scope: { sid: 'sid-response', agentId: 'forge' } }]);
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS * 2);
+      expect(finals('ui.stall')).toHaveLength(1);
+    } finally {
+      window.removeEventListener(PASSIVE_FEEDBACK_RECOVERED_EVENT, onRecovered);
+      chatTurnEnd('forge', 'ok');
+      clock.restore();
+    }
+  });
+
+  it('tool result clears the 600s timer even when no text token arrived', () => {
+    const clock = installFakeTimers();
+    try {
+      beginChatTurn('forge', 'sid-tool', 'codebuddy');
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS);
+      expect(finals('ui.stall')).toHaveLength(1);
+      chatToolResult('forge');
+      expect(clock.stallTimers()).toHaveLength(0);
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS);
+      expect(finals('ui.stall')).toHaveLength(1);
+    } finally {
+      chatTurnEnd('forge', 'ok');
+      clock.restore();
+    }
+  });
+
+  it('cancellation clears the watchdog and stale alert without waiting for a backend turnEnd', () => {
+    const clock = installFakeTimers();
+    const recoveries: PassiveFeedbackResolution[] = [];
+    const onRecovered = (event: Event) => recoveries.push((event as CustomEvent<PassiveFeedbackResolution>).detail);
+    window.addEventListener(PASSIVE_FEEDBACK_RECOVERED_EVENT, onRecovered);
+    try {
+      beginChatTurn('forge', 'sid-cancel', 'codebuddy');
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS);
+      expect(finals('ui.stall')).toHaveLength(1);
+      chatTurnEnd('forge', 'cancelled');
+      expect(clock.stallTimers()).toHaveLength(0);
+      expect(recoveries).toEqual([{ exceptionKey: 'agent-unresponsive', scope: { sid: 'sid-cancel', agentId: 'forge' } }]);
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS);
+      expect(finals('ui.stall')).toHaveLength(1);
+      expect((finals('ui.send')[0]!.attrs as { cancelled?: boolean } | undefined)?.cancelled).toBe(true);
+    } finally {
+      window.removeEventListener(PASSIVE_FEEDBACK_RECOVERED_EVENT, onRecovered);
+      chatTurnEnd('forge', 'cancelled');
+      clock.restore();
+    }
+  });
+
+  it('repeated turns do not leak timers or let a stale callback report for the replacement', () => {
+    const clock = installFakeTimers();
+    try {
+      beginChatTurn('forge', 'sid-old', 'codebuddy');
+      const oldTimer = clock.stallTimers()[0]!;
+      beginChatTurn('forge', 'sid-new', 'codebuddy');
+      expect(oldTimer.cleared).toBe(true);
+      expect(clock.stallTimers()).toHaveLength(1);
+
+      // A queued callback can still run after clearTimeout in browsers and in
+      // fake timers; identity checking must make it a no-op.
+      oldTimer.callback();
+      expect(finals('ui.stall')).toHaveLength(0);
+
+      clock.advanceBy(AGENT_UNRESPONSIVE_TIMEOUT_MS);
+      expect(finals('ui.stall')).toHaveLength(1);
+      chatTurnEnd('forge', 'ok');
+      expect(clock.stallTimers()).toHaveLength(0);
+    } finally {
+      chatTurnEnd('forge', 'ok');
+      clock.restore();
     }
   });
 });

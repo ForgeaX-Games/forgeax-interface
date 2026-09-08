@@ -6,8 +6,7 @@ import { STORAGE_KEYS } from './storageKeys';
 const SYNC_DEBOUNCE_MS = 1500;
 const SYNC_INTERVAL_MS = 30_000;
 
-const KEY_PREFIXES = ['forgeax.', 'forgeax:project:', 'wb-', 'wb:'];
-const KEY_EXACT = ['wb-agent-persona:selected-agent-id'];
+const KEY_PREFIXES = ['forgeax.', 'forgeax:project:'];
 
 // First-run onboarding is a per-browser-profile gate, NOT a portable UI pref.
 // Mirroring it through the server snapshot re-seeds a stale phase back into
@@ -24,7 +23,6 @@ const KEY_EXCLUDE = new Set<string>([
 
 function shouldSyncKey(key: string): boolean {
   if (KEY_EXCLUDE.has(key)) return false;
-  if (KEY_EXACT.includes(key)) return true;
   return KEY_PREFIXES.some((p) => key.startsWith(p));
 }
 

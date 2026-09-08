@@ -4,21 +4,21 @@ import { useHost } from '../../core/app-shell';
 import type { ContentBrowserRevealTarget } from '../../core/app-shell/types';
 import { requestComposerInsert } from '../../lib/composer-bridge';
 import { removeExtensionSurfaces, upsertSurface } from '../../lib/surface-store';
-import { isTrustedMessageOrigin } from '../../lib/trustedOrigins';
 import {
   usePanelRenderers,
   type EditorAssetImportSourceHandler,
   type ExtensionPort,
 } from '../DockShell/panelRenderers';
-import { attachWorkbenchEditorAssetImportBridge } from '../DockShell/workbench-editor-bridge';
+import { attachExtensionEditorAssetImportBridge } from '../DockShell/extension-editor-bridge';
 
 // The Content Browser lives in the global footer under this id (see
-// DockShell/builtinWorkbenches GLOBAL_FOOTER_EXTRA_IDS).
+// DockShell footer contribution registry (GLOBAL_FOOTER_EXTRA_IDS).
 const CONTENT_BROWSER_PANEL_ID = 'ep:assets';
 
 export interface ExtensionIframeHostProps {
   extensionId: string;
   src: string;
+  allowedOrigin?: string;
   pane?: 'left' | 'center';
   active?: boolean;
   onNavigate?: (targetPluginId: string, payload?: Record<string, unknown>) => void;
@@ -56,6 +56,7 @@ function revealTargetFromMessage(raw: unknown): ContentBrowserRevealTarget | nul
 export function ExtensionIframeHost({
   extensionId,
   src,
+  allowedOrigin,
   pane,
   active = true,
   onNavigate,
@@ -64,14 +65,15 @@ export function ExtensionIframeHost({
   onToolCall,
   loadErrorText,
 }: ExtensionIframeHostProps): ReactElement {
-  const { hostSDK } = usePanelRenderers();
+  const { extensionTransport } = usePanelRenderers();
   const host = useHost();
-  const createExtensionPort = hostSDK?.createExtensionPort;
-  const createWindowTransport = hostSDK?.createWindowTransport;
+  const createExtensionPort = extensionTransport?.createExtensionPort;
+  const createWindowTransport = extensionTransport?.createWindowTransport;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
   const portRef = useRef<ExtensionPort | null>(null);
   const activeRef = useRef(active);
+  const messageOrigin = allowedOrigin ?? new URL(src, window.location.href).origin;
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -81,7 +83,10 @@ export function ExtensionIframeHost({
 
     const onRawMessage = (ev: MessageEvent) => {
       if (ev.source !== iframe.contentWindow) return;
-      if (!isTrustedMessageOrigin(ev.origin)) return;
+      if (ev.origin !== messageOrigin) {
+        if (import.meta.env.DEV) console.warn('[forgeax:dev-extension] rejected iframe origin', { extensionId, expected: messageOrigin, received: ev.origin });
+        return;
+      }
       const d = ev.data as {
         type?: string;
         targetPluginId?: string;
@@ -94,7 +99,7 @@ export function ExtensionIframeHost({
         onNavigate?.(d.targetPluginId, d.payload);
         return;
       }
-      // Plugin → host chat composer prefill (e.g. wb-game-video「添加到对话」).
+      // Plugin → host chat composer prefill (e.g. page-video-game「添加到对话」).
       // Prefills the caret without auto-sending; the author reviews then sends.
       if (d.type === 'FORGEAX_COMPOSER_INSERT' && typeof d.text === 'string' && d.text.trim()) {
         const text = d.text.trim();
@@ -129,11 +134,11 @@ export function ExtensionIframeHost({
       }
     };
     window.addEventListener('message', onRawMessage);
-    const detachEditorAssetImportBridge = attachWorkbenchEditorAssetImportBridge({
+    const detachEditorAssetImportBridge = attachExtensionEditorAssetImportBridge({
       ownerWindow: window,
       frameWindow: () => iframe.contentWindow,
       importAssetSource: onEditorAssetImport,
-      isTrustedEvent: (event) => isTrustedMessageOrigin(event.origin),
+      isTrustedEvent: (event) => event.origin === messageOrigin,
     });
 
     const onLoad = () => {
@@ -142,9 +147,17 @@ export function ExtensionIframeHost({
         setError('iframe contentWindow unavailable');
         return;
       }
+      if (import.meta.env.DEV) {
+        console.info('[forgeax:dev-extension] iframe loaded', {
+          extensionId,
+          src,
+          messageOrigin,
+        });
+      }
       const transport = createWindowTransport({
         target: win,
-        targetOrigin: '*',
+        targetOrigin: messageOrigin,
+        expectedOrigin: messageOrigin,
         expectedSource: () => iframe.contentWindow,
       });
       port = createExtensionPort({
@@ -189,7 +202,7 @@ export function ExtensionIframeHost({
       portRef.current = null;
       removeExtensionSurfaces(extensionId);
     };
-  }, [extensionId, src, pane, createExtensionPort, createWindowTransport, onNavigate, onChatPost, onToolCall, onEditorAssetImport, host]);
+  }, [extensionId, src, messageOrigin, pane, createExtensionPort, createWindowTransport, onNavigate, onChatPost, onToolCall, onEditorAssetImport, host]);
 
   useEffect(() => {
     activeRef.current = active;
@@ -202,14 +215,14 @@ export function ExtensionIframeHost({
       portRef.current?.setTheme({ locale: loc });
       const win = iframeRef.current?.contentWindow;
       if (win) {
-        win.postMessage({ type: 'forgeax:locale-changed', locale: loc }, '*');
+        win.postMessage({ type: 'forgeax:locale-changed', locale: loc }, messageOrigin);
       }
     });
-  }, []);
+  }, [messageOrigin]);
 
   return (
     <div
-      className="wb-plugin-iframe-wrap"
+      className="page-plugin-iframe-wrap"
       data-active={active ? 'true' : 'false'}
       style={active ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
       aria-hidden={active ? undefined : true}

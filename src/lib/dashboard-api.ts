@@ -66,6 +66,24 @@ interface CommandResult<T> {
   result?: { ok: boolean; data?: T; error?: string };
 }
 
+export interface HealthResponse {
+  status: string;
+  version: string;
+  pid: number;
+  uptime: number;
+  projectRoot: string;
+  providers: string[];
+  wsClients: number;
+  mem?: { rss: number; heapUsed: number };
+  bus?: {
+    extensionCount: number;
+    brokenCount: number;
+    listenerCount: number;
+    ringSize: number;
+    uptimeMs: number;
+  };
+}
+
 async function runCommand<T>(name: string, args: unknown[]): Promise<T> {
   const r = await fetch(`/api/commands/${encodeURIComponent(name)}/query`, {
     method: 'POST',
@@ -80,28 +98,7 @@ async function runCommand<T>(name: string, args: unknown[]): Promise<T> {
 
 export const dashApi = {
   health: () =>
-    getJSON<{
-      status: string;
-      version: string;
-      pid: number;
-      uptime: number;
-      projectRoot: string;
-      providers: string[];
-      wsClients: number;
-      /** Process resource usage (status-bar RES chip). */
-      mem?: { rss: number; heapUsed: number };
-      /** Legacy event-bus stats — NOT returned by /api/health since the R2 bus
-       *  rewrite, so always undefined at runtime. Kept optional only so the
-       *  remaining `h.bus?.…` readers (Sidebar BusHealthLamp / TopBar / Dashboard)
-       *  compile; those are dead bus indicators outside the bottom status bar. */
-      bus?: {
-        extensionCount: number;
-        brokenCount: number;
-        listenerCount: number;
-        ringSize: number;
-        uptimeMs: number;
-      };
-    }>('/api/health'),
+    getJSON<HealthResponse>('/api/health'),
 
   // R3 适配:原 `/api/cli-providers` 已下线,桥到独立 `/api/cli/health`。
   // 字段 mapping 抽在 lib/cli-providers.ts,集中维护。等 commands.attach_script_agent
