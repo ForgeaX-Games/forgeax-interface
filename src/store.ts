@@ -351,6 +351,7 @@ export type ApplyActiveGameResult =
 
 export interface SetActiveGameResult {
   warning?: string;
+  superseded?: boolean;
 }
 
 /** UI label fallback for a tab whose server-side displayName is undefined.
@@ -666,6 +667,7 @@ let _sessionsInitialized = false;
 let _activeGameUnsubscribe: (() => void) | null = null;
 let _activeGameTransition: { key: string; promise: Promise<ApplyActiveGameResult> } | null = null;
 let _activeGameTransitionRevision = 0;
+let _activeGameRequestRevision = 0;
 let _sessionSwitchRevision = 0;
 const _activeGameGenerationByScope = new Map<string, number>();
 const _busyMutationVersionBySid = new Map<string, number>();
@@ -1123,9 +1125,12 @@ export const useShellStore = create<AppState>((set, get) => ({
   },
 
   setActiveGame: async (slug) => {
+    const requestRevision = ++_activeGameRequestRevision;
     const client = getStudioProjectClient();
     const applySelection = async (selection: ActiveProjectSelection): Promise<SetActiveGameResult> => {
+      if (requestRevision !== _activeGameRequestRevision) return { superseded: true };
       const applied = await get().applyActiveGame(selection);
+      if (requestRevision !== _activeGameRequestRevision) return { superseded: true };
       if (applied.status === 'superseded') {
         throw new Error(`game switch to "${slug}" was superseded by a newer active-game selection`);
       }
@@ -1147,7 +1152,14 @@ export const useShellStore = create<AppState>((set, get) => ({
     let selection: ActiveProjectSelection;
     try {
       selection = await client.setActiveProject(slug);
+      if (requestRevision !== _activeGameRequestRevision) return { superseded: true };
     } catch (e) {
+      const superseded = requestRevision !== _activeGameRequestRevision || (
+        e !== null
+        && typeof e === 'object'
+        && (e as { code?: unknown }).code === 'ACTIVE_PROJECT_SWITCH_SUPERSEDED'
+      );
+      if (superseded) return { superseded: true };
       const message = e instanceof Error ? e.message : String(e);
       let authority: ActiveProjectSelection | null = null;
       try {
@@ -1155,6 +1167,7 @@ export const useShellStore = create<AppState>((set, get) => ({
       } catch {
         authority = null;
       }
+      if (requestRevision !== _activeGameRequestRevision) return { superseded: true };
       if (authority?.activeSlug === slug) {
         return applySelection(authority);
       }

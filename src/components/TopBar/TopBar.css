@@ -614,6 +614,8 @@
   color: var(--text-secondary, rgba(255,255,255,0.7));
 }
 .tb-game-pick:hover { background: var(--color-interaction-hover); color: var(--color-text-primary); }
+.tb-game-pick:disabled, .tb-game-del:disabled { cursor: wait; opacity: 0.55; }
+.tb-game-pick:disabled:hover { background: transparent; color: inherit; }
 .tb-game-row.active .tb-game-pick { color: var(--primary); }
 .tb-game-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tb-game-meta { font-size: 10px; color: var(--text-muted, rgba(255,255,255,0.4)); }

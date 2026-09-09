@@ -131,3 +131,78 @@ describe('focused text edit actions', () => {
     expect(clipboard.text).toBe('Reply exactly OK');
   });
 });
+
+test('menu paste dispatches images and documents once to the focused rich editor', async () => {
+  const target = document.createElement('div');
+  target.contentEditable = 'true';
+  target.tabIndex = 0;
+  target.textContent = 'keep draft';
+  document.body.append(target);
+  target.focus();
+  const files: File[] = [];
+  let events = 0;
+  target.addEventListener('paste', (event) => {
+    events++;
+    files.push(...Array.from((event as ClipboardEvent).clipboardData!.files));
+    event.preventDefault();
+  });
+  const richClipboard = {
+    ...clipboard,
+    async read() { return [{ types: ['image/png', 'application/pdf'], async getType(type: string) { return new Blob(['content'], {type}); } }] as ClipboardItems; },
+  };
+  expect(await executeFocusedTextEditAction('paste', document, richClipboard)).toBe(true);
+  expect(files.map(file => file.type)).toEqual(['image/png', 'application/pdf']);
+  expect(events).toBe(1);
+  expect(target.textContent).toBe('keep draft');
+});
+
+test('empty clipboard does not delete selected text', async () => {
+  const target = focusedInput('keep draft', 0, 10);
+  await executeFocusedTextEditAction('paste', document, clipboard);
+  expect(target.value).toBe('keep draft');
+});
+
+test('delayed clipboard read cannot paste into another focused editor', async () => {
+  const first = focusedInput('first', 0, 5);
+  let finish!: (text: string) => void;
+  const pending = executeFocusedTextEditAction('paste', document, {
+    ...clipboard, readText: () => new Promise<string>(resolve => { finish = resolve; }),
+  });
+  const second = focusedInput('second', 0, 6);
+  finish('late data');
+  expect(await pending).toBe(false);
+  expect(first.value).toBe('first');
+  expect(second.value).toBe('second');
+});
+
+test('read-only inputs consume mutations without changing content or clipboard', async () => {
+  const input = focusedInput('read-only', 0, 9);
+  input.readOnly = true;
+  clipboard.text = 'original clipboard';
+  for (const action of ['cut', 'paste', 'delete', 'undo', 'redo'] as const) {
+    expect(await executeFocusedTextEditAction(action, document, clipboard)).toBe(true);
+  }
+  expect(input.value).toBe('read-only');
+  expect(clipboard.text).toBe('original clipboard');
+});
+
+test('cut never deletes a changed selection after an asynchronous clipboard write', async () => {
+  const input = focusedInput('first second', 0, 5);
+  let finish!: () => void;
+  const pending = executeFocusedTextEditAction('cut', document, {
+    readText: async () => '', writeText: () => new Promise<void>(resolve => { finish = resolve; }),
+  });
+  input.setSelectionRange(6, 12);
+  finish();
+  expect(await pending).toBe(false);
+  expect(input.value).toBe('first second');
+});
+
+test('copy and cut without selection preserve the clipboard', async () => {
+  const input = focusedInput('draft', 2, 2);
+  clipboard.text = 'preserve';
+  await executeFocusedTextEditAction('copy', document, clipboard);
+  await executeFocusedTextEditAction('cut', document, clipboard);
+  expect(clipboard.text).toBe('preserve');
+  expect(input.value).toBe('draft');
+});

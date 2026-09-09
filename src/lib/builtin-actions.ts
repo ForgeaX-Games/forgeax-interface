@@ -546,7 +546,11 @@ export function registerBuiltinActions(): void {
       },
     },
     run: async (args) => {
-      const switched = await st().setActiveGame(args.slug as string);
+      const slug = args.slug as string;
+      const switched = await st().setActiveGame(slug);
+      if (switched.superseded) {
+        throw new Error(`game switch to "${slug}" was superseded by a newer selection`);
+      }
       const runtime = st().activeGameRuntime;
       return {
         status: 'completed',

@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { fireEvent, render } from '@testing-library/react';
-import { createSessionForGame, ProjectSessionRows } from './GameSwitcher';
+import { activateGameFromModal, createSessionForGame, ProjectSessionRows } from './GameSwitcher';
 
 describe('project row session creation', () => {
   it('renders a + instead of file count and routes only that click to session creation', () => {
@@ -51,5 +51,54 @@ describe('project row session creation', () => {
 
     await expect(createSessionForGame('project-a', { setActiveGame, createNewSession }))
       .resolves.toBe(false);
+  });
+
+  it('closes the modal only after the active-game mutation commits', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const close = mock(() => undefined);
+    const switching = activateGameFromModal('project-a', {
+      setActiveGame: async () => pending,
+      close,
+    });
+
+    expect(close).not.toHaveBeenCalled();
+    release();
+    await switching;
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the modal open when activation fails', async () => {
+    const close = mock(() => undefined);
+    await expect(activateGameFromModal('project-a', {
+      setActiveGame: async () => { throw new Error('runtime bind failed'); },
+      close,
+    })).rejects.toThrow('runtime bind failed');
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('disables every row action while a game switch is in flight', () => {
+    const view = render(
+      <ProjectSessionRows
+        games={[{ slug: 'project-a', name: 'Project A', fileCount: 42, mtime: 1 }]}
+        currentSlug={null}
+        busySlug="project-a"
+        onPick={() => undefined}
+        onNewSession={() => undefined}
+        onDelete={() => undefined}
+        labels={{
+          empty: 'empty',
+          switchTo: (slug) => `switch ${slug}`,
+          newSession: (slug) => `new session ${slug}`,
+          delete: 'delete',
+          meta: () => 'recent',
+        }}
+      />,
+    );
+
+    expect([...view.container.querySelectorAll('button')]
+      .every((button) => button.hasAttribute('disabled'))).toBe(true);
+    expect(view.container.querySelector('[title="switch project-a"]')
+      ?.closest('[aria-busy="true"]')).not.toBeNull();
   });
 });

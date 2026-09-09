@@ -1,7 +1,8 @@
-export type TextEditAction = 'cut' | 'copy' | 'paste' | 'selectAll';
+export type TextEditAction = 'cut' | 'copy' | 'paste' | 'selectAll' | 'undo' | 'redo' | 'delete';
 
 export interface TextClipboard {
   readText(): Promise<string>;
+  read?(): Promise<ClipboardItems>;
   writeText(text: string): Promise<void>;
 }
 
@@ -14,7 +15,13 @@ export function configureTextClipboard(clipboard: TextClipboard | null): void {
 }
 
 function defaultClipboard(): TextClipboard | undefined {
-  return configuredClipboard ?? navigator.clipboard;
+  const configured = configuredClipboard;
+  if (!configured) return navigator.clipboard;
+  return {
+    readText: () => configured.readText(),
+    writeText: text => configured.writeText(text),
+    read: configured.read?.bind(configured) ?? navigator.clipboard?.read?.bind(navigator.clipboard),
+  };
 }
 
 export type NativeTextEditTarget = HTMLInputElement | HTMLTextAreaElement;
@@ -189,19 +196,64 @@ export async function executeTextEditAction(
     return true;
   }
 
-  if (!clipboard) return false;
-  if (action === 'copy') {
-    await clipboard.writeText(selectedText(target));
+  const native = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+  if (action !== 'copy' && native && (target.readOnly || target.disabled)) return true;
+  if (action === 'undo' || action === 'redo' || action === 'delete') {
+    // The focused text control owns this action even when its history is empty.
+    // Never fall through to scene history/deletion because execCommand returns false.
+    target.focus();
+    target.ownerDocument.execCommand(action);
     return true;
   }
-  if (action === 'cut') {
-    await clipboard.writeText(selectedText(target));
+  if (!clipboard) return false;
+  if (action === 'copy' || action === 'cut') {
+    const text = selectedText(target);
+    if (!text) return true;
+    const captured = captureTarget(target);
+    const content = native ? target.value : target.innerHTML;
+    await clipboard.writeText(text);
+    if (action === 'copy') return true;
+    if (!target.isConnected || target.ownerDocument.activeElement !== target) return false;
+    if ((native ? target.value : target.innerHTML) !== content) return false;
+    if (native) {
+      if (target.selectionStart !== captured.selectionStart || target.selectionEnd !== captured.selectionEnd) return false;
+    } else {
+      const selection = target.ownerDocument.getSelection();
+      if (!captured.range || !selection?.rangeCount) return false;
+      const range = selection.getRangeAt(0);
+      if (range.compareBoundaryPoints(Range.START_TO_START, captured.range) !== 0
+        || range.compareBoundaryPoints(Range.END_TO_END, captured.range) !== 0) return false;
+    }
     replaceSelection(target, '');
     return true;
   }
 
-  replaceSelection(target, await clipboard.readText());
-  return true;
+  // Rich editors consume the same paste event for native shortcuts and menus.
+  // Never insert HTML here; the editor owns attachment and plain-text policy.
+  const captured = captureTarget(target);
+  const data = new DataTransfer();
+  if (clipboard.read && !(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
+    for (const item of await clipboard.read()) {
+      for (const type of item.types) {
+        if (type === 'text/plain') data.setData(type, await (await item.getType(type)).text());
+        else if (!type.startsWith('text/')) {
+          const blob = await item.getType(type);
+          data.items.add(new File([blob], `clipboard-${data.files.length}`, { type }));
+        }
+      }
+    }
+  } else {
+    data.setData('text/plain', await clipboard.readText());
+  }
+  // Do not target another editor after a pending clipboard permission/read.
+  if (!target.isConnected || target.ownerDocument.activeElement !== target) return false;
+  restoreTarget(captured);
+  const paste = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data });
+  if (!target.dispatchEvent(paste)) return true;
+  const text = data.getData('text/plain');
+  if (text) replaceSelection(target, text);
+  return Boolean(text);
+
 }
 
 export async function executeFocusedTextEditAction(

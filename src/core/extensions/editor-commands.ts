@@ -79,7 +79,8 @@ export const editorCommandsExtension: AppExtension = {
     cleanups.push(registerCommand({
       id: 'editor.undo',
       title: '撤销',
-      execute: () => {
+      execute: async () => {
+        if (await executeFocusedTextEditAction('undo')) return { status: 'completed' as const };
         requireDeps().undo();
         return { status: 'completed' as const };
       },
@@ -88,7 +89,8 @@ export const editorCommandsExtension: AppExtension = {
     cleanups.push(registerCommand({
       id: 'editor.redo',
       title: '重做',
-      execute: () => {
+      execute: async () => {
+        if (await executeFocusedTextEditAction('redo')) return { status: 'completed' as const };
         requireDeps().redo();
         return { status: 'completed' as const };
       },
@@ -136,7 +138,8 @@ export const editorCommandsExtension: AppExtension = {
     cleanups.push(registerCommand({
       id: 'editor.delete',
       title: '删除所选实体',
-      execute: () => {
+      execute: async () => {
+        if (await executeFocusedTextEditAction('delete')) return { status: 'completed' as const };
         const deps = requireDeps();
         const ids = deps.getEntitySelection();
         if (ids.length > 0) deps.deleteEntities(ids);

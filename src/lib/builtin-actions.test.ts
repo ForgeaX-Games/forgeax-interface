@@ -18,6 +18,7 @@ import {
 } from '../store-parts/session-client';
 import {
   configureStudioDomainClients,
+  type ActiveProjectSelection,
   type StudioProjectClient,
 } from '../store-parts/domain-clients';
 import { __resetCurrentProjectIdForTests } from './project-context';
@@ -168,6 +169,54 @@ describe('builtin actions — 全量过 server 侧接收规则', () => {
       },
     });
     expect(useShellStore.getState().activeGameSlug).toBe('game-after');
+  });
+
+  test('game.switch 不允许较慢的旧请求覆盖较新的选择', async () => {
+    let resolveOlder!: (selection: ActiveProjectSelection) => void;
+    const older = new Promise<ActiveProjectSelection>((resolve) => { resolveOlder = resolve; });
+    configureProjectClient({
+      setActiveProject: async (slug) => slug === 'game-a'
+        ? older
+        : { activeSlug: slug, runtime: { status: 'ready' } },
+    });
+
+    const first = dispatchAction('game.switch', { slug: 'game-a' }, { source: 'ai' });
+    await Promise.resolve();
+    const second = await dispatchAction('game.switch', { slug: 'game-b' }, { source: 'ai' });
+    resolveOlder({ activeSlug: 'game-a', runtime: { status: 'ready' } });
+    const stale = await first;
+
+    expect(second.status).toBe('completed');
+    expect(stale.status).toBe('rejected');
+    expect(stale.status === 'rejected' ? stale.reason : '').toContain('superseded by a newer selection');
+    expect(useShellStore.getState().activeGameSlug).toBe('game-b');
+  });
+
+  test('game.switch 不允许旧请求的延迟权威回读覆盖新选择', async () => {
+    let resolveAuthority!: (selection: ActiveProjectSelection) => void;
+    const delayedAuthority = new Promise<ActiveProjectSelection>((resolve) => { resolveAuthority = resolve; });
+    let markAuthorityRead!: () => void;
+    const authorityRead = new Promise<void>((resolve) => { markAuthorityRead = resolve; });
+    configureProjectClient({
+      setActiveProject: async (slug) => {
+        if (slug === 'game-a') throw new Error('setActiveProject → HTTP 503');
+        return { activeSlug: slug, runtime: { status: 'ready' } };
+      },
+      getActiveProject: async () => {
+        markAuthorityRead();
+        return delayedAuthority;
+      },
+    });
+
+    const first = dispatchAction('game.switch', { slug: 'game-a' }, { source: 'ai' });
+    await authorityRead;
+    const second = await dispatchAction('game.switch', { slug: 'game-b' }, { source: 'ai' });
+    resolveAuthority({ activeSlug: 'game-a', runtime: { status: 'ready' } });
+    const stale = await first;
+
+    expect(second.status).toBe('completed');
+    expect(stale.status).toBe('rejected');
+    expect(useShellStore.getState().activeGameSlug).toBe('game-b');
   });
 
   test('破坏性 action 如实声明 delete(session.close 会弹确认卡,这是有意的)', () => {

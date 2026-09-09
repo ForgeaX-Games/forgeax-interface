@@ -87,3 +87,31 @@ describe('text editing menu contract', () => {
     if (typeof cleanup === 'function') cleanup();
   });
 });
+
+test('undo, redo and delete stay with the text control even with empty history', async () => {
+  const commands = new Map<string, { execute: () => unknown }>();
+  const sceneCalls: string[] = [];
+  registerKeyboardRouterDeps({
+    undo: () => sceneCalls.push('undo'), redo: () => sceneCalls.push('redo'),
+    getEntitySelection: () => ['entity'], deleteEntities: () => sceneCalls.push('delete'),
+  } as never);
+  const cleanup = editorCommandsExtension.setup?.({registerCommand(command: {id:string; execute:()=>unknown}) {
+    commands.set(command.id, command); return () => commands.delete(command.id);
+  }} as never);
+  const original = document.execCommand;
+  const textCalls: string[] = [];
+  document.execCommand = (action: string) => { textCalls.push(action); return false; };
+  try {
+    const input = document.createElement('textarea');
+    document.body.append(input); input.focus();
+    for (const action of ['undo', 'redo', 'delete']) await commands.get(`editor.${action}`)?.execute();
+    expect(textCalls).toEqual(['undo', 'redo', 'delete']);
+    expect(sceneCalls).toEqual([]);
+    const button = document.createElement('button'); document.body.append(button); button.focus();
+    for (const action of ['undo', 'redo', 'delete']) await commands.get(`editor.${action}`)?.execute();
+    expect(sceneCalls).toEqual(['undo', 'redo', 'delete']);
+  } finally {
+    document.execCommand = original; registerKeyboardRouterDeps(null);
+    if (typeof cleanup === 'function') cleanup();
+  }
+});

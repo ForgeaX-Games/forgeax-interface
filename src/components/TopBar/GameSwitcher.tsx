@@ -26,6 +26,7 @@ interface GameRow {
 export function ProjectSessionRows({
   games,
   currentSlug,
+  busySlug = null,
   onPick,
   onNewSession,
   onDelete,
@@ -33,6 +34,7 @@ export function ProjectSessionRows({
 }: {
   readonly games: readonly GameRow[];
   readonly currentSlug: string | null;
+  readonly busySlug?: string | null;
   readonly onPick: (slug: string) => void;
   readonly onNewSession: (slug: string) => void;
   readonly onDelete: (slug: string) => void;
@@ -45,39 +47,60 @@ export function ProjectSessionRows({
   };
 }) {
   if (games.length === 0) return <div className="tb-game-empty">{labels.empty}</div>;
-  return games.map((game) => (
-    <div key={game.slug} className={`tb-game-row ${game.slug === currentSlug ? 'active' : ''}`} data-game-slug={game.slug}>
+  const disabled = busySlug !== null;
+  return games.map((game) => {
+    const busy = busySlug === game.slug;
+    return (
+    <div key={game.slug} className={`tb-game-row ${game.slug === currentSlug ? 'active' : ''}`} data-game-slug={game.slug} aria-busy={busy}>
       <button
         className="tb-game-pick"
         onClick={() => onPick(game.slug)}
         title={labels.switchTo(game.slug)}
+        disabled={disabled}
       >
         <span className="tb-game-name">{game.name}</span>
-        <span className="tb-game-meta">{labels.meta(game.mtime)}</span>
+        <span className="tb-game-meta">{busy ? '…' : labels.meta(game.mtime)}</span>
       </button>
       <button
         className="tb-game-del tb-game-add-session"
         onClick={() => onNewSession(game.slug)}
         title={labels.newSession(game.slug)}
         aria-label={labels.newSession(game.slug)}
+        disabled={disabled}
       >
         <Plus size={13} />
       </button>
-      <button className="tb-game-del" onClick={() => onDelete(game.slug)} title={labels.delete}>
+      <button className="tb-game-del" onClick={() => onDelete(game.slug)} title={labels.delete} disabled={disabled}>
         <Trash2 size={11} />
       </button>
     </div>
-  ));
+    );
+  });
+}
+
+type ActiveGameMutationResult = { readonly superseded?: boolean } | void;
+
+export async function activateGameFromModal(
+  slug: string,
+  dependencies: {
+    readonly setActiveGame: (slug: string) => Promise<ActiveGameMutationResult>;
+    readonly close: () => void;
+  },
+): Promise<void> {
+  const result = await dependencies.setActiveGame(slug);
+  if (result?.superseded) throw new Error(`game switch to "${slug}" was superseded by a newer selection`);
+  dependencies.close();
 }
 
 export async function createSessionForGame(
   slug: string,
   dependencies: {
-    readonly setActiveGame: (slug: string) => Promise<unknown>;
+    readonly setActiveGame: (slug: string) => Promise<ActiveGameMutationResult>;
     readonly createNewSession: (options: { readonly scope: string }) => Promise<unknown>;
   },
 ): Promise<boolean> {
-  await dependencies.setActiveGame(slug);
+  const result = await dependencies.setActiveGame(slug);
+  if (result?.superseded) return false;
   return Boolean(await dependencies.createNewSession({ scope: slug }));
 }
 
@@ -91,6 +114,8 @@ export function GameModalHost() {
   const gameModalOpen = useShellStore((s) => s.gameModalOpen);
   const closeGameModal = useShellStore((s) => s.closeGameModal);
   const [games, setGames] = useState<GameRow[]>([]);
+  const [switchingSlug, setSwitchingSlug] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
   const activeGameSlug = useShellStore((s) => s.activeGameSlug);
   const setActiveGame = useShellStore((s) => s.setActiveGame);
   const createNewSession = useShellStore((s) => s.createNewSession);
@@ -106,12 +131,27 @@ export function GameModalHost() {
 
   // Load the game list when the "open game" modal opens (was a 6s poll on the
   // always-on switcher; now on-demand since the list only shows in the modal).
-  useEffect(() => { if (listOpen) void reload(); }, [listOpen]);
+  useEffect(() => {
+    if (!listOpen) return;
+    setSwitchError(null);
+    void reload();
+  }, [listOpen]);
 
   // Picking a game goes through the one authoritative active-game mutation.
   const onPick = async (slug: string) => {
-    setListOpen(false);
-    await setActiveGame(slug);
+    if (switchingSlug !== null) return;
+    setSwitchingSlug(slug);
+    setSwitchError(null);
+    try {
+      await activateGameFromModal(slug, {
+        setActiveGame,
+        close: () => setListOpen(false),
+      });
+    } catch (error) {
+      setSwitchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSwitchingSlug(null);
+    }
   };
 
   const onDelete = async (slug: string) => {
@@ -125,17 +165,27 @@ export function GameModalHost() {
   };
 
   const onNewSession = async (slug: string) => {
-    const created = await createSessionForGame(slug, { setActiveGame, createNewSession });
-    if (created) setListOpen(false);
+    if (switchingSlug !== null) return;
+    setSwitchingSlug(slug);
+    setSwitchError(null);
+    try {
+      const created = await createSessionForGame(slug, { setActiveGame, createNewSession });
+      if (created) setListOpen(false);
+    } catch (error) {
+      setSwitchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSwitchingSlug(null);
+    }
   };
 
   return (
     <>
       {gameModalOpen && <NewGameModal onClose={() => { closeGameModal(); }} />}
       {listOpen && (
-        <div className="tb-modal-overlay" onClick={() => setListOpen(false)}>
+        <div className="tb-modal-overlay" onClick={() => { if (switchingSlug === null) setListOpen(false); }}>
           <div className="tb-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tb-modal-title">{t('gameSwitcher.listTitle')}</div>
+            {switchError && <div className="tb-modal-error" role="alert">{switchError}</div>}
             {/* Plain in-modal flow container — NOT `.tb-game-dropdown` (that class
                 is absolutely positioned for the old popover and would jump to the
                 corner). The modal card supplies the chrome; rows style themselves. */}
@@ -143,6 +193,7 @@ export function GameModalHost() {
               <ProjectSessionRows
                 games={games}
                 currentSlug={currentSlug}
+                busySlug={switchingSlug}
                 onPick={(slug) => void onPick(slug)}
                 onNewSession={(slug) => void onNewSession(slug)}
                 onDelete={(slug) => void onDelete(slug)}
