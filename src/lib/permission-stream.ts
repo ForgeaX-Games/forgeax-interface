@@ -28,6 +28,8 @@ export interface PendingPermission {
   /** 信任闸命中的能力(exec/write/network/credential/delete);trust-gate ask 卡有,
    *  CC permission-prompt 卡无。用于卡片副标题 + 「记住本会话」的归类。 */
   capability?: string;
+  /** Host-provided explanation for this approval; rendered as plain text. */
+  reason?: string;
   /** trust-gate ask 卡允许「记住本会话」(CC 卡为 false/缺省)。 */
   canRemember?: boolean;
 }
@@ -127,6 +129,7 @@ function dispatchPermission(evt: SessionEvent): void {
       agent: typeof p.agent === 'string' ? p.agent : 'forge',
       input: (p as { input?: unknown }).input,
       ...(typeof p.capability === 'string' ? { capability: p.capability } : {}),
+      ...(typeof p.reason === 'string' ? { reason: p.reason } : {}),
       ...((p as { canRemember?: unknown }).canRemember === true ? { canRemember: true } : {}),
     });
   } else {
@@ -160,7 +163,7 @@ function subscribe(cb: () => void): () => void {
 export function usePendingPermission(sid: string | null): PendingPermission | null {
   return useSyncExternalStore(
     subscribe,
-    () => (sid ? _state.get(sid) ?? null : null),
+    () => (sid ? getPendingPermission(sid) : null),
     () => null,
   );
 }
@@ -172,6 +175,11 @@ export function useResolvedPermission(sid: string | null): ResolvedPermission | 
     () => (sid ? _resolved.get(sid) ?? null : null),
     () => null,
   );
+}
+
+/** Non-React read used by replay/integration tests and host diagnostics. */
+export function getPendingPermission(sid: string): PendingPermission | null {
+  return _state.get(sid) ?? null;
 }
 
 /** Non-React read used by replay/integration tests and host diagnostics. */
