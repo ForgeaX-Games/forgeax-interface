@@ -177,3 +177,58 @@
   .feedback-passive-primary,
   .feedback-passive-ignore { width: 100%; }
 }
+
+/* Agent incidents stay in the conversation flow as a compact disclosure. */
+.feedback-passive-card--chat {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border-color: var(--color-border, rgba(255, 255, 255, 0.12));
+  background: var(--color-bg-secondary, #242426);
+  box-shadow: none;
+}
+.feedback-passive-disclosure > summary {
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 8px 38px 8px 10px;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--color-text-secondary, #b5b5b8);
+  font-size: 12px;
+  line-height: 20px;
+}
+.feedback-passive-disclosure > summary::-webkit-details-marker { display: none; }
+.feedback-passive-disclosure > summary:focus-visible {
+  outline: 2px solid var(--color-brand-primary, #c7ff35);
+  outline-offset: -2px;
+}
+.feedback-passive-card--chat .feedback-passive-icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+}
+.feedback-passive-chevron { margin-left: auto; flex-shrink: 0; }
+.feedback-passive-disclosure[open] > summary .feedback-passive-chevron { transform: rotate(180deg); }
+.feedback-passive-card--chat .feedback-passive-close { top: 5px; right: 5px; }
+.feedback-passive-card--chat .feedback-passive-summary { margin: 4px 10px 8px; }
+.feedback-passive-card--chat .feedback-passive-stack { margin: 0 10px 8px; }
+.feedback-passive-card--chat .feedback-passive-actions {
+  margin: 0 10px 10px;
+  gap: 8px;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.feedback-passive-card--chat .feedback-passive-actions button {
+  width: auto;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.feedback-passive-card--chat .feedback-passive-primary {
+  background: transparent;
+  border-color: var(--color-border, rgba(255, 255, 255, 0.18));
+  color: var(--color-text-primary, #f2f2f2);
+}

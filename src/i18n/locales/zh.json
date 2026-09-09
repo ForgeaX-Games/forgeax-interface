@@ -1379,7 +1379,11 @@
     "deny": "拒绝",
     "allow": "允许",
     "capabilityLabel": "能力:{{capability}}",
-    "rememberSession": "记住本会话",
+    "rememberSession": "本次会话运行期间记住此类授权",
+    "rememberCapability": "本次会话运行期间记住「{{capability}}」授权",
+    "rememberScope": "仅对当前运行会话的此类能力生效；关闭会话或重启应用后清除。",
+    "pendingCount": "还有 {{count}} 项待授权",
+    "capabilities": { "read": "读取", "write": "写文件", "exec": "执行命令", "network": "网络访问", "delete": "删除", "credential": "访问凭据", "delegate": "委派", "other": "其他工具" },
     "expand": "▼ 展开 ({{count}} 字)",
     "collapse": "▲ 收起"
   },

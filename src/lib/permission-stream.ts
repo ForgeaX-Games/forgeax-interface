@@ -41,7 +41,8 @@ export interface ResolvedPermission {
   questions: Array<{ question: string; values: string[] }>;
 }
 
-const _state = new Map<string, PendingPermission>();
+const _state = new Map<string, Map<string, PendingPermission>>();
+const _settled = new Map<string, Set<string>>();
 const _resolved = new Map<string, ResolvedPermission>();
 const _listeners = new Set<() => void>();
 
@@ -121,8 +122,10 @@ function dispatchPermission(evt: SessionEvent): void {
     // A new request starts a fresh interaction. The single notify below is
     // enough for both clearing the old resolved summary and publishing the
     // new pending card.
+    if (_settled.get(sid)?.has(p.reqId)) return;
+    const queue = _state.get(sid) ?? new Map<string, PendingPermission>();
     _resolved.delete(sid);
-    _state.set(sid, {
+    queue.set(p.reqId, {
       reqId: p.reqId,
       toolName: typeof p.toolName === 'string' ? p.toolName : 'tool',
       command: typeof p.command === 'string' ? p.command : '',
@@ -132,8 +135,9 @@ function dispatchPermission(evt: SessionEvent): void {
       ...(typeof p.reason === 'string' ? { reason: p.reason } : {}),
       ...((p as { canRemember?: unknown }).canRemember === true ? { canRemember: true } : {}),
     });
+    _state.set(sid, queue);
   } else {
-    const current = _state.get(sid);
+    const current = _state.get(sid)?.get(p.reqId);
     const resolved = resolvedFrom(
       sid,
       p.reqId,
@@ -144,7 +148,7 @@ function dispatchPermission(evt: SessionEvent): void {
     );
     if (resolved) _resolved.set(sid, resolved);
     // resolved — clear only if it's the same request still showing.
-    if (_state.get(sid)?.reqId === p.reqId) _state.delete(sid);
+    settlePermission(sid, p.reqId);
   }
   notify();
 }
@@ -179,7 +183,20 @@ export function useResolvedPermission(sid: string | null): ResolvedPermission | 
 
 /** Non-React read used by replay/integration tests and host diagnostics. */
 export function getPendingPermission(sid: string): PendingPermission | null {
-  return _state.get(sid) ?? null;
+  return _state.get(sid)?.values().next().value ?? null;
+}
+
+export function usePendingPermissionCount(sid: string | null): number {
+  return useSyncExternalStore(subscribe, () => sid ? (_state.get(sid)?.size ?? 0) : 0, () => 0);
+}
+
+function settlePermission(sid: string, reqId: string): void {
+  const settled = _settled.get(sid) ?? new Set<string>();
+  settled.add(reqId);
+  _settled.set(sid, settled);
+  const queue = _state.get(sid);
+  queue?.delete(reqId);
+  if (queue?.size === 0) _state.delete(sid);
 }
 
 /** Non-React read used by replay/integration tests and host diagnostics. */
@@ -226,15 +243,16 @@ export function replayPermissionEvents(
  *  the UI dismisses immediately without waiting for the permission:resolved
  *  round-trip). */
 export function clearPendingPermission(sid: string, reqId: string): void {
-  if (_state.get(sid)?.reqId === reqId) {
-    _state.delete(sid);
-    notify();
-  }
+  settlePermission(sid, reqId);
+  notify();
 }
 
 /** Evict on session close (mirror dropFileActivitySession — avoid retaining
  *  closed-session state). */
 export function dropPermissionSession(sid: string): void {
-  const changed = _state.delete(sid) || _resolved.delete(sid);
+  const changed = _state.has(sid) || _resolved.has(sid) || _settled.has(sid);
+  _state.delete(sid);
+  _resolved.delete(sid);
+  _settled.delete(sid);
   if (changed) notify();
 }

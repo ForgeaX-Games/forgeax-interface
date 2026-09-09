@@ -40,6 +40,14 @@ describe('PassiveFeedbackHost agent recovery', () => {
       await act(async () => {});
 
       expect(document.querySelectorAll('.feedback-passive-card')).toHaveLength(1);
+      const disclosure = document.querySelector<HTMLDetailsElement>('.feedback-passive-disclosure');
+      expect(disclosure).not.toBeNull();
+      expect(disclosure?.open).toBe(false);
+      expect(disclosure?.querySelector('summary')?.textContent).toBeTruthy();
+      await act(async () => { if (disclosure) disclosure.open = true; });
+      expect(disclosure?.open).toBe(true);
+      expect(disclosure?.querySelector('.feedback-passive-summary')?.textContent).toContain('600 seconds');
+
       expect(document.querySelectorAll('.composer button')).toHaveLength(1);
       expect(document.querySelectorAll('.feedback-passive-primary')).toHaveLength(1);
 

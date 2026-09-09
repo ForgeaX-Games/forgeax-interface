@@ -1379,7 +1379,11 @@
     "deny": "Deny",
     "allow": "Allow",
     "capabilityLabel": "Capability: {{capability}}",
-    "rememberSession": "Remember for this session",
+    "rememberSession": "Remember this capability while this session is open",
+    "rememberCapability": "Remember {{capability}} while this session is open",
+    "rememberScope": "Applies to this capability in the current running session only. Closing the session or restarting the app clears it.",
+    "pendingCount": "{{count}} approvals pending",
+    "capabilities": { "read": "reading", "write": "file writes", "exec": "commands", "network": "network access", "delete": "deletion", "credential": "credential access", "delegate": "delegation", "other": "other tools" },
     "expand": "▼ Expand ({{count}} chars)",
     "collapse": "▲ Collapse"
   },

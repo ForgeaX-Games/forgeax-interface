@@ -81,6 +81,23 @@ function PassiveFeedbackCard({
   onPrimary: () => void;
 }) {
   const { t } = useTranslation();
+  const body = (<>
+      <p className="feedback-passive-summary">{incident.summary}</p>
+      {incident.stack && (
+        <details className="feedback-passive-stack">
+          <summary>{t('feedback.passive.fullStack')}<ChevronDown size={15} /></summary>
+          <pre>{incident.stack}</pre>
+        </details>
+      )}
+      <footer className="feedback-passive-actions">
+        <button type="button" className="feedback-passive-primary" onClick={onPrimary}>
+          {t(incident.actionKey)}
+        </button>
+        <button type="button" className="feedback-passive-ignore" onClick={onDismiss}>
+          {t('feedback.passive.ignore')}
+        </button>
+      </footer>
+  </>);
   const card = (
     <section
       className={`feedback-passive-card feedback-passive-card--${incident.placement}`}
@@ -97,25 +114,22 @@ function PassiveFeedbackCard({
       >
         <X size={17} />
       </button>
+      {incident.placement !== 'chat' && (
       <header className="feedback-passive-header">
         <span className="feedback-passive-icon" aria-hidden="true"><AlertTriangle size={18} /></span>
         <h2 id={`feedback-passive-title-${incident.id}`}>{t(incident.titleKey)}</h2>
       </header>
-      <p className="feedback-passive-summary">{incident.summary}</p>
-      {incident.stack && (
-        <details className="feedback-passive-stack">
-          <summary>{t('feedback.passive.fullStack')}<ChevronDown size={15} /></summary>
-          <pre>{incident.stack}</pre>
-        </details>
       )}
-      <footer className="feedback-passive-actions">
-        <button type="button" className="feedback-passive-primary" onClick={onPrimary}>
-          {t(incident.actionKey)}
-        </button>
-        <button type="button" className="feedback-passive-ignore" onClick={onDismiss}>
-          {t('feedback.passive.ignore')}
-        </button>
-      </footer>
+      {incident.placement === 'chat' ? (
+        <details className="feedback-passive-disclosure" key={incident.id}>
+          <summary className="feedback-passive-header">
+            <span className="feedback-passive-icon" aria-hidden="true"><AlertTriangle size={16} /></span>
+            <span id={`feedback-passive-title-${incident.id}`}>{t(incident.titleKey)}</span>
+            <ChevronDown className="feedback-passive-chevron" size={14} aria-hidden="true" />
+          </summary>
+          {body}
+        </details>
+      ) : body}
     </section>
   );
 
