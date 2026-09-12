@@ -58,7 +58,7 @@ describe('main-thread stall detection', () => {
     expect(f.signals).toEqual([]);
     expect(f.view.queryByRole('alert')).toBeNull();
     f.tick(128000);
-    expect(f.signals).toEqual([{ code: 'main-thread-stall', message: 'Main thread was unresponsive for 6 seconds' }]);
+    expect(f.signals).toEqual([{ code: 'main-thread-stall', durationMs: 6000, message: 'Main thread was unresponsive for 6 seconds' }]);
   });
 
   it('discards an entire suspension with no intervening timer callback', () => {

@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { qualifyContributionId } from '@forgeax/types';
-import { buildManifest, dispatchAction, __resetRegistryForTest } from './action-registry';
+import { buildManifest, snapshotActions, dispatchAction, __resetRegistryForTest } from './action-registry';
 import { registerBuiltinActions } from './builtin-actions';
 import { useShellStore } from '../store';
 import { createAppHost } from '../core/app-shell/host';
@@ -121,9 +121,17 @@ describe('builtin actions — 全量过 server 侧接收规则', () => {
     expect(String(result.stateDigest?.hint)).toContain('切换游戏');
     expect(String(result.stateDigest?.hint)).toContain('尚不代表游戏制作完成');
     expect(String(result.stateDigest?.hint)).not.toContain('顶栏');
-    expect(buildManifest().some((action) => action.id === 'game.switch')).toBe(true);
+    expect(buildManifest().some((action) => action.id === 'game.switch')).toBe(false);
     expect(useShellStore.getState().activeGameSlug).toBe('snake');
     expect(useShellStore.getState().activeSid).toBe('current-session');
+  });
+
+  test('project switching is absent from model discovery and invocation', async () => {
+    expect(buildManifest().some((entry) => entry.id === 'game.switch')).toBe(false);
+    expect(snapshotActions('schema', ['game.switch']).some((entry) => entry.id === 'game.switch')).toBe(false);
+    const result = await dispatchAction('game.switch', { slug: 'another-game' }, { source: 'ai' });
+    expect(result.status).toBe('rejected');
+    expect(snapshotActions(undefined, undefined, 'human').some((entry) => entry.id === 'game.switch')).toBe(true);
   });
 
   test('game.switch 写入失败且权威仍是旧游戏时明确拒绝,不谎称预览已切换', async () => {
@@ -137,7 +145,7 @@ describe('builtin actions — 全量过 server 侧接收规则', () => {
       activeGameResolved: true,
     });
 
-    const result = await dispatchAction('game.switch', { slug: 'missing-game' }, { source: 'ai' });
+    const result = await dispatchAction('game.switch', { slug: 'missing-game' }, { source: 'human' });
 
     expect(result.status).toBe('rejected');
     expect(result.status === 'rejected' ? result.reason : '').toContain('active game remains "game-before"');
@@ -158,7 +166,7 @@ describe('builtin actions — 全量过 server 侧接收规则', () => {
       activeGameResolved: true,
     });
 
-    const result = await dispatchAction('game.switch', { slug: 'game-after' }, { source: 'ai' });
+    const result = await dispatchAction('game.switch', { slug: 'game-after' }, { source: 'human' });
 
     expect(result).toEqual({
       status: 'completed',
@@ -180,9 +188,9 @@ describe('builtin actions — 全量过 server 侧接收规则', () => {
         : { activeSlug: slug, runtime: { status: 'ready' } },
     });
 
-    const first = dispatchAction('game.switch', { slug: 'game-a' }, { source: 'ai' });
+    const first = dispatchAction('game.switch', { slug: 'game-a' }, { source: 'human' });
     await Promise.resolve();
-    const second = await dispatchAction('game.switch', { slug: 'game-b' }, { source: 'ai' });
+    const second = await dispatchAction('game.switch', { slug: 'game-b' }, { source: 'human' });
     resolveOlder({ activeSlug: 'game-a', runtime: { status: 'ready' } });
     const stale = await first;
 
@@ -208,9 +216,9 @@ describe('builtin actions — 全量过 server 侧接收规则', () => {
       },
     });
 
-    const first = dispatchAction('game.switch', { slug: 'game-a' }, { source: 'ai' });
+    const first = dispatchAction('game.switch', { slug: 'game-a' }, { source: 'human' });
     await authorityRead;
-    const second = await dispatchAction('game.switch', { slug: 'game-b' }, { source: 'ai' });
+    const second = await dispatchAction('game.switch', { slug: 'game-b' }, { source: 'human' });
     resolveAuthority({ activeSlug: 'game-a', runtime: { status: 'ready' } });
     const stale = await first;
 

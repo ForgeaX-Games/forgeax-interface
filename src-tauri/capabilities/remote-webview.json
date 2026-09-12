@@ -20,6 +20,7 @@
     "core:webview:allow-create-webview-window",
     "core:webview:default",
     "core:event:default",
-    "os:default"
+    "os:default",
+    "shell:allow-open"
   ]
 }

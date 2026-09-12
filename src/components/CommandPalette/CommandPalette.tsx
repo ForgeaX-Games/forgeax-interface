@@ -113,7 +113,7 @@ export function CommandPalette() {
   // 打开时取一次注册表快照;available 的排前面。
   useEffect(() => {
     if (!open) return;
-    const snap = snapshotActions();
+    const snap = snapshotActions(undefined, undefined, 'human');
     snap.sort((a, b) => Number(b.available) - Number(a.available) || a.title.localeCompare(b.title));
     setRows(snap);
   }, [open]);

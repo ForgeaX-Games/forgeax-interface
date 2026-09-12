@@ -531,11 +531,11 @@ export function registerBuiltinActions(): void {
 
   registerAction({
     id: 'game.switch',
+    audience: 'human',
     title: '切换游戏',
     description: 'Select the active game (project) by slug. Every open Studio page follows the server authority.',
     schema: { type: 'object', properties: { slug: { type: 'string' } }, required: ['slug'] },
     capability: 'write',
-    firstClass: true, // P1-9:高频 action 派生一等 ToolSpec(ui_act_*)
     surface: 'both',
     timeoutMs: 20_000,
     // 命令面板把 slug 变成「现有游戏」下拉,避免瞎填触发 server 404。
@@ -567,7 +567,7 @@ export function registerBuiltinActions(): void {
     id: 'game.create',
     title: '新建游戏',
     description:
-      'Create a NEW game (project) from the template and give it its own dedicated chat session. Args: slug (required, 1-41 chars lowercase ASCII/digits/hyphens, must start with a letter/digit — e.g. "neon-runner") + optional name (display name) + optional brief (one line describing what game to make, recorded in FORGE.md for later). Fails with 409 if the slug already exists — use game.switch for existing games; list existing slugs to avoid collisions. NOTE: this does NOT switch the UI to the new game (switching mid-turn would break the active chat channel). This creates a project template, not a finished playable game. Tell the user to press Ctrl+K (Cmd+K on macOS), choose 切换游戏 (game.switch), select the created slug, and confirm to open its dedicated session and continue development.',
+      'Create a NEW game (project) from the template and give it its own dedicated chat session. Args: slug (required, 1-41 chars lowercase ASCII/digits/hyphens, must start with a letter/digit — e.g. "neon-runner") + optional name (display name) + optional brief (one line describing what game to make, recorded in FORGE.md for later). Fails with 409 if the slug already exists — ask the user to open an existing game from the project switcher; list existing slugs to avoid collisions. NOTE: this does NOT switch the UI to the new game (switching mid-turn would break the active chat channel). This creates a project template, not a finished playable game. Tell the user to press Ctrl+K (Cmd+K on macOS), choose 切换游戏 (game.switch), select the created slug, and confirm to open its dedicated session and continue development.',
     schema: {
       type: 'object',
       properties: {

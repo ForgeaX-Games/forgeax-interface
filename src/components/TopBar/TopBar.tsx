@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo, useReducer } from 'react';
 import { SessionSwitcher } from './SessionSwitcher';
+import { GameIdentityButton } from './GameIdentityButton';
 import { MenuBar } from '../MenuBar';
 import { AndroidPackageDialog, type AndroidPackageConfig } from './AndroidPackageDialog';
 import { IosPackageDialog, type IosPackageConfig } from './IosPackageDialog';
@@ -652,6 +653,7 @@ export function TopBar({ showSessionSwitcher = true }: { showSessionSwitcher?: b
             selector now owns its own pinned "新建 X": workspace → ProjectSwitcher,
             game → GameSwitcher, session → SessionSwitcher. */}
         <MenuBar />
+        <GameIdentityButton />
         {/* Forge agent entry region appears only when the host injects chat.
             MenuBar already renders its own trailing divider (web), so the
             SessionSwitcher follows it directly — no extra divider here. */}

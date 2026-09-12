@@ -17,6 +17,7 @@ export interface PassiveFeedbackScope {
 export interface PassiveFeedbackSignal {
   code: string;
   message: string;
+  durationMs?: number;
   source?: string;
   ts?: number;
   scope?: PassiveFeedbackScope;
@@ -24,6 +25,7 @@ export interface PassiveFeedbackSignal {
 
 export interface PassiveFeedbackIncident {
   exceptionKey: string;
+  durationMs?: number;
   titleKey: string;
   actionKey: string;
   summary: string;
@@ -194,6 +196,8 @@ export function createPassiveFeedbackClassifier(): PassiveFeedbackClassifier {
         actionKey: preset.actionKey,
         placement: preset.placement,
         recovery: preset.recovery,
+        ...(typeof signal.durationMs === 'number' && Number.isFinite(signal.durationMs) && signal.durationMs >= 0
+          ? { durationMs: signal.durationMs } : {}),
         ...(signal.scope ? { scope: { ...signal.scope } } : {}),
         ...diagnosticParts(signal.message),
       };

@@ -52,6 +52,22 @@ describe('dispatchAction — 单入口 + fail-closed', () => {
     expect(ran).toBe(false);
   });
 
+  test('human-only actions stay out of model discovery and reject stale AI calls', async () => {
+    let calls = 0;
+    registerAction({
+      id: 'a.human', title: 'Human action', capability: 'write', audience: 'human',
+      firstClass: true, run: () => { calls += 1; },
+    });
+    expect(buildManifest()).toEqual([]);
+    expect(snapshotActions()).toEqual([]);
+    expect(snapshotActions('schema', ['a.human'])).toEqual([]);
+    expect((await dispatchAction('a.human', {}, { source: 'ai' })).status).toBe('rejected');
+    expect(calls).toBe(0);
+    expect(snapshotActions(undefined, undefined, 'human').map((action) => action.id)).toEqual(['a.human']);
+    expect((await dispatchAction('a.human', {}, { source: 'human' })).status).toBe('completed');
+    expect(calls).toBe(1);
+  });
+
   test('schema 校验:required / type / enum', async () => {
     registerAction({
       id: 'a.schema',

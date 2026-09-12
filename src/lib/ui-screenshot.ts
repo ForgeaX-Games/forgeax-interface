@@ -119,6 +119,35 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/** 压缩用户手动上传的截图文件,复用与一键截屏相同的长边上限 + JPEG 质量(MAX_EDGE/
+ *  JPEG_QUALITY),避免原图(macOS Retina 全屏 PNG 常见 5-20MB)未压缩直接 base64 进
+ *  提交 body——桌面 WKWebView 对超大 fetch POST body 可能以 `TypeError: Load failed`
+ *  失败。非图片/解码失败时 reject,由调用方跳过该文件,不阻塞其余截图。 */
+export async function compressUploadedImage(file: File): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(objectUrl);
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+    const outW = Math.max(1, Math.round(w * scale));
+    const outH = Math.max(1, Math.round(h * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas 2d context unavailable');
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+    if (!dataUrl.startsWith('data:image/')) throw new Error('canvas produced no image data');
+    return dataUrl;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 /** 应答 `ui_screenshot` 查询:成功 `{ dataUrl, width, height, target, note }`,
  *  失败一律 `{ captured:false, reason }`(fail-soft,勿重试语义由契约承担)。 */
 export async function captureUiScreenshot(query: unknown): Promise<ScreenshotOk | ScreenshotFail> {

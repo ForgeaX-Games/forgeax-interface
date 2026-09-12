@@ -698,6 +698,9 @@
     "deleteFailedTitle": "Delete failed",
     "switchTooltip": "Switch game (each game = one game)",
     "listTitle": "Open game",
+    "noneOpen": "No game open",
+    "triggerActive": "Current game: {{name}} ({{slug}})",
+    "triggerEmpty": "No game open — click to open",
     "newGameTooltip": "Create a new game at .forgeax/games/<slug>/ (Iori/Suzu design + Forge writes code)",
     "newGame": "New game",
     "empty": "No games yet · click + above to create",
@@ -1560,6 +1563,15 @@
     "thinking": "{{displayName}} is thinking",
     "emptyResponse": "(Empty response — the upstream cli produced nothing this time; try sending again)"
   },
+  "executionStage": {
+    "preparing": "Preparing the request",
+    "generating": "Generating a response",
+    "toolExecution": "Running a tool",
+    "authorizationWait": "Waiting for authorization",
+    "childRunning": "A teammate is running",
+    "waitingForInput": "Waiting for your input",
+    "unknown": "Execution stage unavailable"
+  },
   "agentStatus": {
     "expectant": [
       "On standby",
@@ -1903,6 +1915,7 @@
       "descriptionPh": "For example: clicking Play causes the screen to freeze…",
       "screenshots": "Screenshots",
       "screenshotLimit": "Up to 5",
+      "pasteScreenshot": "Paste screenshots directly (Cmd+V / Ctrl+V)",
       "previewScreenshot": "Enlarge screenshot preview",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
@@ -1914,6 +1927,17 @@
       "submit": "Submit",
       "snapshot": "Current snapshot",
       "upload": "Upload"
+    },
+    "errors": {
+      "serverUnavailable": "Cannot connect to the local ForgeaX service. Your feedback was not submitted. Check that Studio is running, then retry.",
+      "requestTimeout": "The local service timed out. Your feedback was not submitted. Please retry.",
+      "invalidResponse": "The local service returned an unreadable response. Your feedback was not submitted.",
+      "localSaveFailed": "Feedback could not be saved to the local outbox. Check browser storage permissions and available disk space.",
+      "submitFailed": "Submission failed: {{detail}}",
+      "loadFailed": "Feedback history could not be loaded. Retry the connection.",
+      "attempt": "Attempt {{attempt}} · {{time}}",
+      "retryConnection": "Retry connection",
+      "retrySubmit": "Retry submission"
     },
     "types": {
       "stuck": "Crash or not responding",
@@ -1936,7 +1960,14 @@
       "empty": "No feedback yet.",
       "id": "ID",
       "updated": "Updated",
-      "autoTitle": "Auto error report"
+      "autoTitle": "Auto error report",
+      "pendingSend": "Pending",
+      "localId": "Local ID",
+      "saved": "Saved",
+      "savedLocally": "Saved on this device",
+      "pendingHint": "Retry after the local service recovers. This entry remains until delivery succeeds.",
+      "retryPending": "Send again",
+      "attempts": "{{count}} attempts"
     },
     "status": {
       "processing": "Processing",
@@ -1953,7 +1984,8 @@
       "queued": "Waiting to upload",
       "working": "Uploading diagnostics",
       "published": "Published to issue tracker",
-      "failed": "Waiting for automatic retry",
+      "failed": "Upload failed — feedback is saved locally",
+      "refreshFailed": "Could not refresh feedback. The status shown may be out of date; retrying shortly.",
       "openIssue": "View feedback on GitHub"
     },
     "actions": {
@@ -1961,11 +1993,13 @@
       "stillBroken": "Still broken"
     },
     "passive": {
+      "mainThreadDescription": "The interface briefly responded slowly. You can continue working, or send feedback to help us investigate.",
+      "durationSeconds": "{{seconds}} seconds",
       "fullStack": "Full stack trace",
       "ignore": "Ignore",
       "dismiss": "Close error feedback",
       "incidents": {
-        "mainThread": "Editor main thread unresponsive",
+        "mainThread": "The interface briefly stalled",
         "renderer": "Renderer process terminated",
         "gpu": "GPU device lost",
         "uncaught": "Repeated uncaught errors detected",
@@ -1976,7 +2010,7 @@
         "agent": "Agent unresponsive"
       },
       "actions": {
-        "feedbackContinue": "Send feedback and continue",
+        "feedbackContinue": "Send feedback",
         "restartRenderer": "Restart renderer and send feedback",
         "reloadPreview": "Reload preview and send feedback",
         "reloadStudio": "Reload Studio and send feedback",

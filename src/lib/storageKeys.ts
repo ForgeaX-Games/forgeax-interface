@@ -55,6 +55,8 @@ export const STORAGE_KEYS = {
 
   /** Contact email reused by the manual feedback form. Plain string, v1. */
   feedbackEmail: 'forgeax.feedback.email.v1',
+  /** Compatibility fallback for the durable IndexedDB feedback outbox. */
+  feedbackPendingSubmissions: 'forgeax.feedback.pending-submissions.v1',
 
   // ── activity rail ──
   /** [v3] qualified activity IDs pinned to the ActivityRail.

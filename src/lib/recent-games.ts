@@ -33,12 +33,25 @@ export async function warmRecentGames(): Promise<void> {
   if (!hasStudioDomainClients()) return;
   try {
     const j = await getStudioProjectClient().listProjects();
-    cache = j.games ?? [];
+    const next = j.games ?? [];
+    if (sameGameList(cache, next)) return;
+    cache = next;
     revision += 1;
     listeners.forEach((listener) => listener());
   } catch {
     /* keep last-known cache on transient failure */
   }
+}
+
+function sameGameList(left: readonly ProjectRow[], right: readonly ProjectRow[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((game, index) => {
+    const other = right[index];
+    return other !== undefined
+      && game.slug === other.slug
+      && game.name === other.name
+      && game.mtime === other.mtime;
+  });
 }
 
 /** Sync read: most-recently-modified games first, capped at `limit`.
@@ -50,4 +63,9 @@ export function getRecentGames(limit = 8): ProjectRow[] {
     return Number.isFinite(v) ? v : 0;
   };
   return [...cache].sort((a, b) => mt(b) - mt(a)).slice(0, limit);
+}
+
+/** Sync lookup against the warmed cache. Not authority — display projection only. */
+export function getCachedGame(slug: string): ProjectRow | undefined {
+  return cache.find((game) => game.slug === slug);
 }

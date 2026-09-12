@@ -142,6 +142,10 @@ export function hasStudioDomainClients(): boolean {
   return configuredClients !== null;
 }
 
+export function __resetStudioDomainClientsForTests(): void {
+  configuredClients = null;
+}
+
 function requireClients(): StudioDomainClients {
   if (!configuredClients) {
     throw new Error('No Studio domain clients configured. The Studio composition root must inject them before booting interface.');

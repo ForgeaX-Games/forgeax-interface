@@ -28,6 +28,7 @@
       "allow": [
         { "name": "bun", "sidecar": true, "args": true }
       ]
-    }
+    },
+    "shell:allow-open"
   ]
 }

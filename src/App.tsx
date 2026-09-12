@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { SlotDebugOverlay, isSlotDebugEnabled } from '@forgeax/app-shell/react';
 import { TopBar } from './components/TopBar/TopBar';
+import { ActiveGameWindowTitle } from './components/TopBar/GameIdentityButton';
 import { GameDirectoryModalHost } from './components/TopBar/ProjectSwitcher';
 import { GameModalHost } from './components/TopBar/GameSwitcher';
 import { ActivityRail } from './components/ActivityRail/ActivityRail';
@@ -145,6 +146,7 @@ export function App({ overrides, onboarding, chrome }: AppProps = {}): React.Rea
         >
           <OnboardingController tourEnabled={onboarding?.tourEnabled} />
           <ConnectModelPrompt />
+          <ActiveGameWindowTitle />
           <TopBar showSessionSwitcher={chrome?.showSessionSwitcher} />
           <PassiveFeedbackHost />
           <div className="studio-body">

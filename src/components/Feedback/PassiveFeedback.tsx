@@ -25,6 +25,10 @@ interface QueuedIncident extends PassiveFeedbackIncident {
 const SEEN_STORAGE_KEY = 'forgeax.feedback.passive.seen';
 let incidentSequence = 1;
 
+function usesComposer(incident: PassiveFeedbackIncident | null): boolean {
+  return incident?.placement === 'chat' || incident?.exceptionKey === 'main-thread-stall';
+}
+
 function loadSeen(): Set<string> {
   try {
     const value = JSON.parse(sessionStorage.getItem(SEEN_STORAGE_KEY) ?? '[]');
@@ -75,14 +79,18 @@ function PassiveFeedbackCard({
   incident,
   onDismiss,
   onPrimary,
+  inComposer,
 }: {
   incident: QueuedIncident;
   onDismiss: () => void;
   onPrimary: () => void;
+  inComposer: boolean;
 }) {
   const { t } = useTranslation();
+  const isStall = incident.exceptionKey === 'main-thread-stall';
+  const compact = usesComposer(incident);
   const body = (<>
-      <p className="feedback-passive-summary">{incident.summary}</p>
+      <p className="feedback-passive-summary">{isStall ? t('feedback.passive.mainThreadDescription') : incident.summary}</p>
       {incident.stack && (
         <details className="feedback-passive-stack">
           <summary>{t('feedback.passive.fullStack')}<ChevronDown size={15} /></summary>
@@ -100,7 +108,7 @@ function PassiveFeedbackCard({
   </>);
   const card = (
     <section
-      className={`feedback-passive-card feedback-passive-card--${incident.placement}`}
+      className={`feedback-passive-card feedback-passive-card--${compact ? 'chat' : incident.placement}${isStall ? ' feedback-passive-card--compact' : ''}${isStall && !inComposer ? ' feedback-passive-card--corner' : ''}`}
       role={incident.placement === 'center' ? 'alertdialog' : 'alert'}
       aria-modal={incident.placement === 'center' ? true : undefined}
       aria-labelledby={`feedback-passive-title-${incident.id}`}
@@ -114,17 +122,20 @@ function PassiveFeedbackCard({
       >
         <X size={17} />
       </button>
-      {incident.placement !== 'chat' && (
+      {!compact && (
       <header className="feedback-passive-header">
         <span className="feedback-passive-icon" aria-hidden="true"><AlertTriangle size={18} /></span>
         <h2 id={`feedback-passive-title-${incident.id}`}>{t(incident.titleKey)}</h2>
       </header>
       )}
-      {incident.placement === 'chat' ? (
+      {compact ? (
         <details className="feedback-passive-disclosure" key={incident.id}>
           <summary className="feedback-passive-header">
             <span className="feedback-passive-icon" aria-hidden="true"><AlertTriangle size={16} /></span>
             <span id={`feedback-passive-title-${incident.id}`}>{t(incident.titleKey)}</span>
+            {isStall && incident.durationMs !== undefined && (
+              <span className="feedback-passive-duration">· {t('feedback.passive.durationSeconds', { seconds: Math.round(incident.durationMs / 1000) })}</span>
+            )}
             <ChevronDown className="feedback-passive-chevron" size={14} aria-hidden="true" />
           </summary>
           {body}
@@ -145,7 +156,7 @@ export function PassiveFeedbackHost() {
   const seenRef = useRef(loadSeen());
   const lastHealthIdRef = useRef(0);
   const current = incidents[0] ?? null;
-  const composerTarget = useComposerPortal(current?.placement === 'chat');
+  const composerTarget = useComposerPortal(usesComposer(current));
 
   const enqueue = useCallback((incident: PassiveFeedbackIncident) => {
     // Requirements §4: "右下角轻量卡片。同一异常类型同一会话只询问一次,避免检测器
@@ -219,6 +230,7 @@ export function PassiveFeedbackHost() {
       if (document.visibilityState === 'visible' && drift >= 5_000) {
         reportPassiveFeedbackSignal({
           code: 'main-thread-stall',
+          durationMs: drift,
           message: `Main thread was unresponsive for ${Math.round(drift / 1_000)} seconds`,
         });
       }
@@ -235,7 +247,7 @@ export function PassiveFeedbackHost() {
   }, [classifier, enqueue]);
 
   useEffect(() => {
-    if (current?.placement !== 'chat') return;
+    if (!usesComposer(current)) return;
     const state = useShellStore.getState();
     if (state.chatpanelCollapsed) state.toggleChatpanel();
   }, [current]);
@@ -275,8 +287,9 @@ export function PassiveFeedbackHost() {
       incident={current}
       onDismiss={dismissCurrent}
       onPrimary={() => { void submitAndRecover(); }}
+      inComposer={composerTarget !== null}
     />
   );
-  if (current.placement === 'chat' && composerTarget) return createPortal(card, composerTarget);
+  if (usesComposer(current) && composerTarget) return createPortal(card, composerTarget);
   return card;
 }

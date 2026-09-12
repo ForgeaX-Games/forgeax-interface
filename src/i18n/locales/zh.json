@@ -698,6 +698,9 @@
     "deleteFailedTitle": "删除失败",
     "switchTooltip": "切换游戏（每个游戏 = 一个 game）",
     "listTitle": "打开游戏",
+    "noneOpen": "未打开游戏",
+    "triggerActive": "当前游戏：{{name}}（{{slug}}）",
+    "triggerEmpty": "未打开游戏 — 点击打开",
     "newGameTooltip": "在 .forgeax/games/<slug>/ 新建一个游戏（Iori/Suzu 设计 + Forge 写代码）",
     "newGame": "新建 game",
     "empty": "暂无 game · 点上方 + 新建",
@@ -1560,6 +1563,15 @@
     "thinking": "{{displayName}} 正在思考",
     "emptyResponse": "(空响应 — 上游 cli 这次没产出内容；再发一次试试)"
   },
+  "executionStage": {
+    "preparing": "正在准备请求",
+    "generating": "正在生成回复",
+    "toolExecution": "正在执行工具",
+    "authorizationWait": "正在等待授权",
+    "childRunning": "队友正在执行",
+    "waitingForInput": "正在等待你的输入",
+    "unknown": "执行阶段未知"
+  },
   "agentStatus": {
     "expectant": [
       "正在待命中",
@@ -1903,6 +1915,7 @@
       "descriptionPh": "例如：点击 Play 后画面卡住…",
       "screenshots": "截图",
       "screenshotLimit": "最多 5 张",
+      "pasteScreenshot": "可直接粘贴截图（⌘V / Ctrl+V）",
       "previewScreenshot": "放大预览截图",
       "zoomIn": "放大",
       "zoomOut": "缩小",
@@ -1914,6 +1927,17 @@
       "submit": "提交",
       "snapshot": "当前快照",
       "upload": "本地上传"
+    },
+    "errors": {
+      "serverUnavailable": "无法连接 ForgeaX 本地服务，反馈尚未提交。请确认 Studio 服务正常后重试。",
+      "requestTimeout": "本地服务响应超时，反馈尚未提交。请稍后重试。",
+      "invalidResponse": "本地服务返回了无法识别的响应，反馈尚未提交。",
+      "localSaveFailed": "反馈无法保存到本机待发送箱，请检查是否禁用了浏览器存储或磁盘空间不足。",
+      "submitFailed": "提交失败：{{detail}}",
+      "loadFailed": "暂时无法读取反馈记录，请重试连接。",
+      "attempt": "第 {{attempt}} 次尝试 · {{time}}",
+      "retryConnection": "重试连接",
+      "retrySubmit": "重新提交"
     },
     "types": {
       "stuck": "崩溃或无响应",
@@ -1936,7 +1960,14 @@
       "empty": "还没有提交过反馈。",
       "id": "编号",
       "updated": "更新时间",
-      "autoTitle": "自动错误报告"
+      "autoTitle": "自动错误报告",
+      "pendingSend": "待发送",
+      "localId": "本地编号",
+      "saved": "保存时间",
+      "savedLocally": "已保存在本机",
+      "pendingHint": "本地服务恢复后可重新发送；在成功送达前此记录会一直保留。",
+      "retryPending": "重新发送",
+      "attempts": "已尝试 {{count}} 次"
     },
     "status": {
       "processing": "处理中",
@@ -1953,7 +1984,8 @@
       "queued": "等待上传",
       "working": "正在上传诊断数据",
       "published": "已提交到问题中心",
-      "failed": "等待自动重试",
+      "failed": "上传失败，反馈已保存在本地",
+      "refreshFailed": "反馈状态刷新失败，当前显示可能已过期，稍后将自动重试。",
       "openIssue": "在 GitHub 查看反馈"
     },
     "actions": {
@@ -1961,11 +1993,13 @@
       "stillBroken": "仍有问题"
     },
     "passive": {
+      "mainThreadDescription": "检测到一次界面响应延迟。你可以继续操作，或发送反馈帮助我们排查。",
+      "durationSeconds": "{{seconds}} 秒",
       "fullStack": "完整堆栈跟踪",
       "ignore": "忽略",
       "dismiss": "关闭异常反馈",
       "incidents": {
-        "mainThread": "编辑器主线程无响应",
+        "mainThread": "刚才界面短暂卡顿",
         "renderer": "渲染进程异常终止",
         "gpu": "GPU 设备已丢失",
         "uncaught": "检测到连续未捕获异常",
@@ -1976,7 +2010,7 @@
         "agent": "Agent 无响应"
       },
       "actions": {
-        "feedbackContinue": "反馈并继续",
+        "feedbackContinue": "发送反馈",
         "restartRenderer": "重启渲染进程并反馈",
         "reloadPreview": "重新加载预览并反馈",
         "reloadStudio": "刷新 Studio 并反馈",

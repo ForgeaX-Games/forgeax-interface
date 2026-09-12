@@ -1,6 +1,8 @@
 // Game modal host + New Game modal + timeSince helper.
 //
 // 2026-07-23 — the always-on GameSwitcher dropdown was removed from the TopBar.
+// 2026-09-11 — a compact GameIdentityButton returned to TopBar as a live
+// projection of activeGameSlug (click still opens this modal via game.open).
 // Game-specific commands still drive the new-game dialog and game list modal;
 // File → 打开游戏目录 is handled by the game-directory modal separately.
 // This file exports `GameModalHost` (mounted once in App.tsx);

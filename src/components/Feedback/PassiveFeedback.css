@@ -178,7 +178,7 @@
   .feedback-passive-ignore { width: 100%; }
 }
 
-/* Agent incidents stay in the conversation flow as a compact disclosure. */
+/* Agent and main-thread incidents stay in the conversation as compact disclosures. */
 .feedback-passive-card--chat {
   width: 100%;
   box-sizing: border-box;
@@ -231,4 +231,33 @@
   background: transparent;
   border-color: var(--color-border, rgba(255, 255, 255, 0.18));
   color: var(--color-text-primary, #f2f2f2);
+}
+
+.feedback-passive-card--compact .feedback-passive-disclosure > summary {
+  min-height: 40px;
+  gap: 8px;
+}
+.feedback-passive-card--compact .feedback-passive-icon {
+  color: var(--color-warning, #d6b16e);
+}
+.feedback-passive-duration { white-space: nowrap; }
+.feedback-passive-card--compact .feedback-passive-summary { margin-left: 34px; }
+.feedback-passive-card--compact .feedback-passive-actions { margin-left: 34px; }
+.feedback-passive-card--compact .feedback-passive-ignore { border-color: transparent; }
+/* Keep the same compact disclosure when no chat composer is mounted. */
+.feedback-passive-card--compact.feedback-passive-card--corner {
+  width: min(440px, calc(100vw - 36px));
+}
+@media (pointer: coarse) {
+  .feedback-passive-card--compact .feedback-passive-disclosure > summary {
+    min-height: 44px;
+    padding-right: 52px;
+  }
+  .feedback-passive-card--compact .feedback-passive-close {
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+  }
+  .feedback-passive-card--compact .feedback-passive-actions button { min-height: 44px; }
 }

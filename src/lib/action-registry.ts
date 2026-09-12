@@ -59,6 +59,8 @@ export interface UiActionDef {
   /** P1-9 一等工具化:标 true → 编排层从 manifest 派生独立 ToolSpec(ui_act_*)下发
    *  模型,免一次 snapshot 发现往返。只给高频 action 打标(编排层有数量上限)。 */
   firstClass?: boolean;
+  /** Human-only actions stay available in menus but never enter model discovery. */
+  audience?: 'human';
   /** 「人」界面(命令面板)用的**动态候选值**提供器,按参数名给一列合法取值 —— 让
    *  自由文本参数(如 game.switch 的 slug)变成下拉,避免瞎填后触发 server 404。
    *  仅活在客户端(同 run/available,不进 manifest);AI 侧靠 ui_snapshot / 状态片发现,
@@ -193,6 +195,7 @@ export async function dispatchAction(
   const def = actions.get(id);
   if (!def) return done({ status: 'rejected', reason: `unknown action "${id}" (not in the registry)` });
 
+  if (src === 'ai' && def.audience === 'human') return done({ status: 'rejected', reason: 'This action is only available through the user interface.' });
   const avail = def.available ? safeAvailable(def) : true;
   if (avail !== true) return done({ status: 'rejected', reason: avail });
 
@@ -236,10 +239,11 @@ export interface UiActionSummary {
 
 /** ui_snapshot 的 action 视图。分层(评审 2.7):默认轻量清单;detail:'schema' + ids
  *  按需展开 schema 与详细说明(长尾几百 action 也不炸 token)。 */
-export function snapshotActions(detail?: string, ids?: string[]): UiActionSummary[] {
+export function snapshotActions(detail?: string, ids?: string[], audience: 'human' | 'ai' = 'ai'): UiActionSummary[] {
   const expand = detail === 'schema' ? new Set(ids ?? []) : null;
   const out: UiActionSummary[] = [];
   for (const def of actions.values()) {
+    if (audience === 'ai' && def.audience === 'human') continue;
     const avail = def.available ? safeAvailable(def) : true;
     const row: UiActionSummary = {
       id: def.id,
@@ -274,6 +278,7 @@ export function snapshotState(): Record<string, unknown> {
 export function buildManifest(): Array<Record<string, unknown>> {
   const out: Array<Record<string, unknown>> = [];
   for (const def of actions.values()) {
+    if (def.audience === 'human') continue;
     out.push({
       id: def.id,
       title: def.title,

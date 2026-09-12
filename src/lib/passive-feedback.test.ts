@@ -19,12 +19,22 @@ describe('passive feedback classifier', () => {
       .toMatchObject({ exceptionKey: 'runtime-disconnected', placement: 'center', recovery: { kind: 'command', commandId: 'editor.restartPreview' } });
   });
 
-  test('routes agent stalls to the composer and recovered main-thread stalls to the corner', () => {
+  test('preserves the main-thread detector classification independently of compact presentation', () => {
     const classifier = createPassiveFeedbackClassifier();
     expect(classifier.ingest({ code: 'ui.stall', message: 'No first token after 30 seconds' }))
       .toMatchObject({ exceptionKey: 'agent-unresponsive', placement: 'chat' });
     expect(classifier.ingest({ code: 'main-thread-stall', message: 'Main thread paused for 8 seconds' }))
       .toMatchObject({ exceptionKey: 'main-thread-stall', placement: 'corner', recovery: { kind: 'none' } });
+  });
+
+  test('carries a finite duration without parsing diagnostic text', () => {
+    const classifier = createPassiveFeedbackClassifier();
+    expect(classifier.ingest({ code: 'main-thread-stall', message: 'localized diagnostic', durationMs: 6123 }))
+      .toMatchObject({ durationMs: 6123, summary: 'localized diagnostic', recovery: { kind: 'none' } });
+    for (const durationMs of [NaN, Infinity, -1]) {
+      expect(classifier.ingest({ code: 'main-thread-stall', message: 'stall', durationMs }))
+        .not.toHaveProperty('durationMs');
+    }
   });
 
   test('keeps agent recovery scoped so one session or agent cannot dismiss another card', () => {

@@ -5,7 +5,7 @@
  * img06.png(截图缩略图)、img07.png(提交成功)、img08.png(我的反馈)。
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Camera,
   Check,
@@ -22,11 +22,55 @@ import {
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useTranslation } from '@/i18n';
 import type { FeedbackReport, FeedbackType } from '@forgeax/types/feedback';
-import { captureUiScreenshot } from '../../lib/ui-screenshot';
+import { useHost } from '../../core/app-shell';
+import { captureUiScreenshot, compressUploadedImage } from '../../lib/ui-screenshot';
+import { clipboardImageFiles, isClipboardPasteControl } from './clipboard-images';
+import type { PendingFeedbackSubmission } from './pending-store';
 import { useFeedbackStore } from './store';
 import './FeedbackPanel.css';
 
 const TYPE_KEYS: FeedbackType[] = ['stuck', 'wrong', 'slow', 'ui', 'idea', 'other'];
+
+type Translate = ReturnType<typeof useTranslation>['t'];
+
+function requestErrorMessage(code: string, detail: string | null, t: Translate): string {
+  if (code === 'server-unreachable') return t('feedback.errors.serverUnavailable');
+  if (code === 'request-timeout') return t('feedback.errors.requestTimeout');
+  if (code === 'invalid-response') return t('feedback.errors.invalidResponse');
+  if (code === 'load-failed') return t('feedback.errors.loadFailed');
+  if (code === 'local-save-failed') return t('feedback.errors.localSaveFailed');
+  return t('feedback.errors.submitFailed', { detail: detail ?? code });
+}
+
+function formatAttemptTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function FeedbackLoadError({ compact = false }: { compact?: boolean }) {
+  const { t } = useTranslation();
+  const s = useFeedbackStore();
+  if (!s.loadError) return null;
+
+  return (
+    <div className={`feedback-load-error${compact ? ' feedback-load-error--compact' : ''}`} role="status">
+      <p>{requestErrorMessage(s.loadError, s.loadErrorDetail, t)}</p>
+      {s.loadErrorDetail && <code title={s.loadErrorDetail}>{s.loadErrorDetail}</code>}
+      <button
+        type="button"
+        className="feedback-button feedback-button--secondary feedback-button--compact"
+        disabled={s.loading}
+        onClick={() => void s.loadReports()}
+      >
+        {s.loading && <Loader2 size={13} className="feedback-spinner" />}
+        {t('feedback.errors.retryConnection')}
+      </button>
+    </div>
+  );
+}
 
 function FeedbackHeader() {
   const { t } = useTranslation();
@@ -55,7 +99,9 @@ function FeedbackHeader() {
           onClick={() => s.setTab('mine')}
         >
           {t('feedback.panel.mine')}
-          {s.reports.length > 0 && <span className="feedback-tab__count">{s.reports.length}</span>}
+          {s.reports.length + s.pendingSubmissions.length > 0 && (
+            <span className="feedback-tab__count">{s.reports.length + s.pendingSubmissions.length}</span>
+          )}
         </button>
         <button
           type="button"
@@ -96,17 +142,45 @@ function WriteTab() {
     if (ok.dataUrl) s.addScreenshot({ previewUrl: ok.dataUrl, ref: ok.dataUrl, kind: 'snapshot' });
   };
 
-  const onUpload = (files: FileList | null) => {
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const url = String(reader.result ?? '');
-        if (url) s.addScreenshot({ previewUrl: url, ref: url, kind: 'upload' });
-      };
-      reader.readAsDataURL(file);
+  const addImageFiles = (files: readonly File[]) => {
+    const remaining = Math.max(0, 5 - s.screenshots.length);
+    for (const file of files.slice(0, remaining)) {
+      void compressUploadedImage(file)
+        .then((url) => s.addScreenshot({ previewUrl: url, ref: url, kind: 'upload' }))
+        .catch(() => {
+          /* 非图片/解码失败等 —— 静默跳过,不阻塞其余文件的上传 */
+        });
     }
   };
+
+  const onUpload = (files: FileList | null) => {
+    if (files) addImageFiles(Array.from(files));
+  };
+
+  useEffect(() => {
+    const onDocumentPaste = (event: ClipboardEvent) => {
+      // Inputs/buttons keep complete ownership of paste. Only the unfocused
+      // write form treats a pasted image as a screenshot attachment.
+      if (isClipboardPasteControl(document.activeElement) || isClipboardPasteControl(event.target)) return;
+      const images = clipboardImageFiles(event.clipboardData);
+      if (images.length === 0) return;
+      event.preventDefault();
+      const remaining = Math.max(0, 5 - useFeedbackStore.getState().screenshots.length);
+      for (const file of images.slice(0, remaining)) {
+        void compressUploadedImage(file)
+          .then((url) => useFeedbackStore.getState().addScreenshot({
+            previewUrl: url,
+            ref: url,
+            kind: 'upload',
+          }))
+          .catch(() => {
+            /* 非图片/解码失败等 —— 静默跳过,不阻塞其余剪切板图片 */
+          });
+      }
+    };
+    document.addEventListener('paste', onDocumentPaste);
+    return () => document.removeEventListener('paste', onDocumentPaste);
+  }, []);
 
   if (s.lastSubmitted) return <SuccessView />;
 
@@ -145,7 +219,7 @@ function WriteTab() {
         <div className="feedback-field">
           <span className="feedback-label feedback-label--muted">
             {t('feedback.form.screenshots')}
-            <span>{t('feedback.form.screenshotLimit')}</span>
+            <span>{t('feedback.form.screenshotLimit')} · {t('feedback.form.pasteScreenshot')}</span>
           </span>
           <div className="feedback-shots">
             {s.screenshots.map((shot, index) => (
@@ -290,8 +364,21 @@ function WriteTab() {
           />
         </label>
 
-        {s.submitError && !['description-required', 'email-required'].includes(s.submitError) && (
-          <p className="feedback-error">{s.submitError}</p>
+        {s.submitError && !['description-required', 'email-required'].includes(s.submitError) ? (
+          <div className="feedback-error" role="alert">
+            <strong>{requestErrorMessage(s.submitError, s.submitErrorDetail, t)}</strong>
+            {s.submitErrorDetail && <code title={s.submitErrorDetail}>{s.submitErrorDetail}</code>}
+            {s.submitAttempts > 0 && s.lastSubmitAttemptAt !== null && (
+              <span>
+                {t('feedback.errors.attempt', {
+                  attempt: s.submitAttempts,
+                  time: formatAttemptTime(s.lastSubmitAttemptAt),
+                })}
+              </span>
+            )}
+          </div>
+        ) : (
+          <FeedbackLoadError compact />
         )}
       </div>
 
@@ -306,7 +393,9 @@ function WriteTab() {
           onClick={() => void s.submit()}
         >
           {s.submitting && <Loader2 size={14} className="feedback-spinner" />}
-          {t('feedback.form.submit')}
+          {s.submitError && !['description-required', 'email-required'].includes(s.submitError)
+            ? t('feedback.errors.retrySubmit')
+            : t('feedback.form.submit')}
         </button>
       </footer>
     </section>
@@ -385,78 +474,136 @@ function deliveryLabel(report: FeedbackReport): string {
   return 'working';
 }
 
+function PendingReportCard({ entry }: { entry: PendingFeedbackSubmission }) {
+  const { t } = useTranslation();
+  const s = useFeedbackStore();
+  const retrying = s.retryingPendingIds.includes(entry.id);
+  const title = entry.submit.source === 'auto'
+    ? t('feedback.mine.autoTitle')
+    : t(`feedback.types.${entry.submit.type}`);
+
+  return (
+    <article className="feedback-report feedback-report--pending">
+      <div className="feedback-report__headline">
+        <h3>{title}</h3>
+        <span className="feedback-status feedback-status--pending-local">
+          {t('feedback.mine.pendingSend')}
+        </span>
+      </div>
+      {entry.submit.description && <p className="feedback-report__description">{entry.submit.description}</p>}
+      <p className="feedback-report__meta">
+        <span>{t('feedback.mine.localId')} {entry.id}</span>
+        <i>·</i>
+        <span>{t('feedback.mine.saved')} {new Date(entry.updatedAt).toLocaleString()}</span>
+        <i>·</i>
+        <span className="feedback-delivery feedback-delivery--failed">{t('feedback.mine.savedLocally')}</span>
+      </p>
+      <div className="feedback-report__progress feedback-report__progress--pending">
+        <MessageCircle size={16} strokeWidth={1.8} />
+        <span>{entry.lastError ?? t('feedback.mine.pendingHint')}</span>
+      </div>
+      <div className="feedback-report__actions">
+        <button
+          type="button"
+          className="feedback-button feedback-button--primary feedback-button--compact"
+          disabled={retrying}
+          onClick={() => void s.retryPending(entry.id)}
+        >
+          {retrying && <Loader2 size={13} className="feedback-spinner" />}
+          {t('feedback.mine.retryPending')}
+        </button>
+        <span className="feedback-report__attempts">
+          {t('feedback.mine.attempts', { count: entry.attempts })}
+        </span>
+      </div>
+    </article>
+  );
+}
+
 function MineTab() {
   const { t } = useTranslation();
   const s = useFeedbackStore();
+  const host = useHost();
 
   let content: React.ReactNode;
-  if (s.loading) {
+  const hasRecords = s.reports.length + s.pendingSubmissions.length > 0;
+  if (s.loading && !hasRecords) {
     content = <Loader2 size={18} className="feedback-spinner feedback-mine__loader" />;
-  } else if (s.reports.length === 0) {
+  } else if (!hasRecords && s.loadError) {
+    content = <FeedbackLoadError />;
+  } else if (!hasRecords) {
     content = <p className="feedback-mine__empty">{t('feedback.mine.empty')}</p>;
   } else {
-    content = s.reports.map((report) => {
-      const canConfirm = report.status === 'pending-confirm' && !!report.email;
-      return (
-        <article key={report.id} className="feedback-report">
-          <div className="feedback-report__headline">
-            <h3>{reportTitle(report, t)}</h3>
-            <span className={`feedback-status feedback-status--${report.status}`}>
-              {t(`feedback.status.${report.status}`)}
-            </span>
-          </div>
-          {report.description && <p className="feedback-report__description">{report.description}</p>}
-          <p className="feedback-report__meta">
-            <span>{t('feedback.mine.id')} {report.id}</span>
-            <i>·</i>
-            <span>{t('feedback.mine.updated')} {new Date(report.updatedAt).toLocaleString()}</span>
-            <i>·</i>
-            <span className={`feedback-delivery feedback-delivery--${deliveryLabel(report)}`}>
-              {t(`feedback.delivery.${deliveryLabel(report)}`)}
-            </span>
-            {report.delivery?.issueUrl && (
-              <a
-                className="feedback-report__issue-link"
-                href={report.delivery.issueUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={t('feedback.delivery.openIssue')}
-                title={t('feedback.delivery.openIssue')}
-              >
-                <ExternalLink size={13} strokeWidth={1.8} />
-              </a>
-            )}
-          </p>
-          <div className="feedback-report__progress">
-            <MessageCircle size={16} strokeWidth={1.8} />
-            <span>{t(`feedback.statusHint.${report.status}`)}</span>
-          </div>
-          {canConfirm && (
-            <div className="feedback-report__actions">
-              <button
-                type="button"
-                className="feedback-button feedback-button--primary feedback-button--compact"
-                onClick={() => void s.setStatus(report.id, 'resolved')}
-              >
-                {t('feedback.actions.resolved')}
-              </button>
-              <button
-                type="button"
-                className="feedback-button feedback-button--secondary feedback-button--compact"
-                onClick={() => void s.setStatus(report.id, 'processing')}
-              >
-                {t('feedback.actions.stillBroken')}
-              </button>
-            </div>
-          )}
-        </article>
-      );
-    });
+    content = (
+      <>
+        {s.loadError && <FeedbackLoadError compact />}
+        {s.pendingSubmissions.map((entry) => <PendingReportCard key={entry.id} entry={entry} />)}
+        {s.reports.map((report) => {
+          const canConfirm = report.status === 'pending-confirm' && !!report.email;
+          return (
+            <article key={report.id} className="feedback-report">
+              <div className="feedback-report__headline">
+                <h3>{reportTitle(report, t)}</h3>
+                <span className={`feedback-status feedback-status--${report.status}`}>
+                  {t(`feedback.status.${report.status}`)}
+                </span>
+              </div>
+              {report.description && <p className="feedback-report__description">{report.description}</p>}
+              <p className="feedback-report__meta">
+                <span>{t('feedback.mine.id')} {report.id}</span>
+                <i>·</i>
+                <span>{t('feedback.mine.updated')} {new Date(report.updatedAt).toLocaleString()}</span>
+                <i>·</i>
+                <span className={`feedback-delivery feedback-delivery--${deliveryLabel(report)}`}>
+                  {t(`feedback.delivery.${deliveryLabel(report)}`)}
+                </span>
+                {report.delivery?.issueUrl && (
+                  <button
+                    type="button"
+                    className="feedback-report__issue-link"
+                    onClick={() => void host.commands.execute('app.open_url', { url: report.delivery!.issueUrl })}
+                    aria-label={t('feedback.delivery.openIssue')}
+                    title={t('feedback.delivery.openIssue')}
+                  >
+                    <ExternalLink size={13} strokeWidth={1.8} />
+                  </button>
+                )}
+              </p>
+              <div className="feedback-report__progress">
+                <MessageCircle size={16} strokeWidth={1.8} />
+                <span>{t(`feedback.statusHint.${report.status}`)}</span>
+              </div>
+              {canConfirm && (
+                <div className="feedback-report__actions">
+                  <button
+                    type="button"
+                    className="feedback-button feedback-button--primary feedback-button--compact"
+                    onClick={() => void s.setStatus(report.id, 'resolved')}
+                  >
+                    {t('feedback.actions.resolved')}
+                  </button>
+                  <button
+                    type="button"
+                    className="feedback-button feedback-button--secondary feedback-button--compact"
+                    onClick={() => void s.setStatus(report.id, 'processing')}
+                  >
+                    {t('feedback.actions.stillBroken')}
+                  </button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </>
+    );
   }
 
   return (
     <section className="feedback-mine">
-      <div className="feedback-mine__body">{content}</div>
+      <div className="feedback-mine__body">
+        {s.refreshFailed && !s.loadError && <p role="status">{t('feedback.delivery.refreshFailed')}</p>}
+        {content}
+      </div>
       <footer className="feedback-footer">
         <button type="button" className="feedback-button feedback-button--primary" onClick={() => s.closePanel()}>
           {t('common.close')}
@@ -469,6 +616,22 @@ function MineTab() {
 export function FeedbackPanel() {
   const s = useFeedbackStore();
   const brand = 'var(--color-brand-primary)';
+
+  useEffect(() => {
+    if (!s.open || s.tab !== 'mine') return;
+    let stopped = false;
+    // Wait for each refresh before scheduling another, so slow requests do not
+    // accumulate. Keep cards visible while background delivery changes state.
+    const refresh = async () => {
+      await s.loadReports({ silent: true });
+      if (!stopped) timer = setTimeout(refresh, 5_000);
+    };
+    let timer = setTimeout(refresh, 5_000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [s.open, s.tab, s.loadReports]);
 
   return (
     <Dialog open={s.open} onOpenChange={(open) => (open ? s.openPanel() : s.closePanel())}>
