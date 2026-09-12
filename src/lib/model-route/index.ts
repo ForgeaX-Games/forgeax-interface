@@ -109,6 +109,17 @@ export function preferredCatalogModel(
   return catalog.find((model) => !model.hidden)?.id ?? catalog[0]?.id;
 }
 
+/** Passive session hydration may seed an unconfigured model, but viewing a
+ * session under another browser's provider must not replace an explicit pick.
+ * Provider changes are mutations owned by the explicit switch actions below. */
+export function passiveSessionCatalogModel(
+  catalog: readonly ModelCatalogEntry[],
+  current: string | null | undefined,
+  remembered: string | null,
+): string | undefined {
+  return current ? undefined : preferredCatalogModel(catalog, remembered);
+}
+
 /** Model seeding policy for a newly scaffolded session. Native sessions only
  * override their scaffold default when the user has an applicable remembered
  * pick; CLI sessions must always land on a model from that driver's catalog. */
@@ -182,24 +193,9 @@ export async function resetOpenSessionsModelToProviderDefault(
   return count > 0 ? { selected: nextModel, count } : null;
 }
 
-/**
- * On SESSION SWITCH: conform the switched-to session's model to the currently
- * ACTIVE provider (Settings › Providers is the single global provider setting;
- * the in-chat switcher is hidden). "Does this session's provider match the
- * active provider?" is answered by CATALOG MEMBERSHIP — a session whose
- * agent.json model isn't in the active provider's catalog was last touched
- * under a DIFFERENT provider (e.g. switching game loads that game's disk
- * sessions, which the last provider-switch reset never reached).
- *
- *   • mismatch → snap the session's model to this provider's last HAND-PICKED
- *     model (model-prefs), else its catalog default (first non-hidden);
- *   • match (model already in the active catalog) → leave it untouched
- *     ("同 provider 就不管").
- *
- * Best-effort + returns null on no-op: an empty catalog, a missing model, or
- * any IO failure must never block the session switch. Returns the model set on
- * a mismatch so the caller can repaint immediately if it wants.
- */
+/** Seed only an unconfigured session on passive activation. Catalog mismatch
+ * is not permission to rewrite a user's model: another browser may be viewing
+ * the same session with a different locally selected provider. */
 export async function reconcileSessionModelToActiveProvider(
   sid: string,
   agentPath: string,
@@ -210,12 +206,7 @@ export async function reconcileSessionModelToActiveProvider(
 
   const cur = await getAgentModel(sid, agentPath).catch(() => null);
   const currentId = cur?.selected ?? null;
-  // Same provider — the session's model is a member of the active catalog. Leave it.
-  if (currentId && catalog.some((m) => m.id === currentId)) return null;
-
-  // Mismatch — prefer this provider's last hand-picked model, else its default.
-  const remembered = getLastModel(catalogProviderId);
-  const next = preferredCatalogModel(catalog, remembered);
+  const next = passiveSessionCatalogModel(catalog, currentId, getLastModel(catalogProviderId));
   if (!next) return null;
   try {
     await setAgentModels(sid, agentPath, [next]);

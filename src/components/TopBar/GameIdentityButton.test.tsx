@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { HostProvider } from '../../core/app-shell';
 import { createAppHost } from '../../core/app-shell/host';
 import { useShellStore } from '../../store';
@@ -24,6 +24,7 @@ function renderIdentity(onOpen?: () => void) {
 }
 
 afterEach(() => {
+  cleanup();
   useShellStore.setState(initialState, true);
   document.title = '';
   __resetStudioDomainClientsForTests();
