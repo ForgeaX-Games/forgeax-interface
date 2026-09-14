@@ -463,14 +463,11 @@ export function buildShortcuts(): ShortcutDef[] {
       allowInInput: true,
       match: (e) => e.key === 'Escape' && !mod(e) && !e.shiftKey && !e.altKey,
       run: () => {
-        // Escape is a Play-only viewport shortcut: stop the transient play
-        // session and return to edit mode. The listener stays in the single
-        // global router; outside Play this branch is inactive.
-        if (routerDeps?.isPlayMode()) {
-          routerDeps.dispatch({ kind: 'stop' }, 'human');
-          return true;
-        }
         const s = store();
+        // UI overlays own Escape first. Plain Escape is not a lifecycle
+        // command: Play may use it for pause/menu. Stop remains on the toolbar.
+        if (s.activeOverlay) { s.closeOverlay(); return true; }
+        if (routerDeps?.isPlayMode()) return false;
         // Browser fullscreen exits automatically on Esc — but be defensive
         // in case some browser swallows the event before reaching the native
         // handler; explicit exit is a no-op when no element is fullscreen.
@@ -479,7 +476,6 @@ export function buildShortcuts(): ShortcutDef[] {
           return true;
         }
         if (s.fullscreen)     { s.setFullscreen(false); return true; }
-        if (s.activeOverlay)  { s.closeOverlay(); return true; }
         return false;
       },
     },

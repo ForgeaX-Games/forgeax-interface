@@ -99,7 +99,7 @@ function SurfaceOverlayDev(): ReactElement | null {
       onClick={() => setOpen((v) => !v)}
       title={open ? t('surfaces.chip.close') : t('surfaces.chip.open')}
     >
-      surfaces · {surfaces.length}
+      {t('surfaces.chip.open')}
     </button>
   );
 

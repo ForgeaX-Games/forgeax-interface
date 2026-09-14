@@ -64,7 +64,7 @@ export function ForgeaxBuildChip() {
   return (
     <StripPopover
       icon="Layers"
-      label={info.version}
+      label={!info.version || info.version.includes('unknown') ? 'Build info' : info.version}
       tooltip="ForgeaX build version"
       title={
         <>

@@ -1,3 +1,4 @@
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 /**
  * Bus-kind pulse chips — the live MB / SKILL / TOOL / AGENT extension-registry
  * counters (originally PreviewMode's pt-right toolbar, moved to the global
@@ -11,7 +12,7 @@
  */
 
 import { Brain, Sparkles, Wrench, Bot } from 'lucide-react';
-import { useTranslation } from '@/i18n';
+import { getLocale, useTranslation } from '@/i18n';
 import { useShellStore } from '../../../store';
 import { emitDeepLink } from '../../../lib/deep-link-bus';
 import { useSharedExtensionCounts } from '../../../lib/shell-live-data';
@@ -23,11 +24,19 @@ import { StatusChip, type ChipState } from '../StatusChip';
  *  status-item contributions. Each chip owns its own polling (the in-process
  *  escape hatch); chrome-statusbar folds these into the footer's strip channel. */
 export const pulseStatusItems: readonly StatusItemContribution[] = [
-  { kind: 'status-item', id: 'bus.mb',    location: 'statusbar.right', priority: 90, item: { type: 'custom', render: () => <ModelBindingPulseFeed /> } },
-  { kind: 'status-item', id: 'bus.skill', location: 'statusbar.right', priority: 50, item: { type: 'custom', render: () => <SkillPulseFeed /> } },
-  { kind: 'status-item', id: 'bus.tool',  location: 'statusbar.right', priority: 45, item: { type: 'custom', render: () => <ToolPulseFeed /> } },
-  { kind: 'status-item', id: 'bus.agent', location: 'statusbar.right', priority: 40, item: { type: 'custom', render: () => <AgentPulseFeed /> } },
+  { kind: 'status-item', id: 'bus.extensions', location: 'statusbar.right', priority: 40,
+    item: { type: 'custom', render: () => <ExtensionCounts /> } },
 ];
+
+function ExtensionCounts() {
+  const zh = getLocale() === 'zh';
+  return <Popover><PopoverTrigger asChild>
+    <button type="button" className="sb-chip">{zh ? '扩展信息' : 'Extension info'}</button>
+  </PopoverTrigger><PopoverContent side="top" align="end" collisionPadding={8}>
+    <p style={{ fontSize: 12, margin: '4px 8px' }}>{zh ? '已安装扩展统计，非当前会话的技能或模型。' : 'Installed extensions, not the current session skills or model.'}</p>
+    <ModelBindingPulseFeed /><SkillPulseFeed /><ToolPulseFeed /><AgentPulseFeed />
+  </PopoverContent></Popover>;
+}
 
 function usePulseKind(kind: ExtensionStatusKind): { state: ChipState; count: number; ids: string[] } {
   const snapshot = useSharedExtensionCounts();

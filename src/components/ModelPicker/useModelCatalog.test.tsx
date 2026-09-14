@@ -46,3 +46,17 @@ describe('model catalog refresh', () => {
     expect(hook.result.current.models?.[0]?.id).toBe('gpt-5.6');
   });
 });
+
+it('a sibling browser tab invalidates the cached model directory', async () => {
+  let calls = 0;
+  const fetcher = spyOn(globalThis, 'fetch').mockImplementation((async () => Response.json({ result: { ok: true, data: { models: [{ id: ++calls === 1 ? 'old' : 'new' }] } } })) as typeof fetch);
+  restorers.push(() => fetcher.mockRestore());
+  const hook = renderHook(() => useModelCatalog());
+  const sibling = renderHook(() => useModelCatalog());
+  await act(async () => {});
+  expect(hook.result.current.models?.[0]?.id).toBe('old');
+  await act(async () => { window.dispatchEvent(new StorageEvent('storage', { key: 'forgeax.configRevision', newValue: JSON.stringify({ resource: 'models', revision: 'other-tab' }) })); });
+  expect(hook.result.current.models?.[0]?.id).toBe('new');
+  expect(sibling.result.current.models?.[0]?.id).toBe('new');
+  expect(calls).toBe(2);
+});

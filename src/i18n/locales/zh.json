@@ -1270,7 +1270,7 @@
     "submitting": "提交中…",
     "confirm": "确认",
     "submitFailed": "提交失败，已保留选择，请重试。",
-    "expired": "这个问题已停止接收回答。",
+    "expired": "这个问题已结束，当前选择未提交。",
     "unparseableHistory": "历史答案无法解析。",
     "collapse": "收起",
     "expand": "展开"

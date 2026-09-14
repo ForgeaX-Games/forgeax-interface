@@ -1,3 +1,4 @@
+import { onConfigChanged } from '../../lib/config-invalidation';
 import { useEffect, useState } from 'react';
 import {
   listModelsWithMeta,
@@ -13,6 +14,7 @@ import {
 //
 // 缓存单位是整份 payload(models + driver 元数据):内核目录路径的空态/徽章
 // 需要 driver.source/error,不能在这一层丢掉。
+const invalidationSubscriptions = new Map<string, () => void>();
 const cached = new Map<string, ModelCatalogWithMeta>();
 const inflight = new Map<string, Promise<ModelCatalogWithMeta>>();
 const subscribers = new Map<string, Set<(payload: ModelCatalogWithMeta) => void>>();
@@ -79,7 +81,17 @@ export function useModelCatalog(providerId?: string | null): ModelCatalogState {
         .then((p) => { if (!cancelled) { setPayload(p); setError(null); } })
         .catch((e) => { if (!cancelled) setError((e as Error).message); });
     }
-    return () => { cancelled = true; subs.delete(sub); };
+    if (!invalidationSubscriptions.has(key)) {
+      invalidationSubscriptions.set(key, onConfigChanged('models', () => { void fetchOnce(providerId, true).catch(() => {}); }));
+    }
+    return () => {
+      cancelled = true;
+      subs.delete(sub);
+      if (subs.size === 0) {
+        invalidationSubscriptions.get(key)?.();
+        invalidationSubscriptions.delete(key);
+      }
+    };
   }, [key, providerId]);
   const refresh = async () => {
     try {

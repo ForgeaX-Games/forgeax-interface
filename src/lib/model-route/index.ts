@@ -109,15 +109,16 @@ export function preferredCatalogModel(
   return catalog.find((model) => !model.hidden)?.id ?? catalog[0]?.id;
 }
 
-/** Passive session hydration may seed an unconfigured model, but viewing a
- * session under another browser's provider must not replace an explicit pick.
- * Provider changes are mutations owned by the explicit switch actions below. */
+/** Reconcile against the active provider catalog. Preserve valid selections
+ * (including hidden entries), but a nonempty foreign-provider default is not
+ * a usable selection. Callers must discard stale session/provider responses. */
 export function passiveSessionCatalogModel(
   catalog: readonly ModelCatalogEntry[],
   current: string | null | undefined,
   remembered: string | null,
 ): string | undefined {
-  return current ? undefined : preferredCatalogModel(catalog, remembered);
+  if (catalog.length === 0 || (current && catalog.some((entry) => entry.id === current))) return undefined;
+  return preferredCatalogModel(catalog, remembered);
 }
 
 /** Model seeding policy for a newly scaffolded session. Native sessions only
@@ -136,7 +137,7 @@ export function initialSessionCatalogModel(
 }
 
 /**
- * Reset the ACTIVE agent's model to a catalog's default (first non-hidden entry).
+ * Restore the ACTIVE agent's remembered model, falling back to the catalog default.
  * This is the shared core of "switch source → land on a model that belongs to the
  * new source", so switching from the chat dropdown OR Settings › Providers behaves
  * identically (the reported drift: Settings changed the route but left the agent
@@ -151,21 +152,24 @@ export async function resetActiveAgentModelToProviderDefault(
   const agentPath = sid ? (st.tabs.find((t) => t.sid === sid)?.agentId ?? null) : null;
   if (!sid || !agentPath) return null;
   const catalog = await listModels(catalogProviderId);
-  const nextModel = catalog.find((m) => !m.hidden)?.id ?? catalog[0]?.id;
+  const nextModel = preferredCatalogModel(catalog, getLastModel(catalogProviderId));
   if (!nextModel) return null;
+  const current = useShellStore.getState();
+  if (current.activeSid !== sid || current.tabs.find((t) => t.sid === sid)?.agentId !== agentPath ||
+      currentCatalogProvider(current.providerOverride) !== catalogProviderId) return null;
   const res = await setAgentModels(sid, agentPath, [nextModel]);
   return { sid, agentPath, selected: res.selected ?? nextModel };
 }
 
 /**
- * Reset EVERY open session's agent model to a catalog's default.
+ * Restore EVERY open session's agent model from the destination provider's preference.
  *
  * `providerOverride` is GLOBAL (one value for the whole app), so switching it
  * re-routes ALL sessions through the new provider — but each session's
  * agent.json still pins the OLD provider's model id, which may not exist in the
  * new provider's catalog. The product requirement is therefore: switching the
  * provider in Settings resets the current model of ALL active sessions to the
- * new provider's default (not just the focused one). We compute the default
+ * new provider's remembered model or default (not just the focused one). We resolve it
  * once (provider-scoped) and write it into each open tab's agent.json. Returns
  * the model set + how many sessions were updated, or null when nothing to do.
  */
@@ -178,10 +182,11 @@ export async function resetOpenSessionsModelToProviderDefault(
     .filter((x): x is { sid: string; agentPath: string } => !!x.sid && !!x.agentPath);
   if (targets.length === 0) return null;
   const catalog = await listModels(catalogProviderId);
-  const nextModel = catalog.find((m) => !m.hidden)?.id ?? catalog[0]?.id;
+  const nextModel = preferredCatalogModel(catalog, getLastModel(catalogProviderId));
   if (!nextModel) return null;
   let count = 0;
   for (const { sid, agentPath } of targets) {
+    if (useShellStore.getState().providerOverride !== st.providerOverride) break;
     try {
       await setAgentModels(sid, agentPath, [nextModel]);
       count++;
@@ -193,14 +198,13 @@ export async function resetOpenSessionsModelToProviderDefault(
   return count > 0 ? { selected: nextModel, count } : null;
 }
 
-/** Seed only an unconfigured session on passive activation. Catalog mismatch
- * is not permission to rewrite a user's model: another browser may be viewing
- * the same session with a different locally selected provider. */
+/** Reconcile session configuration against its active provider catalog. */
 export async function reconcileSessionModelToActiveProvider(
   sid: string,
   agentPath: string,
 ): Promise<{ selected: string } | null> {
-  const catalogProviderId = currentCatalogProvider(useShellStore.getState().providerOverride);
+  const initial = useShellStore.getState();
+  const catalogProviderId = currentCatalogProvider(initial.providerOverride);
   const catalog = await listModels(catalogProviderId).catch(() => null);
   if (!catalog || catalog.length === 0) return null;
 
@@ -208,6 +212,9 @@ export async function reconcileSessionModelToActiveProvider(
   const currentId = cur?.selected ?? null;
   const next = passiveSessionCatalogModel(catalog, currentId, getLastModel(catalogProviderId));
   if (!next) return null;
+  const current = useShellStore.getState();
+  if (current.activeSid !== initial.activeSid || !current.tabs.some((tab) => tab.sid === sid)
+    || currentCatalogProvider(current.providerOverride) !== catalogProviderId) return null;
   try {
     await setAgentModels(sid, agentPath, [next]);
     return { selected: next };

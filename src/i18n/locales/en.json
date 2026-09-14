@@ -1270,7 +1270,7 @@
     "submitting": "Submitting…",
     "confirm": "Confirm",
     "submitFailed": "Could not submit. Your choices are still here; try again.",
-    "expired": "This question is no longer accepting an answer.",
+    "expired": "This question is no longer awaiting an answer. Your selection was not submitted.",
     "unparseableHistory": "This historical answer could not be parsed.",
     "collapse": "Collapse",
     "expand": "Expand"

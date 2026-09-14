@@ -1,15 +1,14 @@
 /** ui-bridge —— UI 语义操作层的 interface 侧运输层:lease + manifest push + ui_* 应答。
  *
  *  对端(编排层 @forgeax/orchestrator):
- *    - POST /:sid/ui-lease       获焦 acquire / 心跳续期(displace 语义,「最后获焦 tab」持有)
+ *    - POST /:sid/ui-lease       获焦 acquire / 仅持有者心跳续期 / 空闲时被动接管
  *    - POST /:sid/ui-manifest    registry 变更时 push 可序列化 manifest(**必须持 lease**——
  *                                manifest 是 trust-gate 的权限输入,声明与执行方必须同源)
  *    - perception:query(WS)     kind = ui_snapshot / ui_invoke / ui_screenshot → 本模块应答
  *    - POST /:sid/perception-reply  带 leaseId 回灌(server 校验;非持有者的回灌被拒)
  *
  *  多标签规则(评审 2.7,P0 定死):最后获焦的 tab 持 lease,WS 心跳续期;收到 ui_* 查询
- *  且本 tab 可见而无 lease 时机会式 acquire(单 tab 断续场景自愈;两 tab 同可见时后
- *  acquire 者胜,server 只认现任 leaseId,不会双应答)。
+ *  且本 tab 获焦而无 lease 时只尝试接管空闲 lease(不能因广播查询抢占其他窗口)。
  */
 import { getSessionClient, hasSessionClient, type SessionEvent } from '../store-parts/session-client';
 import {
@@ -50,15 +49,19 @@ function holdingLease(sid: string): string | null {
   return l && l.expiresAt > Date.now() ? l.leaseId : null;
 }
 
-async function acquireLease(sid: string, opts: { skipPush?: boolean } = {}): Promise<string | null> {
+async function acquireLease(sid: string, opts: { skipPush?: boolean; renew?: boolean; claimOnly?: boolean } = {}): Promise<string | null> {
+  const existing = leases.get(sid);
+  if (opts.renew ? !existing : !document.hasFocus()) return null;
   try {
     const r = await fetch(`/api/sessions/${encodeURIComponent(sid)}/ui-lease`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ clientId }),
+      body: JSON.stringify({ clientId, ...(opts.renew ? { leaseId: existing!.leaseId } : {}), ...(opts.claimOnly ? { claimOnly: true } : {}) }),
     });
     const j = (await r.json().catch(() => ({}))) as { ok?: boolean; leaseId?: string; ttlMs?: number };
-    if (!j.ok || typeof j.leaseId !== 'string') return null;
+    // A late heartbeat must not overwrite a newer focus acquisition.
+    if (opts.renew && leases.get(sid) !== existing) return holdingLease(sid);
+    if (!j.ok || typeof j.leaseId !== 'string') { leases.delete(sid); return null; }
     leases.set(sid, { leaseId: j.leaseId, expiresAt: Date.now() + (j.ttlMs ?? 30_000) });
     knownSids.add(sid);
     // 每次 acquire 成功都重推 manifest(幂等整表替换,payload 很小)。顺序约束:trust-gate
@@ -73,7 +76,7 @@ async function acquireLease(sid: string, opts: { skipPush?: boolean } = {}): Pro
 }
 
 async function pushManifest(sid: string): Promise<void> {
-  const leaseId = holdingLease(sid) ?? (await acquireLease(sid, { skipPush: true }));
+  const leaseId = holdingLease(sid) ?? (await acquireLease(sid, { skipPush: true, claimOnly: true }));
   if (!leaseId) return; // 拿不到 lease(别的 tab 持有)→ 不推,由持有者推
   try {
     await fetch(`/api/sessions/${encodeURIComponent(sid)}/ui-manifest`, {
@@ -103,10 +106,12 @@ async function answerUiQuery(evt: SessionEvent): Promise<void> {
   const sid = evt.sid;
   knownSids.add(sid);
 
-  // lease 检查:非持有者不应答。本 tab 可见而无 lease → 机会式 acquire(displace)。
+  // Passive recovery must not replace another client merely because a query was broadcast.
   let leaseId = holdingLease(sid);
-  if (!leaseId && typeof document !== 'undefined' && document.visibilityState === 'visible') {
-    leaseId = await acquireLease(sid);
+  if (!leaseId && typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) {
+    // A broadcast query is not a user focus transition. An embedded webview
+    // can still report focus while another client owns the active session.
+    leaseId = await acquireLease(sid, { claimOnly: true });
   }
   if (!leaseId) return;
 
@@ -223,6 +228,10 @@ export function bootUiBridge(): void {
     if (sid) void acquireLease(sid);
   };
   window.addEventListener('focus', onFocus);
+  // Embedded browsers may accept clicks without a new window focus event.
+  // A trusted pointer interaction binds subsequent replies to this surface;
+  // programmatic focus or synthetic UI actions must not steal ownership.
+  document.addEventListener('pointerdown', (event) => { if (event.isTrusted) onFocus(); }, true);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') onFocus();
   });
@@ -241,6 +250,6 @@ export function bootUiBridge(): void {
   // 心跳续期(TTL 30s → 每 10s;仅本 tab 可见时续,失焦让位给获焦 tab)。
   setInterval(() => {
     if (document.visibilityState !== 'visible') return;
-    for (const sid of knownSids) if (holdingLease(sid)) void acquireLease(sid);
+    for (const sid of knownSids) if (holdingLease(sid)) void acquireLease(sid, { renew: true });
   }, 10_000);
 }

@@ -586,7 +586,9 @@ if (typeof window !== 'undefined') {
     if (e.key !== 'forgeax.providerOverride') return;
     const next = e.newValue && e.newValue !== 'null' ? e.newValue : null;
     if (useShellStore.getState().providerOverride !== next) {
-      useShellStore.setState({ providerOverride: next });
+      useShellStore.setState((state) => ({ providerOverride: next,
+        ...(state.activeSid ? patchTabField(state, state.activeSid, { providerOverride: next }) : {}),
+      }));
     }
   });
 }

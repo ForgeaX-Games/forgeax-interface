@@ -1,13 +1,8 @@
 // Per-provider "last hand-picked model" memory.
 //
-// Two distinct gestures land on different defaults, and conflating them was the
-// reported bug:
-//   • Switching PROVIDER is a deliberate "give me this provider's default" — it
-//     resets the active session to the provider's catalog default
-//     (resetActiveAgentModelToProviderDefault). We do NOT record that here.
-//   • Creating a NEW SESSION should resume "where I left off" for the current
-//     provider — the model the user last HAND-PICKED in the composer. Only the
-//     manual pick writes here; new sessions read it to seed their agent model.
+// Only an explicit model pick writes this preference. Both provider switching
+// and new-session creation reuse it when the destination catalog still offers
+// that model; automatic defaults must not overwrite the remembered choice.
 //
 // Keyed by catalog-provider id: a CLI driver id (claude-code / codex / …) or
 // 'forgeax' for the native gateway path (catalogProviderId === null).

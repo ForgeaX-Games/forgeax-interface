@@ -174,13 +174,29 @@ describe('keyboard router — UE-parity editor hide (H / Ctrl+H / Shift+H)', () 
   });
 });
 
-describe('keyboard router — Escape Play stop (AC-Cb4)', () => {
-  it('play mode → stops the transient play session', () => {
+describe('keyboard router — Escape input ownership', () => {
+  it('game-owned Escape remains available to gameplay pause/menu', () => {
     const deps = mockDeps({ isPlayMode: () => true, getInputTarget: () => 'game' });
     registerKeyboardRouterDeps(deps);
     const esc = findByCombo(buildShortcuts(), 'Esc');
-    expect(esc.run()).toBe(true);
-    expect(deps.calls.dispatch).toEqual([[{ kind: 'stop' }, 'human']]);
+    expect(esc.run()).toBe(false);
+    expect(deps.calls.dispatch).toEqual([]);
+  });
+
+  it('editor-owned Escape does not implicitly terminate Play', () => {
+    const deps = mockDeps({ isPlayMode: () => true, getInputTarget: () => 'editor' });
+    registerKeyboardRouterDeps(deps);
+    expect(findByCombo(buildShortcuts(), 'Esc').run()).toBe(false);
+    expect(deps.calls.dispatch).toEqual([]);
+  });
+
+  it('an open settings overlay closes without terminating Play', () => {
+    const deps = mockDeps({ isPlayMode: () => true, getInputTarget: () => 'game' });
+    registerKeyboardRouterDeps(deps);
+    useShellStore.setState({ activeOverlay: 'settings' });
+    expect(findByCombo(buildShortcuts(), 'Esc').run()).toBe(true);
+    expect(deps.calls.dispatch).toEqual([]);
+    expect(useShellStore.getState().activeOverlay).toBeNull();
   });
 
   it('outside play mode does not dispatch a viewport transition', () => {
