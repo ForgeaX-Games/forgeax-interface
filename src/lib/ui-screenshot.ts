@@ -18,6 +18,8 @@ const MAX_EDGE = 1568;
 const JPEG_QUALITY = 0.85;
 
 export interface ScreenshotOk {
+  evidenceType: 'application-dom-raster';
+  gameRenderingEvidence: false;
   dataUrl: string;
   width: number;
   height: number;
@@ -193,7 +195,9 @@ export async function captureUiScreenshot(query: unknown): Promise<ScreenshotOk 
       width: outW,
       height: outH,
       target,
-      note: 'best-effort DOM rasterization: external images/fonts and embedded frames/canvases may render blank',
+      evidenceType: 'application-dom-raster',
+      gameRenderingEvidence: false,
+      note: 'Best-effort application DOM rasterization. External images/fonts and embedded frames/canvases may render blank. Blank regions are not evidence of missing game rendering. Use the Editor gameplay capture contract for a live game image.',
     };
   } catch (e) {
     return { captured: false, reason: `capture failed: ${(e as Error).message}`, target };

@@ -39,3 +39,31 @@ describe('captureUiScreenshot — fail-soft', () => {
     expect(out.reason).toContain('panel:missing');
   });
 });
+
+test('a successful DOM raster is explicitly not game rendering evidence', async () => {
+  const { captureUiScreenshot } = await import('./ui-screenshot');
+  const originalImage = globalThis.Image;
+  const originalContext = HTMLCanvasElement.prototype.getContext;
+  const originalDataUrl = HTMLCanvasElement.prototype.toDataURL;
+  const originalRect = document.body.getBoundingClientRect;
+  try {
+    globalThis.Image = class {
+      onload: (() => void) | null = null;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    } as unknown as typeof Image;
+    document.body.getBoundingClientRect = () => ({ width: 640, height: 480 } as DOMRect);
+    HTMLCanvasElement.prototype.getContext = (() => ({ fillRect() {}, drawImage() {} })) as never;
+    HTMLCanvasElement.prototype.toDataURL = () => 'data:image/jpeg;base64,/9j/2Q==';
+    document.body.innerHTML = '<canvas></canvas><iframe></iframe>';
+    const result = await captureUiScreenshot({ target: 'app' });
+    expect(result).toMatchObject({
+      dataUrl: 'data:image/jpeg;base64,/9j/2Q==', target: 'app',
+      evidenceType: 'application-dom-raster', gameRenderingEvidence: false,
+    });
+  } finally {
+    globalThis.Image = originalImage;
+    HTMLCanvasElement.prototype.getContext = originalContext;
+    HTMLCanvasElement.prototype.toDataURL = originalDataUrl;
+    document.body.getBoundingClientRect = originalRect;
+  }
+});

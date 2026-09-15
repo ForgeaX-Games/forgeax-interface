@@ -90,7 +90,7 @@ export function ModelPicker(props: ModelPickerProps) {
   } = props;
   const mode = props.mode ?? 'single';
 
-  const { models, driver, error, refresh } = useModelCatalog(providerId);
+  const { models, driver, error, offline, refresh } = useModelCatalog(providerId);
   const [open, setOpen] = useState(variant === 'inline');
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(-1);
@@ -293,7 +293,8 @@ export function ModelPicker(props: ModelPickerProps) {
           onClick={() => void refresh()}
         >↻</button>
       </div>
-      {error && <div className="mp-err">{error}</div>}
+      {offline && <div className="mp-loading" role="status">{t('modelPicker.cachedCatalog')}</div>}
+      {error && <div className="mp-loading" role="status">{t('modelPicker.catalogUnavailable')}</div>}
       {!models && !error && <div className="mp-loading">loading…</div>}
       {/* 内核目录不可用(回退链全部落空,source='none'):显式空态 + 失败原因,
           绝不展示假列表;trigger 上保留用户已选模型不受影响。 */}

@@ -1700,6 +1700,8 @@
     "expandedFormTip": "发送给 AI 的展开形式"
   },
   "modelPicker": {
+    "cachedCatalog": "正在使用已保存的模型列表 · 可点击刷新更新",
+    "catalogUnavailable": "模型列表暂时不可用，请稍后刷新。",
     "showInComposer": "在 Composer picker 里显示这个模型",
     "hideFromComposer": "从 Composer picker 隐藏这个模型(Settings/ModelLab 仍可见)"
   },

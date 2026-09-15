@@ -1700,6 +1700,8 @@
     "expandedFormTip": "Expanded form sent to the AI"
   },
   "modelPicker": {
+    "cachedCatalog": "Using saved models · refresh to check for updates",
+    "catalogUnavailable": "Models are temporarily unavailable. Please refresh shortly.",
     "showInComposer": "Show this model in the Composer picker",
     "hideFromComposer": "Hide this model from the Composer picker (still visible in Settings/ModelLab)"
   },

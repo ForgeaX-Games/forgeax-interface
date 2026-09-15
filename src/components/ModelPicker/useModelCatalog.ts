@@ -1,3 +1,4 @@
+import { recalledModelCatalog } from '../../lib/model-catalog-backup';
 import { onConfigChanged } from '../../lib/config-invalidation';
 import { useEffect, useState } from 'react';
 import {
@@ -35,7 +36,7 @@ function subscriberSet(key: string): Set<(payload: ModelCatalogWithMeta) => void
 async function fetchOnce(providerId?: string | null, force = false): Promise<ModelCatalogWithMeta> {
   const key = cacheKey(providerId);
   const hit = cached.get(key);
-  if (hit && !force) return hit;
+  if (hit && !hit.offline && !force) return hit;
   const current = inflight.get(key);
   if (current) {
     if (!force) return current;
@@ -62,21 +63,23 @@ export interface ModelCatalogState {
   /** 内核目录路径的回退链元数据(gateway 路径为 undefined)。 */
   driver: CatalogDriverMeta | null;
   error: string | null;
+  offline: boolean;
   refresh: () => Promise<void>;
 }
 
 export function useModelCatalog(providerId?: string | null): ModelCatalogState {
   const key = cacheKey(providerId);
-  const [payload, setPayload] = useState<ModelCatalogWithMeta | null>(cached.get(key) ?? null);
+  const [payload, setPayload] = useState<ModelCatalogWithMeta | null>(cached.get(key) ?? recalledModelCatalog(providerId));
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     const sub = (p: ModelCatalogWithMeta) => { if (!cancelled) setPayload(p); };
     const subs = subscriberSet(key);
     subs.add(sub);
-    const hit = cached.get(key);
-    if (hit) setPayload(hit);
-    else {
+    const hit = cached.get(key) ?? recalledModelCatalog(providerId);
+    setPayload(hit ?? null);
+    setError(null);
+    if (!hit || hit.offline) {
       fetchOnce(providerId)
         .then((p) => { if (!cancelled) { setPayload(p); setError(null); } })
         .catch((e) => { if (!cancelled) setError((e as Error).message); });
@@ -101,7 +104,7 @@ export function useModelCatalog(providerId?: string | null): ModelCatalogState {
       setError((e as Error).message);
     }
   };
-  return { models: payload?.models ?? null, driver: payload?.driver ?? null, error, refresh };
+  return { offline: payload?.offline ?? false, models: payload?.models ?? null, driver: payload?.driver ?? null, error, refresh };
 }
 
 export function _resetModelCatalogCache(): void {

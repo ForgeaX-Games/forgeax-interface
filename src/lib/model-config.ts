@@ -1,3 +1,4 @@
+import { loadModelCatalogWithBackup } from './model-catalog-backup';
 // @desc Frontend client for `builtin/commands/models.ts` —— list / get / set
 //
 // 三个 helper 一律走 `/api/commands/*` 走 transport.ts 的 `{ args }` 协议。统一在
@@ -93,6 +94,8 @@ export interface CatalogDriverMeta {
 }
 
 export interface ModelCatalogWithMeta {
+  /** Last successful browser catalog used because the current request failed. */
+  offline?: boolean;
   models: ModelCatalogEntry[];
   driver?: CatalogDriverMeta;
 }
@@ -100,8 +103,10 @@ export interface ModelCatalogWithMeta {
 /** listModels + driver 元数据透传(内核目录路径需要;见 CatalogDriverMeta)。 */
 export async function listModelsWithMeta(providerId?: string | null, forceRefresh = false): Promise<ModelCatalogWithMeta> {
   const args = forceRefresh ? [providerId ?? '', '--refresh'] : providerId ? [providerId] : [];
-  const data = await callQuery<{ models: ModelCatalogEntry[]; driver?: CatalogDriverMeta }>("list_models", args);
-  return { models: data.models ?? [], driver: data.driver };
+  return loadModelCatalogWithBackup(providerId, async () => {
+    const data = await callQuery<{ models: ModelCatalogEntry[]; driver?: CatalogDriverMeta }>("list_models", args);
+    return { models: data.models ?? [], driver: data.driver };
+  });
 }
 
 /** Full `list_models` payload including the live-probe summary. Use this when
