@@ -1,3 +1,4 @@
+import { subscribeUiEvents } from '../../lib/ui-event-stream';
 /**
  * Doc 07 §9.5 — front half of `requireConfirm`.
  *
@@ -71,15 +72,8 @@ export function ConfirmDialog(): ReactElement | null {
   }, []);
 
   useEffect(() => {
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource('/api/events/stream?topic=tool.confirm-*');
-    } catch {
-      return;
-    }
-    es.addEventListener('event', (ev: MessageEvent) => {
-      let env: AnyConfirmEnv | null = null;
-      try { env = JSON.parse(ev.data) as AnyConfirmEnv; } catch { return; }
+    return subscribeUiEvents('tool.confirm-*', (value) => {
+      const env = value as AnyConfirmEnv | null;
       if (!env) return;
       if (env.topic === 'tool.confirm-required') {
         const p = env.payload;
@@ -104,7 +98,6 @@ export function ConfirmDialog(): ReactElement | null {
         setQueue((prev) => prev.filter((q) => q.confirmId !== id));
       }
     });
-    return () => { if (es) es.close(); };
   }, []);
 
   const head = queue[0];

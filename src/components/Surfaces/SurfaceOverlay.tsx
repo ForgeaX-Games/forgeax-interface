@@ -1,3 +1,4 @@
+import { subscribeUiEvents } from '../../lib/ui-event-stream';
 /**
  * Phase D2 — dev-mode surface overlay.
  *
@@ -74,12 +75,8 @@ function SurfaceOverlayDev(): ReactElement | null {
     let cancelled = false;
     const reload = () => fetchTools().then((next) => { if (!cancelled) setTools(next); });
     void reload();
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource('/api/events/stream?topic=plugin.reloaded');
-      es.addEventListener('event', () => { void reload(); });
-    } catch { /* fall back to single fetch */ }
-    return () => { cancelled = true; if (es) es.close(); };
+    const unsubscribe = subscribeUiEvents('plugin.reloaded', () => { void reload(); });
+    return () => { cancelled = true; unsubscribe(); };
   }, [open]);
 
   const toolsById = useMemo(() => {
