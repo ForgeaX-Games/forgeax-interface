@@ -18,15 +18,21 @@
  *  Also accepts private-network origins (10.x / 172.16-31.x / 192.168.x) so
  *  WSL2 forwarded addresses work without opening the gate to the public web. */
 export function isTrustedMessageOrigin(origin: string): boolean {
-  try {
-    if (origin === window.location.origin) return true;
-  } catch { /* no window.location */ }
-  if (import.meta.env.DEV) {
-    try {
-      const host = new URL(origin).hostname;
-      if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
-      if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host)) return true;
-    } catch { /* opaque/empty origin */ }
-  }
-  return false;
+	try {
+		if (origin === window.location.origin) return true;
+	} catch {
+		/* no window.location */
+	}
+	if (import.meta.env.DEV) {
+		try {
+			const host = new URL(origin).hostname;
+			if (host === "localhost" || host === "127.0.0.1" || host === "[::1]")
+				return true;
+			if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host))
+				return true;
+		} catch {
+			/* opaque/empty origin */
+		}
+	}
+	return false;
 }

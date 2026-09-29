@@ -1,11 +1,11 @@
 /* DockShell — square, padding-free dock styling. Dockview's theme contract owns
    the 6px inter-group gap; CSS only skins the groups and chrome. */
 .fx-dockshell {
-  flex: 1 1 auto;
-  height: 100%;
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
+	flex: 1 1 auto;
+	height: 100%;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
 }
 
 /* Map dockview's theme variables to the studio tokens so it matches the shell
@@ -15,17 +15,20 @@
 .fx-dockwrap .dv-shell.dockview-theme-abyss,
 .dockview-theme-abyss.fx-dockshell,
 .fx-dockshell {
-  /* UE-style depth: the dock canvas is the darkest layer and shows through the
+	/* UE-style depth: the dock canvas is the darkest layer and shows through the
      native 6px group gaps; panel surfaces sit one semantic step above it. */
-  --fx-dock-container-background: var(--color-background-canvas, #0d0d0d);
-  --fx-dock-panel-background:     var(--color-background-base, #191919);
+	--fx-dock-container-background: var(--color-background-canvas, #0d0d0d);
+	--fx-dock-panel-background: var(--color-background-base, #191919);
 
-  /* ── background / chrome ── */
-  --dv-background-color:                             var(--fx-dock-container-background);
-  --dv-group-view-background-color:                  var(--fx-dock-panel-background);
-  --dv-tabs-and-actions-container-background-color:  var(--color-background-elevated, #161619);
+	/* ── background / chrome ── */
+	--dv-background-color: var(--fx-dock-container-background);
+	--dv-group-view-background-color: var(--fx-dock-panel-background);
+	--dv-tabs-and-actions-container-background-color: var(
+		--color-background-elevated,
+		#161619
+	);
 
-  /* ── tab colours. The SELECTED tab (the one whose panel is showing) is the
+	/* ── tab colours. The SELECTED tab (the one whose panel is showing) is the
         DARKEST shade so it reads as connected to its content — this is true
         whether or not its group has focus. Focus only adds the lime accent bar
         (::before, active-group-only), so an "open but unfocused" tab looks like
@@ -35,47 +38,60 @@
         inactive group / active tab →  darkest  (#0d0d0f)  fg=primary  (= "open")
         inactive group / hidden tab →  lightest (#1e1e22)  fg=muted
      No blue. No abyss purple. Consistent with the rest of the studio UI. ── */
-  --dv-activegroup-visiblepanel-tab-background-color:   var(--fx-dock-panel-background);
-  --dv-activegroup-hiddenpanel-tab-background-color:    var(--color-background-elevated, #161619);
-  --dv-inactivegroup-visiblepanel-tab-background-color: var(--fx-dock-panel-background);
-  --dv-inactivegroup-hiddenpanel-tab-background-color:  var(--color-background-overlay, #1e1e22);
+	--dv-activegroup-visiblepanel-tab-background-color: var(
+		--fx-dock-panel-background
+	);
+	--dv-activegroup-hiddenpanel-tab-background-color: var(
+		--color-background-elevated,
+		#161619
+	);
+	--dv-inactivegroup-visiblepanel-tab-background-color: var(
+		--fx-dock-panel-background
+	);
+	--dv-inactivegroup-hiddenpanel-tab-background-color: var(
+		--color-background-overlay,
+		#1e1e22
+	);
 
-  --dv-activegroup-visiblepanel-tab-color:    var(--color-text-primary, #e8eaed);
-  --dv-activegroup-hiddenpanel-tab-color:     var(--color-text-secondary, #9aa0aa);
-  --dv-inactivegroup-visiblepanel-tab-color:  var(--color-text-primary, #e8eaed);
-  --dv-inactivegroup-hiddenpanel-tab-color:   var(--color-text-tertiary, #5f6368);
+	--dv-activegroup-visiblepanel-tab-color: var(--color-text-primary, #e8eaed);
+	--dv-activegroup-hiddenpanel-tab-color: var(--color-text-secondary, #9aa0aa);
+	--dv-inactivegroup-visiblepanel-tab-color: var(--color-text-primary, #e8eaed);
+	--dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary, #5f6368);
 
-  /* ── borders / separators ── */
-  --dv-tab-divider-color:        var(--color-border-default, #2a2d30);
-  --dv-separator-border:         var(--color-border-default, #2a2d30);
+	/* ── borders / separators ── */
+	--dv-tab-divider-color: var(--color-border-default, #2a2d30);
+	--dv-separator-border: var(--color-border-default, #2a2d30);
 
-  /* ── interactive accent (sash resize + drop zone): lime, NOT blue ── */
-  --dv-paneview-active-outline-color: var(--lime, #7ee04a);
-  --dv-active-sash-color:             transparent;
-  --dv-tabs-container-scrollbar-color: var(--color-border-default, #2a2d30);
-  --dv-drag-over-background-color:    rgba(126, 224, 74, 0.18);
-  --dv-drag-over-border-color:        var(--lime, #7ee04a);
+	/* ── interactive accent (sash resize + drop zone): lime, NOT blue ── */
+	--dv-paneview-active-outline-color: var(--lime, #7ee04a);
+	--dv-active-sash-color: transparent;
+	--dv-tabs-container-scrollbar-color: var(--color-border-default, #2a2d30);
+	--dv-drag-over-background-color: rgba(126, 224, 74, 0.18);
+	--dv-drag-over-border-color: var(--lime, #7ee04a);
 
-  /* Neutralise the abyss-theme colour palette that bleeds through (#007acc etc.) */
-  --dv-color-abyss-dark:    var(--color-background-base, #0d0d0f);
-  --dv-color-abyss:         var(--color-background-elevated, #161619);
-  --dv-color-abyss-light:   var(--color-background-overlay, #1e1e22);
-  --dv-color-abyss-lighter: var(--color-background-raised, #252529);
-  --dv-color-abyss-accent:  var(--lime, #7ee04a);
+	/* Neutralise the abyss-theme colour palette that bleeds through (#007acc etc.) */
+	--dv-color-abyss-dark: var(--color-background-base, #0d0d0f);
+	--dv-color-abyss: var(--color-background-elevated, #161619);
+	--dv-color-abyss-light: var(--color-background-overlay, #1e1e22);
+	--dv-color-abyss-lighter: var(--color-background-raised, #252529);
+	--dv-color-abyss-accent: var(--lime, #7ee04a);
 
-  /* Tab context menu base chrome — PageTabStrip DropdownMenu (bg-popover). */
-  --dv-context-menu-background-color: var(--color-background-elevated, #242424);
-  --dv-context-menu-color:            var(--color-text-secondary, rgba(255, 255, 255, 0.60));
-  --dv-floating-box-shadow:           0 4px 16px rgba(0, 0, 0, 0.45);
-  --dv-border-radius:                 var(--radius-md, 8px);
+	/* Tab context menu base chrome — PageTabStrip DropdownMenu (bg-popover). */
+	--dv-context-menu-background-color: var(--color-background-elevated, #242424);
+	--dv-context-menu-color: var(
+		--color-text-secondary,
+		rgba(255, 255, 255, 0.6)
+	);
+	--dv-floating-box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+	--dv-border-radius: var(--radius-md, 8px);
 }
 
 /* Dockview paints its root with the group color by default. Override only the
    core grid root so the gap exposes the darker canvas without affecting edge
    drawers or floating groups. */
 .fx-dockshell .dv-dockview {
-  --dv-separator-border: transparent;
-  background-color: var(--fx-dock-container-background);
+	--dv-separator-border: transparent;
+	background-color: var(--fx-dock-container-background);
 }
 
 /* Core grid groups are borderless UE-style surfaces: separation comes only
@@ -84,9 +100,9 @@
    (defined below on .dv-groupview-edge > .dv-content-container) is preserved. */
 .fx-dockshell .dv-dockview .dv-groupview:not(.dv-groupview-edge),
 .fx-dockshell .dv-dockview .groupview:not(.groupview-edge) {
-  border: 0 !important;
-  outline: 0;
-  box-shadow: none;
+	border: 0 !important;
+	outline: 0;
+	box-shadow: none;
 }
 
 /* Edge groups and the core grid are siblings in Dockview's outer shell
@@ -94,16 +110,16 @@
    hideBorders on the core cannot reach them. Remove only those static shell
    separators; do not touch the edge drawer content border. */
 .fx-dockwrap
-  .dv-shell
-  > .dv-split-view-container.dv-separator-border
-  > .dv-view-container
-  > .dv-view:not(:first-child)::before,
+	.dv-shell
+	> .dv-split-view-container.dv-separator-border
+	> .dv-view-container
+	> .dv-view:not(:first-child)::before,
 .fx-dockwrap
-  .dv-shell-middle-column
-  > .dv-split-view-container.dv-separator-border
-  > .dv-view-container
-  > .dv-view:not(:first-child)::before {
-  display: none;
+	.dv-shell-middle-column
+	> .dv-split-view-container.dv-separator-border
+	> .dv-view-container
+	> .dv-view:not(:first-child)::before {
+	display: none;
 }
 
 /* Flush + square: no rounded corners, no extra padding on the docked content. */
@@ -111,36 +127,48 @@
 .fx-dockshell .dv-tabs-and-actions-container,
 .fx-dockshell .groupview,
 .fx-dockshell .tab,
-.fx-dockshell .dv-tab { border-radius: 0 !important; }
+.fx-dockshell .dv-tab {
+	border-radius: 0 !important;
+}
 
 /* Keep the shell and edge strips flush, but round only the TOP corners of
    ordinary workspace tabs so the selected tab reads as a surface without
    turning the dock into a set of floating cards. */
-.fx-dockshell .dv-groupview:not(.dv-groupview-edge):not(.groupview-edge) .dv-tab,
+.fx-dockshell
+	.dv-groupview:not(.dv-groupview-edge):not(.groupview-edge)
+	.dv-tab,
 .fx-dockshell .groupview:not(.dv-groupview-edge):not(.groupview-edge) .dv-tab {
-  border-radius: 6px 6px 0 0 !important;
+	border-radius: 6px 6px 0 0 !important;
 }
 
 /* Asymmetric padding: keep the label inset on the left, but trim the right so
    the close (X) action sits close to the tab's right edge instead of floating
    ~10px in. */
-.fx-dockshell .dv-default-tab { padding: 0 4px 0 10px; }
-.fx-dockshell .content-container { inset: 0; }
+.fx-dockshell .dv-default-tab {
+	padding: 0 4px 0 10px;
+}
+.fx-dockshell .content-container {
+	inset: 0;
+}
 
 /* Leading panel icon on every tab (DockTab → iconForDockPanel). Dimmed at rest,
    brightens with the label on the active tab / hover so it never out-shouts the
    title. `flex: 0 0 auto` keeps it from squishing when the tab strip overflows. */
 .fx-dockwrap .fx-dock-tab-icon {
-  flex: 0 0 auto;
-  margin-right: 6px;
-  color: var(--color-text-tertiary, #6b7078);
+	flex: 0 0 auto;
+	margin-right: 6px;
+	color: var(--color-text-tertiary, #6b7078);
 }
 .fx-dockwrap .dv-tab.dv-active-tab .fx-dock-tab-icon,
 .fx-dockwrap .dv-tab:hover .fx-dock-tab-icon {
-  color: var(--color-text-primary, #e6e7ea);
+	color: var(--color-text-primary, #e6e7ea);
 }
 /* The custom close (X) uses a lucide glyph; match the dimmed action treatment. */
-.fx-dockwrap .dv-default-tab-action { display: inline-flex; align-items: center; justify-content: center; }
+.fx-dockwrap .dv-default-tab-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
 
 /* Hover feedback on tabs. Our neutral 3-shade tab palette (#0d0d0f / #161619 /
    #1e1e22) sits too close together for dockview's default hover to register, so
@@ -152,8 +180,8 @@
    (0,3,0) hover rule regardless of :hover. `!important` is the pragmatic
    override (same tactic as the border-radius reset above). */
 .fx-dockshell .dv-tab:not(.dv-active-tab):hover {
-  background-color: var(--color-interaction-selected-neutral) !important;
-  color: var(--color-text-primary) !important;
+	background-color: var(--color-interaction-selected-neutral) !important;
+	color: var(--color-text-primary) !important;
 }
 
 /* UE-style focus tab: thin accent bar on the focused group's active tab only.
@@ -163,96 +191,96 @@
    the accent. Scoped to .fx-dockwrap (shell + edge groups live under it). */
 .fx-dockwrap .dv-tab:focus-within::after,
 .fx-dockwrap .dv-tab:focus::after {
-  content: none;
+	content: none;
 }
 /* Grid / floating groups: accent on the focused group's active tab.
    Edge strips: only while the drawer is open — clicking void chrome activates
    the group without opening a tab, which must NOT light the last active tab. */
 .fx-dockwrap
-  .dv-groupview.dv-active-group:not(.dv-groupview-edge)
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab,
+	.dv-groupview.dv-active-group:not(.dv-groupview-edge)
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab,
 .fx-dockwrap
-  .dv-groupview-edge.fx-edge-drawer-open.dv-active-group
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab {
-  position: relative;
+	.dv-groupview-edge.fx-edge-drawer-open.dv-active-group
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab {
+	position: relative;
 }
 .fx-dockwrap
-  .dv-groupview.dv-active-group:not(.dv-groupview-edge)
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab::before,
+	.dv-groupview.dv-active-group:not(.dv-groupview-edge)
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab::before,
 .fx-dockwrap
-  .dv-groupview-edge.fx-edge-drawer-open.dv-active-group
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab::before {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  z-index: 2;
-  /* UE: brightest at center, falloff to transparent at both ends */
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 22%,
-    var(--lime, #7ee04a) 50%,
-    color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 78%,
-    transparent 100%
-  );
-  /* default: horizontal tab strip → top edge (UE is ~1px). top:1px (not 0) so
+	.dv-groupview-edge.fx-edge-drawer-open.dv-active-group
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab::before {
+	content: "";
+	position: absolute;
+	pointer-events: none;
+	z-index: 2;
+	/* UE: brightest at center, falloff to transparent at both ends */
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 22%,
+		var(--lime, #7ee04a) 50%,
+		color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 78%,
+		transparent 100%
+	);
+	/* default: horizontal tab strip → top edge (UE is ~1px). top:1px (not 0) so
      the accent clears the splitview sash that overlays the boundary above a
      lower group's header — at top:0 it was hidden under the sash for every
      group that isn't in the top row. */
-  left: 0;
-  right: 0;
-  top: 1px;
-  height: 1px;
-  width: auto;
+	left: 0;
+	right: 0;
+	top: 1px;
+	height: 1px;
+	width: auto;
 }
 /* Left/right edge strips: tabs are vertical — put the bar on the outer edge. */
 .fx-dockwrap
-  .dv-groupview-edge.fx-edge-drawer-open.dv-active-group.dv-groupview-header-left
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container.dv-tabs-container-vertical
-  > .dv-tab.dv-active-tab::before {
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: auto;
-  width: 1px;
-  height: auto;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 22%,
-    var(--lime, #7ee04a) 50%,
-    color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 78%,
-    transparent 100%
-  );
+	.dv-groupview-edge.fx-edge-drawer-open.dv-active-group.dv-groupview-header-left
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container.dv-tabs-container-vertical
+	> .dv-tab.dv-active-tab::before {
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: auto;
+	width: 1px;
+	height: auto;
+	background: linear-gradient(
+		180deg,
+		transparent 0%,
+		color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 22%,
+		var(--lime, #7ee04a) 50%,
+		color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 78%,
+		transparent 100%
+	);
 }
 .fx-dockwrap
-  .dv-groupview-edge.fx-edge-drawer-open.dv-active-group.dv-groupview-header-right
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container.dv-tabs-container-vertical
-  > .dv-tab.dv-active-tab::before {
-  top: 0;
-  bottom: 0;
-  right: 0;
-  left: auto;
-  width: 1px;
-  height: auto;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 22%,
-    var(--lime, #7ee04a) 50%,
-    color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 78%,
-    transparent 100%
-  );
+	.dv-groupview-edge.fx-edge-drawer-open.dv-active-group.dv-groupview-header-right
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container.dv-tabs-container-vertical
+	> .dv-tab.dv-active-tab::before {
+	top: 0;
+	bottom: 0;
+	right: 0;
+	left: auto;
+	width: 1px;
+	height: auto;
+	background: linear-gradient(
+		180deg,
+		transparent 0%,
+		color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 22%,
+		var(--lime, #7ee04a) 50%,
+		color-mix(in srgb, var(--lime, #7ee04a) 55%, transparent) 78%,
+		transparent 100%
+	);
 }
 
 /* dockview keeps EXACTLY ONE active panel per group — no group can have zero — so
@@ -265,32 +293,32 @@
    hidden-panel siblings — the strip becomes a row of equal launchers, no selection.
    Higher specificity than the base rule (extra classes), so no `!important`. */
 .fx-dockwrap
-  .dv-groupview-edge.dv-active-group:not(.fx-edge-drawer-open)
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab {
-  background-color: var(--dv-activegroup-hiddenpanel-tab-background-color);
-  color: var(--dv-activegroup-hiddenpanel-tab-color);
+	.dv-groupview-edge.dv-active-group:not(.fx-edge-drawer-open)
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab {
+	background-color: var(--dv-activegroup-hiddenpanel-tab-background-color);
+	color: var(--dv-activegroup-hiddenpanel-tab-color);
 }
 .fx-dockwrap
-  .dv-groupview-edge.dv-inactive-group:not(.fx-edge-drawer-open)
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab {
-  background-color: var(--dv-inactivegroup-hiddenpanel-tab-background-color);
-  color: var(--dv-inactivegroup-hiddenpanel-tab-color);
+	.dv-groupview-edge.dv-inactive-group:not(.fx-edge-drawer-open)
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab {
+	background-color: var(--dv-inactivegroup-hiddenpanel-tab-background-color);
+	color: var(--dv-inactivegroup-hiddenpanel-tab-color);
 }
 /* The leading lucide glyph (`.fx-dock-tab-icon`) has its OWN active/hover color
    rule (brightens to --color-text-primary), which the neutralizers above don't
    touch — so a closed edge group's active tab still lit its icon. Dim it back to
    the tertiary (idle) color unless the drawer is open, matching the tab text. */
 .fx-dockwrap
-  .dv-groupview-edge:not(.fx-edge-drawer-open)
-  > .dv-tabs-and-actions-container
-  .dv-tabs-container
-  > .dv-tab.dv-active-tab:not(:hover)
-  .fx-dock-tab-icon {
-  color: var(--color-text-tertiary, #6b7078);
+	.dv-groupview-edge:not(.fx-edge-drawer-open)
+	> .dv-tabs-and-actions-container
+	.dv-tabs-container
+	> .dv-tab.dv-active-tab:not(:hover)
+	.fx-dock-tab-icon {
+	color: var(--color-text-tertiary, #6b7078);
 }
 /* Uniform hover feedback for EVERY tab in a closed edge group — active AND
    inactive. The base hover rule (`.fx-dockshell .dv-tab:not(.dv-active-tab):hover`)
@@ -300,11 +328,9 @@
    tab. This single `.fx-dockwrap`-anchored rule (the ancestor edge groups DO live
    under, same as the neutralizers) restores a consistent hover for both.
    `!important` to beat the neutralizers above and the base theme. */
-.fx-dockwrap
-  .dv-groupview-edge:not(.fx-edge-drawer-open)
-  .dv-tab:hover {
-  background-color: var(--color-interaction-selected-neutral) !important;
-  color: var(--color-text-primary) !important;
+.fx-dockwrap .dv-groupview-edge:not(.fx-edge-drawer-open) .dv-tab:hover {
+	background-color: var(--color-interaction-selected-neutral) !important;
+	color: var(--color-text-primary) !important;
 }
 
 /* Declarative single-tab strategies. Dockview owns tab counting and adds
@@ -312,105 +338,131 @@
    `data-fx-dock-title-state="visible"` is the user override used by the
    restore affordance, while `hidden` is set by the tab context menu. */
 .fx-dockshell
-  .dv-groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not([data-fx-dock-title-state="visible"])
-  > .dv-tabs-and-actions-container.dv-single-tab,
+	.dv-groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not(
+		[data-fx-dock-title-state="visible"]
+	)
+	> .dv-tabs-and-actions-container.dv-single-tab,
 .fx-dockshell
-  .groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not([data-fx-dock-title-state="visible"])
-  > .dv-tabs-and-actions-container.dv-single-tab,
+	.groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not(
+		[data-fx-dock-title-state="visible"]
+	)
+	> .dv-tabs-and-actions-container.dv-single-tab,
 .fx-dockshell
-  .dv-groupview[data-fx-dock-title-state="hidden"]
-  > .dv-tabs-and-actions-container.dv-single-tab,
+	.dv-groupview[data-fx-dock-title-state="hidden"]
+	> .dv-tabs-and-actions-container.dv-single-tab,
 .fx-dockshell
-  .groupview[data-fx-dock-title-state="hidden"]
-  > .dv-tabs-and-actions-container.dv-single-tab {
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  opacity: 0;
-  border: 0;
-  pointer-events: none;
+	.groupview[data-fx-dock-title-state="hidden"]
+	> .dv-tabs-and-actions-container.dv-single-tab {
+	height: 0 !important;
+	min-height: 0 !important;
+	max-height: 0 !important;
+	overflow: hidden !important;
+	opacity: 0;
+	border: 0;
+	pointer-events: none;
 }
 
 /* The triangle is a real button, so a title-less single-panel group remains
    keyboard- and screen-reader-reachable. It is emitted for every panel but
    only exposed when the current group is actually title-less. */
 .fx-dock-title-restore {
-  display: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 3;
-  align-items: flex-start;
-  justify-content: flex-start;
-  width: 14px !important;
-  height: 20px !important;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-tertiary, #778);
-  cursor: pointer;
+	display: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 3;
+	align-items: flex-start;
+	justify-content: flex-start;
+	width: 14px !important;
+	height: 20px !important;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-text-tertiary, #778);
+	cursor: pointer;
 }
 
 .fx-dock-title-restore::before {
-  content: '';
-  width: 10px;
-  height: 10px;
-  align-self: flex-start;
-  background: var(--color-text-tertiary, #778);
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-  transition: background 120ms ease;
+	content: "";
+	width: 10px;
+	height: 10px;
+	align-self: flex-start;
+	background: var(--color-text-tertiary, #778);
+	clip-path: polygon(0 0, 100% 0, 0 100%);
+	transition: background 120ms ease;
 }
 
 .fx-dock-title-restore:hover::before,
 .fx-dock-title-restore:focus-visible::before {
-  background: var(--lime, #7ee04a);
+	background: var(--lime, #7ee04a);
 }
 
 .fx-dock-title-restore:focus-visible {
-  outline: none;
-}
-
-.fx-dockshell .dv-groupview[data-fx-dock-title-state="hidden"] .fx-dock-title-restore,
-.fx-dockshell .groupview[data-fx-dock-title-state="hidden"] .fx-dock-title-restore,
-.fx-dockshell .dv-groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not([data-fx-dock-title-state="visible"]) .fx-dock-title-restore,
-.fx-dockshell .groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not([data-fx-dock-title-state="visible"]) .fx-dock-title-restore {
-  display: inline-flex;
+	outline: none;
 }
 
 .fx-dockshell
-  .dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-scrollable,
+	.dv-groupview[data-fx-dock-title-state="hidden"]
+	.fx-dock-title-restore,
 .fx-dockshell
-  .groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-scrollable,
+	.groupview[data-fx-dock-title-state="hidden"]
+	.fx-dock-title-restore,
 .fx-dockshell
-  .dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-tabs-container,
+	.dv-groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not(
+		[data-fx-dock-title-state="visible"]
+	)
+	.fx-dock-title-restore,
 .fx-dockshell
-  .groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-tabs-container {
-  flex-grow: 1;
+	.groupview:has(.fx-panel[data-dock-single-tab="hideTitle"]):not(
+		[data-fx-dock-title-state="visible"]
+	)
+	.fx-dock-title-restore {
+	display: inline-flex;
 }
 
 .fx-dockshell
-  .dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-tabs-container .dv-tab,
+	.dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-scrollable,
 .fx-dockshell
-  .groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-tabs-container .dv-tab {
-  flex-grow: 1;
-  padding: 0;
+	.groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-scrollable,
+.fx-dockshell
+	.dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-tabs-container,
+.fx-dockshell
+	.groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-tabs-container {
+	flex-grow: 1;
 }
 
 .fx-dockshell
-  .dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-void-container,
+	.dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-tabs-container
+	.dv-tab,
 .fx-dockshell
-  .groupview:has(.fx-panel[data-dock-single-tab="full"])
-  > .dv-tabs-and-actions-container.dv-single-tab .dv-void-container {
-  flex-grow: 0;
+	.groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-tabs-container
+	.dv-tab {
+	flex-grow: 1;
+	padding: 0;
+}
+
+.fx-dockshell
+	.dv-groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-void-container,
+.fx-dockshell
+	.groupview:has(.fx-panel[data-dock-single-tab="full"])
+	> .dv-tabs-and-actions-container.dv-single-tab
+	.dv-void-container {
+	flex-grow: 0;
 }
 
 /* UE-style resize affordance for CORE grid gaps only. Dockview's sash remains
@@ -419,59 +471,59 @@
    hoisted outside `.dv-dockview`, so their native shell sashes and overlay
    drawer grip keep their existing behavior. */
 .fx-dockshell .dv-dockview .dv-sash {
-  background: transparent !important;
+	background: transparent !important;
 }
 
 .fx-dockshell .dv-dockview .dv-sash::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  background: var(--lime, #7ee04a);
-  transition: opacity 100ms ease;
+	content: "";
+	position: absolute;
+	pointer-events: none;
+	opacity: 0;
+	background: var(--lime, #7ee04a);
+	transition: opacity 100ms ease;
 }
 
 /* Extend the 4px native hit target across the full 6px visual gap. */
 .fx-dockshell
-  .dv-dockview
-  .dv-split-view-container.dv-horizontal
-  > .dv-sash-container
-  > .dv-sash::before {
-  content: '';
-  position: absolute;
-  inset: 0 -1px;
+	.dv-dockview
+	.dv-split-view-container.dv-horizontal
+	> .dv-sash-container
+	> .dv-sash::before {
+	content: "";
+	position: absolute;
+	inset: 0 -1px;
 }
 
 .fx-dockshell
-  .dv-dockview
-  .dv-split-view-container.dv-vertical
-  > .dv-sash-container
-  > .dv-sash::before {
-  content: '';
-  position: absolute;
-  inset: -1px 0;
+	.dv-dockview
+	.dv-split-view-container.dv-vertical
+	> .dv-sash-container
+	> .dv-sash::before {
+	content: "";
+	position: absolute;
+	inset: -1px 0;
 }
 
 .fx-dockshell
-  .dv-dockview
-  .dv-split-view-container.dv-horizontal
-  > .dv-sash-container
-  > .dv-sash::after {
-  inset: 0 -1px;
+	.dv-dockview
+	.dv-split-view-container.dv-horizontal
+	> .dv-sash-container
+	> .dv-sash::after {
+	inset: 0 -1px;
 }
 
 .fx-dockshell
-  .dv-dockview
-  .dv-split-view-container.dv-vertical
-  > .dv-sash-container
-  > .dv-sash::after {
-  inset: -1px 0;
+	.dv-dockview
+	.dv-split-view-container.dv-vertical
+	> .dv-sash-container
+	> .dv-sash::after {
+	inset: -1px 0;
 }
 
 .fx-dockshell .dv-dockview .dv-sash:hover::after,
 .fx-dockshell .dv-dockview .dv-sash:active::after,
 .fx-dockshell .dv-dockview .dv-sash.dv-sash-active::after {
-  opacity: 1;
+	opacity: 1;
 }
 
 /* Edge-strip tab titles: dockview uses writing-mode:vertical-rl. Default
@@ -480,46 +532,48 @@
    every title rotates the same way as "History" / "Capabilities".
    No `.fx-dockshell` prefix: ShellManager hoists edge groups into `.dv-shell`. */
 .dv-groupview-edge .dv-tabs-container.dv-tabs-container-vertical {
-  text-orientation: sideways;
-  /* Left/right strips render their first tab flush to the strip top; the drawer
+	text-orientation: sideways;
+	/* Left/right strips render their first tab flush to the strip top; the drawer
      it opens is inset 6px from that top. Pad the strip by the same 6px so the
      first tab's top lines up with the flyout's top edge. */
-  padding-top: 6px;
+	padding-top: 6px;
 }
 /* Belt-and-suspenders: empty edge chrome stays unpainted. Drop-back uses the
    root thin-edge overlay → onWillDrop routes into the edge group (edgeDrawer). */
 .dv-groupview-edge.fx-edge-empty {
-  visibility: hidden;
-  pointer-events: none;
+	visibility: hidden;
+	pointer-events: none;
 }
 /* Edge tab hit-target + breathing room: labels must not hug the strip edges.
    vertical-rl: physical padding-block ≈ along the strip, padding-inline ≈ thickness.
    Bottom/top strips stay horizontal — same padding, min-width for length. */
 .dv-groupview-edge .dv-tabs-container.dv-tabs-container-vertical > .dv-tab {
-  min-height: 104px;
-  padding: 10px 6px;
-  box-sizing: border-box;
+	min-height: 104px;
+	padding: 10px 6px;
+	box-sizing: border-box;
 }
-.dv-groupview-edge .dv-tabs-container:not(.dv-tabs-container-vertical) > .dv-tab {
-  min-width: 104px;
-  padding: 6px 12px;
-  box-sizing: border-box;
+.dv-groupview-edge
+	.dv-tabs-container:not(.dv-tabs-container-vertical)
+	> .dv-tab {
+	min-width: 104px;
+	padding: 6px 12px;
+	box-sizing: border-box;
 }
 .dv-groupview-edge .dv-default-tab {
-  padding: 4px 2px;
-  gap: 6px;
-  box-sizing: border-box;
+	padding: 4px 2px;
+	gap: 6px;
+	box-sizing: border-box;
 }
 .dv-groupview-edge .dv-default-tab .dv-default-tab-content {
-  margin: 0;
-  padding: 2px 0;
+	margin: 0;
+	padding: 2px 0;
 }
 /* Vertical edge strips rotate the label via writing-mode; keep the leading icon
    upright (and give it a hair more breathing room) so it reads at the tab head. */
 .dv-groupview-edge .dv-tabs-container-vertical .fx-dock-tab-icon {
-  writing-mode: horizontal-tb;
-  margin-right: 0;
-  margin-bottom: 6px;
+	writing-mode: horizontal-tb;
+	margin-right: 0;
+	margin-bottom: 6px;
 }
 
 /* Edge tabs render a per-TAB Pin toggle in place of close (X) — DockTab picks the
@@ -529,97 +583,103 @@
    read like a selection). Revealed on hover, or on the active tab WHILE THE DRAWER
    IS OPEN (`.fx-edge-drawer-open`); pinned tabs stay lit unconditionally. */
 .dv-groupview-edge .dv-default-tab-action.fx-edge-pin {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  color: var(--dv-activegroup-hiddenpanel-tab-color, #9aa0aa);
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	color: var(--dv-activegroup-hiddenpanel-tab-color, #9aa0aa);
 }
 .dv-groupview-edge .dv-tab:hover .dv-default-tab-action.fx-edge-pin,
-.dv-groupview-edge.fx-edge-drawer-open .dv-tab.dv-active-tab .dv-default-tab-action.fx-edge-pin {
-  opacity: 0.85;
+.dv-groupview-edge.fx-edge-drawer-open
+	.dv-tab.dv-active-tab
+	.dv-default-tab-action.fx-edge-pin {
+	opacity: 0.85;
 }
 .dv-groupview-edge .dv-default-tab-action.fx-edge-pin.fx-edge-pin--on {
-  opacity: 1;
-  color: var(--lime, #7ee04a);
+	opacity: 1;
+	color: var(--lime, #7ee04a);
 }
 .dv-groupview-edge .dv-default-tab-action.fx-edge-pin .fx-edge-pin-icon {
-  display: block;
-  width: 12px;
-  height: 12px;
-  flex: 0 0 auto;
+	display: block;
+	width: 12px;
+	height: 12px;
+	flex: 0 0 auto;
 }
 
 :root {
-  /* Shared by the open-drawer group and the popover rule that must stay above
+	/* Shared by the open-drawer group and the popover rule that must stay above
      it — both live in the dock shell's stacking context. */
-  --fx-edge-drawer-z: 1000;
+	--fx-edge-drawer-z: 1000;
 }
 
 /* A keep-alive viewport is portalled outside dockview's stacking tree. While
    an edge drawer owns foreground interaction, make the underlying surface
    click-through so drawer controls cannot be intercepted by its canvas. */
 html.fx-edge-drawer-visible .fx-surface-keepalive-item {
-  pointer-events: none !important;
+	pointer-events: none !important;
 }
 
 /* Body-level host for the open edge-drawer flyout (see edgeDrawer.ts). Sits
    above the keep-alive viewport (z-index: 40) but below footer drop overlays
    (100) and dock popovers (1000). Viewport stays visible underneath. */
 .fx-edge-drawer-portal-host {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 50;
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: 50;
 }
 .fx-edge-drawer-portal-host > .fx-edge-drawer-grip {
-  pointer-events: auto;
+	pointer-events: auto;
 }
 
 /* Tab context menu — PageTabStrip DropdownMenu parity (lime hover + black text).
    Scope under .fx-dockwrap (popover anchor lives on .dv-shell inside it).
    CSS only; do NOT relocate .dv-popover-anchor (breaks edgeDrawer portal). */
 .fx-dockwrap .dv-context-menu {
-  min-width: 186px;
-  padding: 4px !important;
-  background-color: var(--color-background-elevated, #242424) !important;
-  color: var(--color-text-secondary, rgba(255, 255, 255, 0.60));
-  border: 1px solid var(--color-border-default, #404040);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+	min-width: 186px;
+	padding: 4px !important;
+	background-color: var(--color-background-elevated, #242424) !important;
+	color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
+	border: 1px solid var(--color-border-default, #404040);
+	border-radius: var(--radius-md, 8px);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 .fx-dockwrap .dv-context-menu-item {
-  height: auto;
-  min-height: 28px;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm, 4px);
-  font-size: 12px;
-  line-height: 1.25;
-  color: var(--color-text-secondary, rgba(255, 255, 255, 0.60));
+	height: auto;
+	min-height: 28px;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: var(--radius-sm, 4px);
+	font-size: 12px;
+	line-height: 1.25;
+	color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
 }
 .fx-dockwrap .dv-context-menu-item .dv-svg,
 .fx-dockwrap .dv-context-menu-item svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
 }
 .fx-dockwrap .dv-context-menu-item:not(.dv-context-menu-item--disabled):hover {
-  background-color: var(--color-brand-primary, #d4ff48) !important;
-  color: var(--color-text-on-bright-primary, #000000) !important;
+	background-color: var(--color-brand-primary, #d4ff48) !important;
+	color: var(--color-text-on-bright-primary, #000000) !important;
 }
-.fx-dockwrap .dv-context-menu-item:not(.dv-context-menu-item--disabled):hover .dv-svg,
-.fx-dockwrap .dv-context-menu-item:not(.dv-context-menu-item--disabled):hover svg {
-  color: var(--color-text-on-bright-primary, #000000);
-  fill: currentcolor;
+.fx-dockwrap
+	.dv-context-menu-item:not(.dv-context-menu-item--disabled):hover
+	.dv-svg,
+.fx-dockwrap
+	.dv-context-menu-item:not(.dv-context-menu-item--disabled):hover
+	svg {
+	color: var(--color-text-on-bright-primary, #000000);
+	fill: currentcolor;
 }
 .fx-dockwrap .dv-context-menu-item.dv-context-menu-item--disabled {
-  opacity: 0.5;
+	opacity: 0.5;
 }
 .fx-dockwrap .dv-context-menu-separator {
-  height: 1px;
-  margin: 4px;
-  background: var(--color-divider-subtle, rgba(255, 255, 255, 0.05));
+	height: 1px;
+	margin: 4px;
+	background: var(--color-divider-subtle, rgba(255, 255, 255, 0.05));
 }
 
 /* ── Edge-group DRAWER overlay (see edgeDrawer.ts) ───────────────────────────
@@ -635,12 +695,12 @@ html.fx-edge-drawer-visible .fx-surface-keepalive-item {
    `.fx-edge-drawer-open` marker class (added by edgeDrawer.ts), which only ever
    lands on a DockShell edge group. */
 .dv-groupview-edge.fx-edge-drawer-open {
-  /* The edge group remains in dockview's shell while its content is promoted
+	/* The edge group remains in dockview's shell while its content is promoted
      to a fixed drawer. Raise the WHOLE group, not only the content node:
      dockview's sash/drop layers are siblings and otherwise win hit-testing on
      the 1px boundary between the drawer and the underlying panel. */
-  position: relative;
-  z-index: var(--fx-edge-drawer-z) !important;
+	position: relative;
+	z-index: var(--fx-edge-drawer-z) !important;
 }
 
 /* dockview mounts tab context menus (and the tab-overflow dropdown) into a
@@ -651,33 +711,33 @@ html.fx-edge-drawer-visible .fx-surface-keepalive-item {
    worked while it was closed. A popover is always the topmost dock chrome;
    `!important` is what it takes to beat dockview's inline z-index. */
 .dv-popover-anchor > * {
-  z-index: calc(var(--fx-edge-drawer-z) + 1) !important;
+	z-index: calc(var(--fx-edge-drawer-z) + 1) !important;
 }
 
 .dv-groupview-edge.fx-edge-drawer-open > .dv-content-container,
 .fx-edge-drawer-portal-host > .dv-content-container {
-  /* UE-style: the flyout is INSET on its cross axis (the axis parallel to the
+	/* UE-style: the flyout is INSET on its cross axis (the axis parallel to the
      strip) so its far edges never sit flush on the shell's layout separators —
      a full-height/width overlay reads as "no panel" because its border merges
      with the sash line. 10px each end keeps the panel's own outline visible. */
-  --fx-edge-drawer-inset: 6px;
-  display: block !important;
-  position: fixed;
-  pointer-events: auto;
-  width: var(--fx-edge-drawer-width, 300px);
-  /* left/right strips: cross axis = vertical → inset top + bottom. */
-  height: calc(var(--fx-edge-strip-height) - 2 * var(--fx-edge-drawer-inset));
-  top: calc(var(--fx-edge-strip-top) + var(--fx-edge-drawer-inset));
-  z-index: 60;
-  background: var(--dv-group-view-background-color, #0d0d0f);
-  /* Floating (inset) flyout: outline the THREE free sides + a directional
+	--fx-edge-drawer-inset: 6px;
+	display: block !important;
+	position: fixed;
+	pointer-events: auto;
+	width: var(--fx-edge-drawer-width, 300px);
+	/* left/right strips: cross axis = vertical → inset top + bottom. */
+	height: calc(var(--fx-edge-strip-height) - 2 * var(--fx-edge-drawer-inset));
+	top: calc(var(--fx-edge-strip-top) + var(--fx-edge-drawer-inset));
+	z-index: 60;
+	background: var(--dv-group-view-background-color, #0d0d0f);
+	/* Floating (inset) flyout: outline the THREE free sides + a directional
      elevation shadow. The side that meets the strip (the anchor edge) must stay
      borderless + shadowless so the flyout reads as attached to the menu bar,
      not floating over it — the per-direction rules below strip that edge's
      border, flatten its corners and cast the shadow AWAY from the strip. */
-  border: 1px solid var(--dv-separator-border, #2a2d30);
-  border-radius: 6px;
-  overflow: hidden;
+	border: 1px solid var(--dv-separator-border, #2a2d30);
+	border-radius: 6px;
+	overflow: hidden;
 }
 /* UE-style expand: the drawer wipes OUT from the strip's outer edge and fades in.
    Animation is gated on `.fx-edge-drawer-animating` (toggled by edgeDrawer.ts) so
@@ -686,78 +746,128 @@ html.fx-edge-drawer-visible .fx-surface-keepalive-item {
    flips `display: none → block`, we use `animation` (not `transition`). We do NOT
    translate the box (that would drag it back OVER the strip); the box stays pinned
    at its anchor and we reveal with `clip-path` growing away from the strip. */
-@keyframes fx-edge-drawer-in-left {   /* anchored left → grow right  */
-  from { clip-path: inset(0 100% 0 0); opacity: 0.2; }
-  to   { clip-path: inset(0 0 0 0);    opacity: 1; }
+@keyframes fx-edge-drawer-in-left {
+	/* anchored left → grow right  */
+	from {
+		clip-path: inset(0 100% 0 0);
+		opacity: 0.2;
+	}
+	to {
+		clip-path: inset(0 0 0 0);
+		opacity: 1;
+	}
 }
-@keyframes fx-edge-drawer-in-right {  /* anchored right → grow left  */
-  from { clip-path: inset(0 0 0 100%); opacity: 0.2; }
-  to   { clip-path: inset(0 0 0 0);    opacity: 1; }
+@keyframes fx-edge-drawer-in-right {
+	/* anchored right → grow left  */
+	from {
+		clip-path: inset(0 0 0 100%);
+		opacity: 0.2;
+	}
+	to {
+		clip-path: inset(0 0 0 0);
+		opacity: 1;
+	}
 }
-@keyframes fx-edge-drawer-in-top {    /* anchored top → grow down    */
-  from { clip-path: inset(0 0 100% 0); opacity: 0.2; }
-  to   { clip-path: inset(0 0 0 0);    opacity: 1; }
+@keyframes fx-edge-drawer-in-top {
+	/* anchored top → grow down    */
+	from {
+		clip-path: inset(0 0 100% 0);
+		opacity: 0.2;
+	}
+	to {
+		clip-path: inset(0 0 0 0);
+		opacity: 1;
+	}
 }
-@keyframes fx-edge-drawer-in-bottom { /* anchored bottom → grow up   */
-  from { clip-path: inset(100% 0 0 0); opacity: 0.2; }
-  to   { clip-path: inset(0 0 0 0);    opacity: 1; }
+@keyframes fx-edge-drawer-in-bottom {
+	/* anchored bottom → grow up   */
+	from {
+		clip-path: inset(100% 0 0 0);
+		opacity: 0.2;
+	}
+	to {
+		clip-path: inset(0 0 0 0);
+		opacity: 1;
+	}
 }
 /* Left strip → flyout to the right; right strip → flyout to the left. */
-.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-open > .dv-content-container,
+.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-open
+> .dv-content-container,
 .fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-left {
-  /* Own the shared boundary while the drawer is open. The small overlap keeps
+	/* Own the shared boundary while the drawer is open. The small overlap keeps
      the underlying split sash from winning when the pointer lands exactly on
      the panel border. */
-  left: calc(var(--fx-edge-drawer-left) - 3px);
-  width: calc(var(--fx-edge-drawer-width, 300px) + 3px);
-  /* keep the full border; only cast the shadow AWAY from the strip (rightward). */
-  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.30), 1px 0 3px rgba(0, 0, 0, 0.22);
+	left: calc(var(--fx-edge-drawer-left) - 3px);
+	width: calc(var(--fx-edge-drawer-width, 300px) + 3px);
+	/* keep the full border; only cast the shadow AWAY from the strip (rightward). */
+	box-shadow:
+		4px 0 12px rgba(0, 0, 0, 0.3),
+		1px 0 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-animating > .dv-content-container,
-.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-left.fx-edge-drawer-animating {
-  animation: fx-edge-drawer-in-left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+.dv-groupview-edge.dv-groupview-header-left.fx-edge-drawer-animating
+	> .dv-content-container,
+.fx-edge-drawer-portal-host
+	> .dv-content-container.dv-groupview-header-left.fx-edge-drawer-animating {
+	animation: fx-edge-drawer-in-left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-open > .dv-content-container,
+.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-open
+	> .dv-content-container,
 .fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-right {
-  right: calc(var(--fx-edge-drawer-right) - 3px);
-  width: calc(var(--fx-edge-drawer-width, 300px) + 3px);
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.30), -1px 0 3px rgba(0, 0, 0, 0.22);
+	right: calc(var(--fx-edge-drawer-right) - 3px);
+	width: calc(var(--fx-edge-drawer-width, 300px) + 3px);
+	box-shadow:
+		-4px 0 12px rgba(0, 0, 0, 0.3),
+		-1px 0 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-animating > .dv-content-container,
-.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-right.fx-edge-drawer-animating {
-  animation: fx-edge-drawer-in-right 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+.dv-groupview-edge.dv-groupview-header-right.fx-edge-drawer-animating
+	> .dv-content-container,
+.fx-edge-drawer-portal-host
+	> .dv-content-container.dv-groupview-header-right.fx-edge-drawer-animating {
+	animation: fx-edge-drawer-in-right 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* Top/bottom strips → full-width flyout dropping down / rising up. */
-.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open > .dv-content-container,
-.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container,
+.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open
+> .dv-content-container,
+.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open
+	> .dv-content-container,
 .fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-top,
 .fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-bottom {
-  /* top/bottom strips: cross axis = horizontal → inset left + right, and reset
+	/* top/bottom strips: cross axis = horizontal → inset left + right, and reset
      the vertical inset the base rule applied for left/right strips. */
-  left: calc(var(--fx-edge-strip-left) + var(--fx-edge-drawer-inset));
-  width: calc(var(--fx-edge-strip-width) - 2 * var(--fx-edge-drawer-inset));
-  height: var(--fx-edge-drawer-height, 300px);
+	left: calc(var(--fx-edge-strip-left) + var(--fx-edge-drawer-inset));
+	width: calc(var(--fx-edge-strip-width) - 2 * var(--fx-edge-drawer-inset));
+	height: var(--fx-edge-drawer-height, 300px);
 }
-.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open > .dv-content-container,
+.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-open
+	> .dv-content-container,
 .fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-top {
-  top: calc(var(--fx-edge-drawer-top) - 3px);
-  height: calc(var(--fx-edge-drawer-height, 300px) + 3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.22);
+	top: calc(var(--fx-edge-drawer-top) - 3px);
+	height: calc(var(--fx-edge-drawer-height, 300px) + 3px);
+	box-shadow:
+		0 4px 12px rgba(0, 0, 0, 0.3),
+		0 1px 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-animating > .dv-content-container,
-.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-top.fx-edge-drawer-animating {
-  animation: fx-edge-drawer-in-top 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+.dv-groupview-edge.dv-groupview-header-top.fx-edge-drawer-animating
+	> .dv-content-container,
+.fx-edge-drawer-portal-host
+	> .dv-content-container.dv-groupview-header-top.fx-edge-drawer-animating {
+	animation: fx-edge-drawer-in-top 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open > .dv-content-container,
+.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-open
+	> .dv-content-container,
 .fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-bottom {
-  top: auto;
-  bottom: calc(var(--fx-edge-drawer-bottom) - 3px);
-  height: calc(var(--fx-edge-drawer-height, 300px) + 3px);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.30), 0 -1px 3px rgba(0, 0, 0, 0.22);
+	top: auto;
+	bottom: calc(var(--fx-edge-drawer-bottom) - 3px);
+	height: calc(var(--fx-edge-drawer-height, 300px) + 3px);
+	box-shadow:
+		0 -4px 12px rgba(0, 0, 0, 0.3),
+		0 -1px 3px rgba(0, 0, 0, 0.22);
 }
-.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-animating > .dv-content-container,
-.fx-edge-drawer-portal-host > .dv-content-container.dv-groupview-header-bottom.fx-edge-drawer-animating {
-  animation: fx-edge-drawer-in-bottom 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+.dv-groupview-edge.dv-groupview-header-bottom.fx-edge-drawer-animating
+	> .dv-content-container,
+.fx-edge-drawer-portal-host
+	> .dv-content-container.dv-groupview-header-bottom.fx-edge-drawer-animating {
+	animation: fx-edge-drawer-in-bottom 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* Our self-drawn resize grip (edgeDrawer.ts positions it inline via `fixed`).
    Native dockview resize is a splitview sash that pushes the grid — forbidden here
@@ -767,38 +877,88 @@ html.fx-edge-drawer-visible .fx-surface-keepalive-item {
    bar — but only WHILE dragging, not on mere hover (the resize cursor already
    signals it's grabbable; a bar-on-enter reads as a spurious focus line). */
 .fx-edge-drawer-grip {
-  z-index: 61;
-  background: transparent;
-  transition: background 0.1s ease;
+	z-index: 61;
+	background: transparent;
+	transition: background 0.1s ease;
 }
 .fx-edge-drawer-grip.fx-edge-drawer-grip--dragging {
-  background: var(--lime, #7ee04a);
+	background: var(--lime, #7ee04a);
 }
 
 /* Standalone Console dock panel. */
-.fx-console-panel { display: flex; flex-direction: column; height: 100%; background: var(--color-background-base, #0d0d0f); }
-.fx-console-bar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--color-border-default, #2a2d30); font-family: var(--font-mono, monospace); font-size: 11px; color: var(--color-text-tertiary, #778); }
-.fx-console-title { flex: 1 1 auto; }
-.fx-console-clear { cursor: pointer; background: none; border: none; color: var(--color-text-tertiary, #778); font: inherit; }
-.fx-console-clear:hover { color: var(--color-text-primary, #fff); }
-.fx-console-body { flex: 1 1 auto; overflow: auto; padding: 4px 0; }
+.fx-console-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--color-background-base, #0d0d0f);
+}
+.fx-console-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	border-bottom: 1px solid var(--color-border-default, #2a2d30);
+	font-family: var(--font-mono, monospace);
+	font-size: 11px;
+	color: var(--color-text-tertiary, #778);
+}
+.fx-console-title {
+	flex: 1 1 auto;
+}
+.fx-console-clear {
+	cursor: pointer;
+	background: none;
+	border: none;
+	color: var(--color-text-tertiary, #778);
+	font: inherit;
+}
+.fx-console-clear:hover {
+	color: var(--color-text-primary, #fff);
+}
+.fx-console-body {
+	flex: 1 1 auto;
+	overflow: auto;
+	padding: 4px 0;
+}
 
 /* Per-group popout action in the tab bar's right actions slot. */
 .fx-grp-popout {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 100%; padding: 0 8px; cursor: pointer; background: none; border: none;
-  color: var(--color-text-tertiary, #778); font-size: 13px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 0 8px;
+	cursor: pointer;
+	background: none;
+	border: none;
+	color: var(--color-text-tertiary, #778);
+	font-size: 13px;
 }
-.fx-grp-popout:hover { color: var(--lime, #7ee04a); }
+.fx-grp-popout:hover {
+	color: var(--lime, #7ee04a);
+}
 
 /* Floating windows DO keep rounded corners + shadow (design: 圆角只留浮动/弹出窗). */
-.fx-dockshell .dv-resize-container { border-radius: 8px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55); overflow: hidden; }
+.fx-dockshell .dv-resize-container {
+	border-radius: 8px;
+	box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+	overflow: hidden;
+}
 
 /* Make the hosted panel bodies fill their group content area. */
-.fx-dockshell .dv-react-part > * { height: 100%; width: 100%; }
+.fx-dockshell .dv-react-part > * {
+	height: 100%;
+	width: 100%;
+}
 
 /* Wrapper so the layout control can pin over the dock. */
-.fx-dockwrap { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
+.fx-dockwrap {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+}
 
 /* Secondary region — AuxBar. Fixed-width column to the right of DockShell;
    DockShell keeps `flex: 1 1 auto` (from .fx-dockwrap above) and grows to fill
@@ -807,7 +967,10 @@ html.fx-edge-drawer-visible .fx-surface-keepalive-item {
    Width is applied inline from useAuxBarWidth so drag updates propagate
    without a CSS variable dance. Default + clamping live in the store.
    position: relative anchors the .fx-auxbar-resizer absolutely at the left edge. */
-.fx-dockregion-AuxBar { flex: 0 0 auto; position: relative; }
+.fx-dockregion-AuxBar {
+	flex: 0 0 auto;
+	position: relative;
+}
 
 /* ChatDock — the fixed-width chat column right of the ActivityRail. Same
    fixed-basis override as AuxBar so the inline width from useChatWidth wins
@@ -817,33 +980,35 @@ html.fx-edge-drawer-visible .fx-surface-keepalive-item {
    clipping a full-width inner dock so chat cards never reflow through unusably
    narrow intermediate states. */
 .fx-dockregion-ChatDock {
-  flex: 0 0 auto;
-  position: relative;
-  overflow: hidden;
+	flex: 0 0 auto;
+	position: relative;
+	overflow: hidden;
 }
 /* Collapse is a shell visibility flag, not a width mutation: preserve the
    last drag-restored width in the store so expanding returns to the same size. */
 .studio-shell[data-chatpanel-collapsed="1"] .fx-dockregion-ChatDock {
-  display: none;
+	display: none;
 }
 /* The shared resizer normally occupies the 6px gutter at left:-6px. ChatDock
    must clip its fixed-width inner dock during collapse/expand, which also clips
    that outside child from hit-testing. Keep this instance inside the boundary;
    the 6px edge remains draggable without weakening animation containment. */
 .fx-dockregion-ChatDock > .fx-chat-resizer {
-  left: 0;
+	left: 0;
 }
 .fx-dockregion-ChatDock.is-anim {
-  transition: width var(--motion-duration-panel) var(--motion-ease-standard);
+	transition: width var(--motion-duration-panel) var(--motion-ease-standard);
 }
-body.fx-chat-resizing .fx-dockregion-ChatDock { transition: none; }
+body.fx-chat-resizing .fx-dockregion-ChatDock {
+	transition: none;
+}
 
 .fx-chatdock-inner {
-  position: absolute;
-  inset: 0 auto 0 0;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+	position: absolute;
+	inset: 0 auto 0 0;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
 }
 
 /* While a chat panel is being UE-dragged, collapse its fixed shell column so the
@@ -852,7 +1017,9 @@ body.fx-chat-resizing .fx-dockregion-ChatDock { transition: none; }
    here never hides the drag preview. Removing the class on drop restores the
    column when chat lands back home; a cross-instance drop into DockShell instead
    fires onDidRemovePanel → chatColumnMounted:false, keeping it collapsed. */
-html.fx-ue-dragging-chat .fx-dockregion-ChatDock { display: none !important; }
+html.fx-ue-dragging-chat .fx-dockregion-ChatDock {
+	display: none !important;
+}
 
 /* While dragging a dockview TAB/GROUP (fx-dock-dragging is scoped to tab-strip
    drags in DockRegion — NOT in-panel HTML5 drags like Hierarchy rows), make the
@@ -887,132 +1054,298 @@ html.fx-ue-dragging-chat .fx-dockregion-ChatDock { display: none !important; }
    hit-testing before `pointerup` is targeted, so `click` retargets to the
    .dv-react-part ancestor and never reaches the close (X) / pop-out handlers. */
 html.fx-dock-dragging iframe,
-html.fx-dock-dragging .fx-surface-keepalive-item { pointer-events: none !important; }
+html.fx-dock-dragging .fx-surface-keepalive-item {
+	pointer-events: none !important;
+}
 html.fx-dock-dragging
-  .fx-dockshell
-  .dv-react-part:not(.dv-tabs-and-actions-container *) > * { pointer-events: none !important; }
+	.fx-dockshell
+	.dv-react-part:not(.dv-tabs-and-actions-container *)
+	> * {
+	pointer-events: none !important;
+}
 /* The UE tab-drag controller uses its own drag state. Keep the same stable
    body hit target for that path so viewport children cannot swallow drops. */
 html.fx-ue-dragging
-  .fx-dockshell
-  .dv-react-part:not(.dv-tabs-and-actions-container *) > * { pointer-events: none !important; }
+	.fx-dockshell
+	.dv-react-part:not(.dv-tabs-and-actions-container *)
+	> * {
+	pointer-events: none !important;
+}
 
 /* Per-group "pop out to OS window" button (rightHeaderActionsComponent). */
 .fx-dock-popout {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; margin: 0 2px; padding: 0; cursor: pointer;
-  background: transparent; color: var(--color-text-secondary, #aab);
-  border: none; border-radius: 4px; font-size: 13px; line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	margin: 0 2px;
+	padding: 0;
+	cursor: pointer;
+	background: transparent;
+	color: var(--color-text-secondary, #aab);
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	line-height: 1;
 }
-.fx-dock-popout:hover { color: var(--color-text-primary, #fff); background: var(--color-background-base, #0e0e10); }
+.fx-dock-popout:hover {
+	color: var(--color-text-primary, #fff);
+	background: var(--color-background-base, #0e0e10);
+}
 
 /* Layout control — pinned top-right, above the dock. */
-.fx-dock-layout { position: absolute; top: 4px; right: 8px; z-index: var(--z-dropdown); font-family: var(--font-mono, monospace); }
-.fx-dl-btn {
-  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; cursor: pointer;
-  background: var(--color-background-elevated, #161619); color: var(--color-text-secondary, #aab);
-  border: 1px solid var(--color-border-default, #2a2d30); border-radius: 6px; font-size: 11px;
+.fx-dock-layout {
+	position: absolute;
+	top: 4px;
+	right: 8px;
+	z-index: var(--z-dropdown);
+	font-family: var(--font-mono, monospace);
 }
-.fx-dl-btn:hover { color: var(--color-text-primary, #fff); border-color: var(--lime, #7ee04a); }
+.fx-dl-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 9px;
+	cursor: pointer;
+	background: var(--color-background-elevated, #161619);
+	color: var(--color-text-secondary, #aab);
+	border: 1px solid var(--color-border-default, #2a2d30);
+	border-radius: 6px;
+	font-size: 11px;
+}
+.fx-dl-btn:hover {
+	color: var(--color-text-primary, #fff);
+	border-color: var(--lime, #7ee04a);
+}
 .fx-dl-menu {
-  position: absolute; top: 28px; right: 0; min-width: 160px; padding: 4px;
-  background: var(--color-background-elevated, #161619); border: 1px solid var(--color-border-default, #2a2d30);
-  border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 1px;
-  max-height: min(480px, calc(100vh - 60px)); overflow-y: auto;
+	position: absolute;
+	top: 28px;
+	right: 0;
+	min-width: 160px;
+	padding: 4px;
+	background: var(--color-background-elevated, #161619);
+	border: 1px solid var(--color-border-default, #2a2d30);
+	border-radius: 8px;
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	max-height: min(480px, calc(100vh - 60px));
+	overflow-y: auto;
 }
 /* 重置布局 pinned at the top — stays put while the panel list scrolls under it. */
 .fx-dl-reset {
-  position: sticky; top: -4px; z-index: 1;
-  background: var(--color-background-elevated, #161619);
-  color: var(--lime, #7ee04a);
+	position: sticky;
+	top: -4px;
+	z-index: 1;
+	background: var(--color-background-elevated, #161619);
+	color: var(--lime, #7ee04a);
 }
-.fx-dl-menu::-webkit-scrollbar { width: 4px; }
-.fx-dl-menu::-webkit-scrollbar-track { background: transparent; }
-.fx-dl-menu::-webkit-scrollbar-thumb { background: var(--color-border-default, #2a2d30); border-radius: 2px; }
-.fx-dl-menu::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary, #778); }
-.fx-dl-head { font-size: 10px; color: var(--color-text-tertiary, #778); padding: 3px 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+.fx-dl-menu::-webkit-scrollbar {
+	width: 4px;
+}
+.fx-dl-menu::-webkit-scrollbar-track {
+	background: transparent;
+}
+.fx-dl-menu::-webkit-scrollbar-thumb {
+	background: var(--color-border-default, #2a2d30);
+	border-radius: 2px;
+}
+.fx-dl-menu::-webkit-scrollbar-thumb:hover {
+	background: var(--color-text-tertiary, #778);
+}
+.fx-dl-head {
+	font-size: 10px;
+	color: var(--color-text-tertiary, #778);
+	padding: 3px 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
 .fx-dl-item {
-  display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; text-align: left;
-  background: none; border: none; color: var(--color-text-secondary, #aab); font: inherit; font-size: 11px; border-radius: 5px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	cursor: pointer;
+	text-align: left;
+	background: none;
+	border: none;
+	color: var(--color-text-secondary, #aab);
+	font: inherit;
+	font-size: 11px;
+	border-radius: 5px;
 }
-.fx-dl-item:hover { background: var(--color-interaction-hover, #23262a); color: var(--color-text-primary, #fff); }
-.fx-dl-item.on { color: var(--color-text-primary, #fff); }
-.fx-dl-check { width: 12px; color: var(--lime, #7ee04a); }
-.fx-dl-icon { flex: 0 0 auto; color: var(--color-text-tertiary, #778); }
-.fx-dl-item:hover .fx-dl-icon, .fx-dl-item.on .fx-dl-icon { color: var(--color-text-primary, #fff); }
-.fx-dl-sep { height: 1px; background: var(--color-border-default, #2a2d30); margin: 3px 0; }
-.fx-dl-empty { font-size: 10px; color: var(--color-text-tertiary, #778); padding: 2px 8px; }
-.fx-dl-preset { display: flex; align-items: center; }
-.fx-dl-grow { flex: 1 1 auto; min-width: 0; }
-.fx-dl-del { cursor: pointer; background: none; border: none; color: var(--color-text-tertiary, #778); font: inherit; padding: 0 6px; }
-.fx-dl-del:hover { color: var(--color-text-primary, #fff); }
+.fx-dl-item:hover {
+	background: var(--color-interaction-hover, #23262a);
+	color: var(--color-text-primary, #fff);
+}
+.fx-dl-item.on {
+	color: var(--color-text-primary, #fff);
+}
+.fx-dl-check {
+	width: 12px;
+	color: var(--lime, #7ee04a);
+}
+.fx-dl-icon {
+	flex: 0 0 auto;
+	color: var(--color-text-tertiary, #778);
+}
+.fx-dl-item:hover .fx-dl-icon,
+.fx-dl-item.on .fx-dl-icon {
+	color: var(--color-text-primary, #fff);
+}
+.fx-dl-sep {
+	height: 1px;
+	background: var(--color-border-default, #2a2d30);
+	margin: 3px 0;
+}
+.fx-dl-empty {
+	font-size: 10px;
+	color: var(--color-text-tertiary, #778);
+	padding: 2px 8px;
+}
+.fx-dl-preset {
+	display: flex;
+	align-items: center;
+}
+.fx-dl-grow {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.fx-dl-del {
+	cursor: pointer;
+	background: none;
+	border: none;
+	color: var(--color-text-tertiary, #778);
+	font: inherit;
+	padding: 0 6px;
+}
+.fx-dl-del:hover {
+	color: var(--color-text-primary, #fff);
+}
 
 /* EditorPanelFrame — editor sub-panels as outer DockShell leaves */
-.ep-frame-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.ep-frame-iframe { flex: 1 1 auto; width: 100%; height: 100%; border: none; background: var(--dv-background-color, #151618); display: block; }
-.ep-frame-unavailable {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  padding: 14px;
-  background: var(--dv-background-color, #151618);
-  color: var(--color-text-secondary, #aab);
-  font-size: 12px;
+.ep-frame-wrap {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
 }
-.ep-frame-unavailable-title { color: var(--color-text-primary, #eee); font-weight: 700; }
-.ep-frame-unavailable-desc { color: var(--color-text-tertiary, #778); line-height: 1.45; }
+.ep-frame-iframe {
+	flex: 1 1 auto;
+	width: 100%;
+	height: 100%;
+	border: none;
+	background: var(--dv-background-color, #151618);
+	display: block;
+}
+.ep-frame-unavailable {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 6px;
+	padding: 14px;
+	background: var(--dv-background-color, #151618);
+	color: var(--color-text-secondary, #aab);
+	font-size: 12px;
+}
+.ep-frame-unavailable-title {
+	color: var(--color-text-primary, #eee);
+	font-weight: 700;
+}
+.ep-frame-unavailable-desc {
+	color: var(--color-text-tertiary, #778);
+	line-height: 1.45;
+}
 
 /* WbPluginDockPanel — plugin as a top-level dock leaf */
-.page-dock-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.page-dock-standalone { position: relative; }
-.page-dock-loading, .page-dock-placeholder { padding: 16px; font-size: 13px; color: var(--color-text-secondary, #aaa); }
-.page-dock-error { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.page-dock-error button { color: inherit; border: 1px solid currentColor; border-radius: 4px; padding: 4px 10px; }
-.page-dock-name { font-weight: 700; color: var(--color-text-primary, #eee); margin-bottom: 4px; }
-.page-dock-desc { font-size: 12px; margin-bottom: 8px; }
-.page-dock-id { font-family: monospace; font-size: 10px; opacity: 0.5; }
+.page-dock-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+.page-dock-standalone {
+	position: relative;
+}
+.page-dock-loading,
+.page-dock-placeholder {
+	padding: 16px;
+	font-size: 13px;
+	color: var(--color-text-secondary, #aaa);
+}
+.page-dock-error {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+}
+.page-dock-error button {
+	color: inherit;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	padding: 4px 10px;
+}
+.page-dock-name {
+	font-weight: 700;
+	color: var(--color-text-primary, #eee);
+	margin-bottom: 4px;
+}
+.page-dock-desc {
+	font-size: 12px;
+	margin-bottom: 8px;
+}
+.page-dock-id {
+	font-family: monospace;
+	font-size: 10px;
+	opacity: 0.5;
+}
 
 /* AuxBar resize handle — 6px column on the LEFT edge. Cursor col-resize + a
    subtle hover to signal draggability. During drag we overlay a full-viewport
    catcher via ::after (below) to keep the pointer from being stolen by the
    viewport iframe mid-drag. */
 .fx-auxbar-resizer {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  margin: 0;
-  cursor: col-resize;
-  z-index: 10;
-  background: transparent;
-  transition: background 120ms ease;
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 6px;
+	margin: 0;
+	cursor: col-resize;
+	z-index: 10;
+	background: transparent;
+	transition: background 120ms ease;
 }
-.resize-handle.fx-auxbar-resizer::after { content: none; }
+.resize-handle.fx-auxbar-resizer::after {
+	content: none;
+}
 .fx-auxbar-resizer:hover,
 body.fx-auxbar-resizing .fx-auxbar-resizer {
-  background: rgba(120, 200, 255, 0.35);
+	background: rgba(120, 200, 255, 0.35);
 }
 /* During drag, put a transparent full-viewport overlay so the iframe
    (engine viewport) can't intercept pointermove. The overlay itself is a
    pseudo-element so the pointer still reaches the resizer above it; iframes
    below inherit `pointer-events: none` from the rule that follows. */
 body.fx-auxbar-resizing::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 9;
-  cursor: col-resize;
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: 9;
+	cursor: col-resize;
 }
-body.fx-auxbar-resizing iframe { pointer-events: none; }
+body.fx-auxbar-resizing iframe {
+	pointer-events: none;
+}
 .fx-page-empty {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--color-text-muted);
-  background: var(--color-bg-canvas);
-  pointer-events: none;
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	color: var(--color-text-muted);
+	background: var(--color-bg-canvas);
+	pointer-events: none;
 }

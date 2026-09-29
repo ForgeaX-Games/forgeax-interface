@@ -3,7 +3,7 @@
 .studio-shell .settings-save-btn,
 .studio-shell .fx-ob-btn-primary,
 .studio-shell .tour-btn-primary {
-  color: var(--color-text-on-bright-primary, #000000);
+	color: var(--color-text-on-bright-primary, #000000);
 }
 
 .studio-shell .tb-modal-btn.primary:hover:not(:disabled),
@@ -15,5 +15,5 @@
 .studio-shell .fx-ob-btn-primary:disabled:hover,
 .studio-shell .tour-btn-primary:hover:not(:disabled),
 .studio-shell .tour-btn-primary:active:not(:disabled) {
-  color: var(--color-text-on-bright-primary, #000000);
+	color: var(--color-text-on-bright-primary, #000000);
 }

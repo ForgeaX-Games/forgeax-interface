@@ -1,46 +1,67 @@
-// packages/interface/src/core/app-shell/react/HostProvider.tsx
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import type { AppHost } from '../types';
+// Compatibility adapter while Interface consumers migrate to
+// @forgeax/app-shell/application. The provider delegates to App Shell so every
+// product shares one React context identity; the local hooks retain Interface's
+// narrower host type until its remaining product shell is retired.
 
-const HostContext = createContext<AppHost | null>(null);
+import {
+	type AppHost as ApplicationHost,
+	HostProvider as ApplicationHostProvider,
+	useHost as useApplicationHost,
+} from "@forgeax/app-shell/application";
+import React, { useCallback, useEffect, useState } from "react";
+import type { AppHost } from "../types";
 
-export const HostProvider: React.FC<{ value: AppHost; children: React.ReactNode }> = ({ value, children }) => {
-  return <HostContext.Provider value={value}>{children}</HostContext.Provider>;
-};
+export const HostProvider: React.FC<{
+	value: AppHost;
+	children: React.ReactNode;
+}> = ({ value, children }) => (
+	<ApplicationHostProvider value={value as unknown as ApplicationHost}>
+		{children}
+	</ApplicationHostProvider>
+);
 
 export function useHost(): AppHost {
-  const host = useContext(HostContext);
-  if (!host) throw new Error('[app-shell] useHost() called outside <HostProvider>');
-  return host;
+	return useApplicationHost() as unknown as AppHost;
 }
 
-export function useCommand<Args = unknown, R = unknown>(id: string): (args?: Args) => Promise<R> {
-  const host = useHost();
-  return useCallback((args?: Args) => host.commands.execute<R>(id, args as unknown), [host, id]);
+export function useCommand<Args = unknown, Result = unknown>(
+	id: string,
+): (args?: Args) => Promise<Result> {
+	const host = useHost();
+	return useCallback(
+		(args?: Args) => host.commands.execute<Result>(id, args as unknown),
+		[host, id],
+	);
 }
 
-export function useContextKey<T>(key: string): T | undefined {
-  const host = useHost();
-  const [value, setValue] = useState<T | undefined>(() => host.contextKeys.get<T>(key));
-  useEffect(() => {
-    // Re-read on effect-flush to close the render-vs-subscribe race: a
-    // synchronous contextKeys.set() during first-render commit would be
-    // missed if we only trusted the initial useState value.
-    setValue(host.contextKeys.get<T>(key));
-    const off = host.contextKeys.onChange(key, (v) => setValue(v as T));
-    // Wrap in a void-returning arrow so useEffect's EffectCallback type is
-    // satisfied — Cleanup allows void|Promise<void>, EffectCallback does not.
-    return () => { void off(); };
-  }, [host, key]);
-  return value;
+export function useContextKey<Value>(key: string): Value | undefined {
+	const host = useHost();
+	const [value, setValue] = useState<Value | undefined>(() =>
+		host.contextKeys.get<Value>(key),
+	);
+	useEffect(() => {
+		setValue(host.contextKeys.get<Value>(key));
+		const dispose = host.contextKeys.onChange(key, (next) =>
+			setValue(next as Value),
+		);
+		return () => {
+			void dispose();
+		};
+	}, [host, key]);
+	return value;
 }
 
-export function useKeybindingScope(ref: React.RefObject<Element | null>, scopeId: string): void {
-  const host = useHost();
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const cleanup = host.keybindings.registerScope(element, scopeId);
-    return () => { void cleanup(); };
-  }, [host, ref, scopeId]);
+export function useKeybindingScope(
+	ref: React.RefObject<Element | null>,
+	scopeId: string,
+): void {
+	const host = useHost();
+	useEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const dispose = host.keybindings.registerScope(element, scopeId);
+		return () => {
+			void dispose();
+		};
+	}, [host, ref, scopeId]);
 }

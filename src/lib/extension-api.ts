@@ -1,47 +1,47 @@
 // P2.6a — typed client for /api/bus/* endpoints.
 // Mirrors the slim shape returned by packages/server/src/api/bus.ts so the UI
 // never depends on full ExtensionManifest fields server-side never exposes.
-import type { ExtensionManifestV2 } from '@forgeax/types';
+import type { ExtensionManifestV2 } from "@forgeax/types";
 
 // P3.13 — model-binding capability summary exposed via /api/extensions/list.
 // Composer reads vendor/channel/roles to render a routing chip strip so the
 // kind=model-binding plugin is no longer invisible outside the Bus admin
 // panel.
 export interface ExtensionModelBindingInfo {
-  channel: string;
-  vendor: string;
-  models: string[];
-  roles?: string[];
+	channel: string;
+	vendor: string;
+	models: string[];
+	roles?: string[];
 }
 
 // P2.6g — skill / tool / event / cli-provider capability summaries surfaced by
 // BusAdminPanel detail rows. Mirrors the slim shape projected by the server
 // (file paths + runner cmd/args + httpAdapter.auth all stripped).
 export interface ExtensionSkillInfo {
-  id: string;
-  trigger: string;
+	id: string;
+	trigger: string;
 }
 
 export interface ExtensionToolInfo {
-  id: string;
-  exposedToAI?: boolean;
+	id: string;
+	exposedToAI?: boolean;
 }
 
 export interface ExtensionEventInfo {
-  name: string;
+	name: string;
 }
 
 export interface ExtensionCliProviderInfo {
-  id: string;
-  displayName: string;
-  models?: string[];
-  capabilities: {
-    streaming: boolean;
-    thinking: boolean;
-    toolCalls: boolean;
-    subAgents: boolean;
-    sessions: boolean;
-  };
+	id: string;
+	displayName: string;
+	models?: string[];
+	capabilities: {
+		streaming: boolean;
+		thinking: boolean;
+		toolCalls: boolean;
+		subAgents: boolean;
+		sessions: boolean;
+	};
 }
 
 // P4.93 — relative entry.frontend path (e.g. './src/panel.tsx'). Mirrors
@@ -49,116 +49,110 @@ export interface ExtensionCliProviderInfo {
 // stripped server-side. BusAdminPanel renders this in the expanded detail
 // row alongside the existing manifest hint path.
 export interface ExtensionEntryInfo {
-  frontend?: string;
-  /** Phase A3: standalone iframe-served plugin entry. When `start`/`port` is
-   *  set, the host can mount the plugin via an iframe + postMessage RPC
-   *  (createExtensionPort). Gated by `VITE_FX_USE_IFRAME=true` until B-phase. */
-  standalone?: {
-    start?: string;
-    port?: number;
-    readyProbe?: string;
-    embeddedAlso?: boolean;
-  };
+	frontend?: string;
+	/** Phase A3: standalone iframe-served plugin entry. When `start`/`port` is
+	 *  set, the host can mount the plugin via an iframe + postMessage RPC
+	 *  (createExtensionPort). Gated by `VITE_FX_USE_IFRAME=true` until B-phase. */
+	standalone?: {
+		start?: string;
+		port?: number;
+		readyProbe?: string;
+		embeddedAlso?: boolean;
+	};
 }
 
 export interface ExtensionAgentInfo {
-  id: string;
-  role?: string;
-  personaFile?: string;
-  memoryDir?: string;
-  preferredCliProvider?: string;
-  defaultLang?: string;
-  multiInstance?: boolean;
+	id: string;
+	role?: string;
+	personaFile?: string;
+	memoryDir?: string;
+	preferredCliProvider?: string;
+	defaultLang?: string;
+	multiInstance?: boolean;
 }
 
 export interface ExtensionSourceInfo {
-  origin: 'builtin' | 'npm' | 'user' | 'project' | 'dev';
-  /** Browser-safe path relative to the selected origin root. */
-  relativeManifestPath: string;
+	origin: "builtin" | "npm" | "user" | "project" | "dev";
+	/** Browser-safe path relative to the selected origin root. */
+	relativeManifestPath: string;
 }
 
 export interface ExtensionInfo {
-  id: string;
-  version: string;
-  kind: string;
-  displayName: { zh?: string; en?: string; ja?: string } | string;
-  description?: { zh?: string; en?: string; ja?: string } | string;
-  icon?: string;
-  experimental?: boolean;
-  contributes?: ExtensionManifestV2['contributes'];
-  modelBinding?: ExtensionModelBindingInfo;
-  skills?: ExtensionSkillInfo[];
-  tools?: ExtensionToolInfo[];
-  events?: ExtensionEventInfo[];
-  cliProvider?: ExtensionCliProviderInfo;
-  agent?: ExtensionAgentInfo;
-  entry?: ExtensionEntryInfo;
-  /** Explicit host-validated runtime metadata for externally-owned development artifacts. */
-  frontendUrl?: string;
-  moduleUrl?: string;
-  allowedOrigin?: string;
-  runtimeMode?: 'native-module' | 'dev' | 'embedded' | 'standalone';
-  registryGeneration?: number;
-  /** Runtime-resolved origin; never an absolute host filesystem path. */
-  source?: ExtensionSourceInfo;
-  /** kind=agent 才有：统一命名。title=「中文职能·英文名」，sub=灰字英文职能。 */
-  naming?: { title: string; sub: string };
+	id: string;
+	version: string;
+	kind: string;
+	displayName: { zh?: string; en?: string; ja?: string } | string;
+	description?: { zh?: string; en?: string; ja?: string } | string;
+	icon?: string;
+	experimental?: boolean;
+	contributes?: ExtensionManifestV2["contributes"];
+	modelBinding?: ExtensionModelBindingInfo;
+	skills?: ExtensionSkillInfo[];
+	tools?: ExtensionToolInfo[];
+	events?: ExtensionEventInfo[];
+	cliProvider?: ExtensionCliProviderInfo;
+	agent?: ExtensionAgentInfo;
+	entry?: ExtensionEntryInfo;
+	/** Explicit host-validated runtime metadata for externally-owned development artifacts. */
+	frontendUrl?: string;
+	moduleUrl?: string;
+	allowedOrigin?: string;
+	runtimeMode?: "native-module" | "dev" | "embedded" | "standalone";
+	registryGeneration?: number;
+	/** Runtime-resolved origin; never an absolute host filesystem path. */
+	source?: ExtensionSourceInfo;
+	/** kind=agent 才有：统一命名。title=「中文职能·英文名」，sub=灰字英文职能。 */
+	naming?: { title: string; sub: string };
 }
 
 export interface ExtensionListResponse {
-  kind: string | null;
-  count: number;
-  generation?: number;
-  items: ExtensionInfo[];
+	kind: string | null;
+	count: number;
+	generation?: number;
+	items: ExtensionInfo[];
 }
 
-export type SharedCapabilityKind = 'skill' | 'command' | 'mcp' | 'extension' | 'memory' | 'tool';
+export type SharedCapabilityKind =
+	| "skill"
+	| "command"
+	| "mcp"
+	| "extension"
+	| "memory"
+	| "tool";
 
 export interface SharedCapabilityInfo {
-  capabilityId: string;
-  kind: SharedCapabilityKind;
-  extensionId: string;
-  extensionVersion: string;
-  origin: 'builtin' | 'user' | 'project';
-  trustTier: 'own' | 'imported';
-  localId: string;
-  generation: number;
-  lifecycle: {
-    state: 'load' | 'activate' | 'ready' | 'reload' | 'deactivate' | 'broken';
-    reloadable: boolean;
-    requiresRestart: boolean;
-  };
-  shadowedBy: Array<{ origin: string; originPath: string }>;
-  metadata?: Record<string, unknown>;
+	capabilityId: string;
+	kind: SharedCapabilityKind;
+	extensionId: string;
+	extensionVersion: string;
+	origin: "builtin" | "user" | "project";
+	trustTier: "own" | "imported";
+	localId: string;
+	generation: number;
+	lifecycle: {
+		state: "load" | "activate" | "ready" | "reload" | "deactivate" | "broken";
+		reloadable: boolean;
+		requiresRestart: boolean;
+	};
+	shadowedBy: Array<{ origin: string; originPath: string }>;
+	metadata?: Record<string, unknown>;
 }
 
 export interface SharedCapabilityListResponse {
-  generation: number;
-  loadedAt: number;
-  capabilities: SharedCapabilityInfo[];
-  issues: string[];
-}
-
-export async function listSharedCapabilities(): Promise<SharedCapabilityListResponse> {
-  const empty: SharedCapabilityListResponse = {
-    generation: 0,
-    loadedAt: 0,
-    capabilities: [],
-    issues: [],
-  };
-  const res = await fetch('/api/extensions/capabilities');
-  if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) return empty;
-  return (await res.json()) as SharedCapabilityListResponse;
+	generation: number;
+	loadedAt: number;
+	capabilities: SharedCapabilityInfo[];
+	issues: string[];
 }
 
 export function pickLang(
-  text: ExtensionInfo['displayName'] | ExtensionInfo['description'],
-  lang: 'zh' | 'en' = 'zh',
-  fallback = '',
+	text: ExtensionInfo["displayName"] | ExtensionInfo["description"],
+	lang: "zh" | "en" = "zh",
+	fallback = "",
 ): string {
-  if (!text) return fallback;
-  if (typeof text === 'string') return text;
-  return text[lang] ?? text.zh ?? text.en ?? fallback;
+	if (!text) return fallback;
+	if (typeof text === "string") return text;
+	return text[lang] ?? text.zh ?? text.en ?? fallback;
 }
 
 /**
@@ -166,59 +160,58 @@ export function pickLang(
  * Longer scopes first so `@forgeax-extension/…` is never misread as `@forgeax/…`.
  */
 export function extensionIdSlug(id: string): string {
-  return id
-    .replace(/^@forgeax-extension\//, '')
-    .replace(/^@forgeax\//, '');
+	return id.replace(/^@forgeax-extension\//, "").replace(/^@forgeax\//, "");
 }
 
 /** Render the browser-safe source descriptor returned by the runtime. */
 export function extensionManifestSourceLabel(
-  extension: Pick<ExtensionInfo, 'id' | 'version' | 'source'>,
+	extension: Pick<ExtensionInfo, "id" | "version" | "source">,
 ): string {
-  if (!extension.source) return `extension:${extension.id}@${extension.version}`;
-  if (extension.source.origin === 'npm') {
-    return `npm:${extension.id}@${extension.version}/forgeax-extension.json`;
-  }
-  return `${extension.source.origin}:${extension.source.relativeManifestPath}`;
+	if (!extension.source)
+		return `extension:${extension.id}@${extension.version}`;
+	if (extension.source.origin === "npm") {
+		return `npm:${extension.id}@${extension.version}/forgeax-extension.json`;
+	}
+	return `${extension.source.origin}:${extension.source.relativeManifestPath}`;
 }
 
-export async function listExtensions(kind?: string): Promise<ExtensionListResponse> {
-  const url = kind
-    ? `/api/extensions/list?kind=${encodeURIComponent(kind)}`
-    : '/api/extensions/list';
-  const empty: ExtensionListResponse = { kind: kind ?? null, count: 0, items: [] };
-  const res = await fetch(url);
-  // The extension bus is a Studio-only product surface. The
-  // standalone editor has NO bus router, so its absence is EXPECTED, not an
-  // error — degrade to an empty list either way the "no backend" shows up:
-  //   - no `--game`: unknown /api routes fall to the SPA fallback → 200 + html
-  //   - with `--game`: the game-backend answers non-bus routes → 404 + json
-  // (Before, only the html case degraded; the 404+json slipped past the !ok
-  // guard and threw an Uncaught error in DockShell's boot effect.)
-  if (!res.ok) return empty;
-  if (!res.headers.get('content-type')?.includes('application/json')) {
-    return empty;
-  }
-  const payload = (await res.json()) as Partial<ExtensionListResponse>;
-  if (!Array.isArray(payload.items)) return empty;
-  if (import.meta.env.DEV) {
-    const devItems = payload.items.filter((item) => item.runtimeMode === 'native-module');
-    console.info('[forgeax:dev-extension] list', {
-      requestUrl: url,
-      generation: payload.generation,
-      devItems: devItems.map((item) => ({
-        id: item.id,
-        moduleUrl: item.moduleUrl,
-        allowedOrigin: item.allowedOrigin,
-      })),
-    });
-  }
-  return {
-    kind: typeof payload.kind === 'string' || payload.kind === null ? payload.kind : empty.kind,
-    count: typeof payload.count === 'number' ? payload.count : payload.items.length,
-    ...(typeof payload.generation === 'number' ? { generation: payload.generation } : {}),
-    items: payload.items,
-  };
+export async function listExtensions(
+	kind?: string,
+): Promise<ExtensionListResponse> {
+	const url = kind
+		? `/api/extensions/list?kind=${encodeURIComponent(kind)}`
+		: "/api/extensions/list";
+	const empty: ExtensionListResponse = {
+		kind: kind ?? null,
+		count: 0,
+		items: [],
+	};
+	const res = await fetch(url);
+	// The extension bus is a Studio-only product surface. The
+	// standalone editor has NO bus router, so its absence is EXPECTED, not an
+	// error — degrade to an empty list either way the "no backend" shows up:
+	//   - no `--game`: unknown /api routes fall to the SPA fallback → 200 + html
+	//   - with `--game`: the game-backend answers non-bus routes → 404 + json
+	// (Before, only the html case degraded; the 404+json slipped past the !ok
+	// guard and threw an Uncaught error in DockShell's boot effect.)
+	if (!res.ok) return empty;
+	if (!res.headers.get("content-type")?.includes("application/json")) {
+		return empty;
+	}
+	const payload = (await res.json()) as Partial<ExtensionListResponse>;
+	if (!Array.isArray(payload.items)) return empty;
+	return {
+		kind:
+			typeof payload.kind === "string" || payload.kind === null
+				? payload.kind
+				: empty.kind,
+		count:
+			typeof payload.count === "number" ? payload.count : payload.items.length,
+		...(typeof payload.generation === "number"
+			? { generation: payload.generation }
+			: {}),
+		items: payload.items,
+	};
 }
 
 // Shared short-TTL cache + in-flight dedupe for the full (no-kind) plugin
@@ -231,18 +224,24 @@ let _busAllCache: { ts: number; data: ExtensionListResponse } | null = null;
 let _busAllInflight: Promise<ExtensionListResponse> | null = null;
 const BUS_ALL_TTL_MS = 2000;
 
-export async function listExtensionsShared(opts?: { force?: boolean }): Promise<ExtensionListResponse> {
-  if (!opts?.force && _busAllCache && Date.now() - _busAllCache.ts < BUS_ALL_TTL_MS) {
-    return _busAllCache.data;
-  }
-  if (_busAllInflight) return _busAllInflight;
-  _busAllInflight = listExtensions()
-    .then((data) => {
-      _busAllCache = { ts: Date.now(), data };
-      return data;
-    })
-    .finally(() => {
-      _busAllInflight = null;
-    });
-  return _busAllInflight;
+export async function listExtensionsShared(opts?: {
+	force?: boolean;
+}): Promise<ExtensionListResponse> {
+	if (
+		!opts?.force &&
+		_busAllCache &&
+		Date.now() - _busAllCache.ts < BUS_ALL_TTL_MS
+	) {
+		return _busAllCache.data;
+	}
+	if (_busAllInflight) return _busAllInflight;
+	_busAllInflight = listExtensions()
+		.then((data) => {
+			_busAllCache = { ts: Date.now(), data };
+			return data;
+		})
+		.finally(() => {
+			_busAllInflight = null;
+		});
+	return _busAllInflight;
 }

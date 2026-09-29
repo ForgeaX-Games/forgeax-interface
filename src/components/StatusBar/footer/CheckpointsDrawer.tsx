@@ -10,88 +10,104 @@
  * label + short id + time. A `drawer` panel (ADR-0030 §2.3), contributed by
  * chrome-drawer.tsx next to Info.
  */
-import { useEffect, useState } from 'react';
-import type { DrawerPanelContribution } from '../../../core/panels';
-import { useShellStore } from '../../../store';
-import { fetchCheckpoints, type CheckpointEntry, type PendingRewindInfo } from '../../../lib/checkpoint-api';
-import { startResilientPoll } from '../../../lib/resilient-polling';
-import './footer.css';
+
+import { createSettledPollingLifecycle } from "@forgeax/app-shell/react";
+import { useEffect, useState } from "react";
+import {
+	type CheckpointEntry,
+	fetchCheckpoints,
+	type PendingRewindInfo,
+} from "../../../lib/checkpoint-api";
+import { useShellStore } from "../../../store";
+import "./footer.css";
 
 /** epoch ms → "HH:MM:SS". */
 function fmtTime(ms: number): string {
-  const d = new Date(ms);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+	const d = new Date(ms);
+	return d.toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	});
 }
 
 export function CheckpointsDrawer() {
-  const activeSid = useShellStore((s) => s.activeSid);
-  const [items, setItems] = useState<readonly CheckpointEntry[]>([]);
-  const [pending, setPending] = useState<PendingRewindInfo | null>(null);
+	const activeSid = useShellStore((s) => s.activeSid);
+	const [items, setItems] = useState<readonly CheckpointEntry[]>([]);
+	const [pending, setPending] = useState<PendingRewindInfo | null>(null);
 
-  useEffect(() => {
-    if (!activeSid) {
-      setItems([]);
-      setPending(null);
-      return;
-    }
-    const stop = startResilientPoll(async (signal) => {
-      try {
-        const { checkpoints, pending: p } = await fetchCheckpoints(activeSid, signal);
-        setItems(checkpoints);
-        setPending(p);
-      } catch {
-        if (signal.aborted) throw new Error('checkpoint request timed out');
-        setItems([]);
-        setPending(null);
-        throw new Error('checkpoint request failed');
-      }
-    }, { intervalMs: 5_000, timeoutMs: 5_000 });
-    return stop;
-  }, [activeSid]);
+	useEffect(() => {
+		if (!activeSid) {
+			setItems([]);
+			setPending(null);
+			return;
+		}
+		const poll = createSettledPollingLifecycle({
+			task: async (signal) => {
+				try {
+					const { checkpoints, pending: p } = await fetchCheckpoints(
+						activeSid,
+						signal,
+					);
+					setItems(checkpoints);
+					setPending(p);
+				} catch {
+					if (signal.aborted) throw new Error("checkpoint request timed out");
+					setItems([]);
+					setPending(null);
+					throw new Error("checkpoint request failed");
+				}
+			},
+			intervalMs: 5_000,
+			timeoutMs: 5_000,
+		});
+		poll.start();
+		return poll.dispose;
+	}, [activeSid]);
 
-  if (items.length === 0) {
-    return <div className="fx-drawer-content"><div className="fx-empty">{activeSid ? '暂无检查点' : '未连接会话'}</div></div>;
-  }
+	if (items.length === 0) {
+		return (
+			<div className="fx-drawer-content">
+				<div className="fx-empty">
+					{activeSid ? "暂无检查点" : "未连接会话"}
+				</div>
+			</div>
+		);
+	}
 
-  // API order is chronological (oldest first); show newest at the top. The
-  // current HEAD is the pending rewind target if any, else the latest anchor.
-  const total = items.length;
-  const headMsgId = pending?.targetMsgId ?? items[total - 1]?.msgId;
+	// API order is chronological (oldest first); show newest at the top. The
+	// current HEAD is the pending rewind target if any, else the latest anchor.
+	const total = items.length;
+	const headMsgId = pending?.targetMsgId ?? items[total - 1]?.msgId;
 
-  return (
-    <div className="fx-drawer-content">
-      {items
-        .map((c, i) => ({ c, n: i + 1 }))
-        .reverse()
-        .map(({ c, n }) => {
-          const head = c.msgId === headMsgId;
-          return (
-            <div key={c.msgId} className={`fx-ck${head ? ' head' : ''}`}>
-              <div className="dot" />
-              <div>
-                <div className="ck-msg">{c.hasCode ? '代码 + 会话快照' : '会话快照'}</div>
-                <div className="ck-meta">
-                  {`#${n}`} · {c.msgId.slice(0, 8)} · {fmtTime(c.ts)}
-                  {head ? (
-                    <>
-                      {' · '}
-                      <span className="cur">当前 HEAD</span>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-    </div>
-  );
+	return (
+		<div className="fx-drawer-content">
+			{items
+				.map((c, i) => ({ c, n: i + 1 }))
+				.reverse()
+				.map(({ c, n }) => {
+					const head = c.msgId === headMsgId;
+					return (
+						<div key={c.msgId} className={`fx-ck${head ? " head" : ""}`}>
+							<div className="dot" />
+							<div>
+								<div className="ck-msg">
+									{c.hasCode ? "代码 + 会话快照" : "会话快照"}
+								</div>
+								<div className="ck-meta">
+									{`#${n}`} · {c.msgId.slice(0, 8)} · {fmtTime(c.ts)}
+									{head ? (
+										<>
+											{" · "}
+											<span className="cur">当前 HEAD</span>
+										</>
+									) : null}
+								</div>
+							</div>
+						</div>
+					);
+				})}
+		</div>
+	);
 }
-
-export const checkpointsDrawerPanel: DrawerPanelContribution = {
-  id: 'checkpoints',
-  title: 'Checkpoints',
-  titleKey: 'footerPanel.checkpoints',
-  icon: 'History',
-  order: 1,
-  render: () => <CheckpointsDrawer />,
-};

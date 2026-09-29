@@ -10,16 +10,20 @@
  */
 
 .studio-shell--preview-skin {
-  /* layout metrics only */
-  --forgeax-shell-top-h: 48px;
-  --forgeax-shell-status-h: 28px;
-  --forgeax-rail-icon-w: 60px;
+	/* layout metrics only */
+	--forgeax-shell-top-h: 48px;
+	--forgeax-shell-status-h: 28px;
+	--forgeax-rail-icon-w: 60px;
 
-  /* chrome aliases → semantic (for migrated preview CSS) */
-  --forgeax-divider: var(--color-border-default);
-  --forgeax-divider-strong: var(--color-border-strong);
-  --forgeax-panel-bg: var(--color-background-elevated);
-  --forgeax-canvas-tint: color-mix(in srgb, var(--color-background-canvas) 65%, transparent);
-  --forgeax-brand-glow: color-mix(in srgb, var(--primary) 35%, transparent);
-  --forgeax-brand-ring: color-mix(in srgb, var(--primary) 45%, transparent);
+	/* chrome aliases → semantic (for migrated preview CSS) */
+	--forgeax-divider: var(--color-border-default);
+	--forgeax-divider-strong: var(--color-border-strong);
+	--forgeax-panel-bg: var(--color-background-elevated);
+	--forgeax-canvas-tint: color-mix(
+		in srgb,
+		var(--color-background-canvas) 65%,
+		transparent
+	);
+	--forgeax-brand-glow: color-mix(in srgb, var(--primary) 35%, transparent);
+	--forgeax-brand-ring: color-mix(in srgb, var(--primary) 45%, transparent);
 }

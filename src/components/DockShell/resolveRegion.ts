@@ -1,4 +1,4 @@
 export {
-  resolveRegion,
-  type PanelDescriptorLite,
-} from '@forgeax/app-shell/dock';
+	type PanelDescriptorLite,
+	resolveRegion,
+} from "@forgeax/app-shell/dock";

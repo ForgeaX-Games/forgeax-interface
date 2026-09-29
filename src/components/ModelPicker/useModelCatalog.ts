@@ -1,12 +1,12 @@
-import { recalledModelCatalog } from '../../lib/model-catalog-backup';
-import { onConfigChanged } from '../../lib/config-invalidation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import { onConfigChanged } from "../../lib/config-invalidation";
+import { recalledModelCatalog } from "../../lib/model-catalog-backup";
 import {
-  listModelsWithMeta,
-  type CatalogDriverMeta,
-  type ModelCatalogEntry,
-  type ModelCatalogWithMeta,
-} from '../../lib/model-config';
+	type CatalogDriverMeta,
+	listModelsWithMeta,
+	type ModelCatalogEntry,
+	type ModelCatalogWithMeta,
+} from "../../lib/model-config";
 
 // Window-level memo so Composer + TopBar + ModelLab share one fetch.
 // list_models hits ~/.forgeax/key/models.json + LiteLLM /v1/models with a 60s
@@ -18,98 +18,128 @@ import {
 const invalidationSubscriptions = new Map<string, () => void>();
 const cached = new Map<string, ModelCatalogWithMeta>();
 const inflight = new Map<string, Promise<ModelCatalogWithMeta>>();
-const subscribers = new Map<string, Set<(payload: ModelCatalogWithMeta) => void>>();
+const subscribers = new Map<
+	string,
+	Set<(payload: ModelCatalogWithMeta) => void>
+>();
 
 function cacheKey(providerId?: string | null): string {
-  return providerId?.trim() || 'gateway';
+	return providerId?.trim() || "gateway";
 }
 
-function subscriberSet(key: string): Set<(payload: ModelCatalogWithMeta) => void> {
-  let set = subscribers.get(key);
-  if (!set) {
-    set = new Set();
-    subscribers.set(key, set);
-  }
-  return set;
+function subscriberSet(
+	key: string,
+): Set<(payload: ModelCatalogWithMeta) => void> {
+	let set = subscribers.get(key);
+	if (!set) {
+		set = new Set();
+		subscribers.set(key, set);
+	}
+	return set;
 }
 
-async function fetchOnce(providerId?: string | null, force = false): Promise<ModelCatalogWithMeta> {
-  const key = cacheKey(providerId);
-  const hit = cached.get(key);
-  if (hit && !hit.offline && !force) return hit;
-  const current = inflight.get(key);
-  if (current) {
-    if (!force) return current;
-    // A key change must not reuse a response requested with the old key.
-    await current.catch(() => {});
-    return fetchOnce(providerId, true);
-  }
-  const next = (async () => {
-    try {
-      const payload = await listModelsWithMeta(providerId, force);
-      cached.set(key, payload);
-      for (const cb of subscriberSet(key)) cb(payload);
-      return payload;
-    } finally {
-      inflight.delete(key);
-    }
-  })();
-  inflight.set(key, next);
-  return next;
+async function fetchOnce(
+	providerId?: string | null,
+	force = false,
+): Promise<ModelCatalogWithMeta> {
+	const key = cacheKey(providerId);
+	const hit = cached.get(key);
+	if (hit && !hit.offline && !force) return hit;
+	const current = inflight.get(key);
+	if (current) {
+		if (!force) return current;
+		// A key change must not reuse a response requested with the old key.
+		await current.catch(() => {});
+		return fetchOnce(providerId, true);
+	}
+	const next = (async () => {
+		try {
+			const payload = await listModelsWithMeta(providerId, force);
+			cached.set(key, payload);
+			for (const cb of subscriberSet(key)) cb(payload);
+			return payload;
+		} finally {
+			inflight.delete(key);
+		}
+	})();
+	inflight.set(key, next);
+	return next;
 }
 
 export interface ModelCatalogState {
-  models: ModelCatalogEntry[] | null;
-  /** 内核目录路径的回退链元数据(gateway 路径为 undefined)。 */
-  driver: CatalogDriverMeta | null;
-  error: string | null;
-  offline: boolean;
-  refresh: () => Promise<void>;
+	models: ModelCatalogEntry[] | null;
+	/** 内核目录路径的回退链元数据(gateway 路径为 undefined)。 */
+	driver: CatalogDriverMeta | null;
+	error: string | null;
+	offline: boolean;
+	refresh: () => Promise<void>;
 }
 
 export function useModelCatalog(providerId?: string | null): ModelCatalogState {
-  const key = cacheKey(providerId);
-  const [payload, setPayload] = useState<ModelCatalogWithMeta | null>(cached.get(key) ?? recalledModelCatalog(providerId));
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const sub = (p: ModelCatalogWithMeta) => { if (!cancelled) setPayload(p); };
-    const subs = subscriberSet(key);
-    subs.add(sub);
-    const hit = cached.get(key) ?? recalledModelCatalog(providerId);
-    setPayload(hit ?? null);
-    setError(null);
-    if (!hit || hit.offline) {
-      fetchOnce(providerId)
-        .then((p) => { if (!cancelled) { setPayload(p); setError(null); } })
-        .catch((e) => { if (!cancelled) setError((e as Error).message); });
-    }
-    if (!invalidationSubscriptions.has(key)) {
-      invalidationSubscriptions.set(key, onConfigChanged('models', () => { void fetchOnce(providerId, true).catch(() => {}); }));
-    }
-    return () => {
-      cancelled = true;
-      subs.delete(sub);
-      if (subs.size === 0) {
-        invalidationSubscriptions.get(key)?.();
-        invalidationSubscriptions.delete(key);
-      }
-    };
-  }, [key, providerId]);
-  const refresh = async () => {
-    try {
-      await fetchOnce(providerId, true);
-      setError(null);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
-  return { offline: payload?.offline ?? false, models: payload?.models ?? null, driver: payload?.driver ?? null, error, refresh };
+	const key = cacheKey(providerId);
+	const [payload, setPayload] = useState<ModelCatalogWithMeta | null>(
+		cached.get(key) ?? recalledModelCatalog(providerId),
+	);
+	const [error, setError] = useState<string | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		const sub = (p: ModelCatalogWithMeta) => {
+			if (!cancelled) setPayload(p);
+		};
+		const subs = subscriberSet(key);
+		subs.add(sub);
+		const hit = cached.get(key) ?? recalledModelCatalog(providerId);
+		setPayload(hit ?? null);
+		setError(null);
+		if (!hit || hit.offline) {
+			fetchOnce(providerId)
+				.then((p) => {
+					if (!cancelled) {
+						setPayload(p);
+						setError(null);
+					}
+				})
+				.catch((e) => {
+					if (!cancelled) setError((e as Error).message);
+				});
+		}
+		if (!invalidationSubscriptions.has(key)) {
+			invalidationSubscriptions.set(
+				key,
+				onConfigChanged("models", () => {
+					void fetchOnce(providerId, true).catch(() => {});
+				}),
+			);
+		}
+		return () => {
+			cancelled = true;
+			subs.delete(sub);
+			if (subs.size === 0) {
+				invalidationSubscriptions.get(key)?.();
+				invalidationSubscriptions.delete(key);
+			}
+		};
+	}, [key, providerId]);
+	const refresh = async () => {
+		try {
+			await fetchOnce(providerId, true);
+			setError(null);
+		} catch (e) {
+			setError((e as Error).message);
+		}
+	};
+	return {
+		offline: payload?.offline ?? false,
+		models: payload?.models ?? null,
+		driver: payload?.driver ?? null,
+		error,
+		refresh,
+	};
 }
 
 export function _resetModelCatalogCache(): void {
-  cached.clear();
-  inflight.clear();
+	cached.clear();
+	inflight.clear();
 }
 
 /**
@@ -124,10 +154,12 @@ export function _resetModelCatalogCache(): void {
  * default gateway key ('gateway') maps back to `undefined` providerId.
  */
 export async function refreshAllModelCatalogs(): Promise<void> {
-  const keys = new Set<string>([...cached.keys(), ...subscribers.keys()]);
-  await Promise.all(
-    [...keys].map((k) =>
-      fetchOnce(k === 'gateway' ? undefined : k, true).catch(() => ({ models: [] as ModelCatalogEntry[] })),
-    ),
-  );
+	const keys = new Set<string>([...cached.keys(), ...subscribers.keys()]);
+	await Promise.all(
+		[...keys].map((k) =>
+			fetchOnce(k === "gateway" ? undefined : k, true).catch(() => ({
+				models: [] as ModelCatalogEntry[],
+			})),
+		),
+	);
 }

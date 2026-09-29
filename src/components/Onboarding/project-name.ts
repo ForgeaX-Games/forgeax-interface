@@ -1,7 +1,11 @@
 /** Turn a free-typed project name into a game slug (GAME_SLUG_RE: lowercase
  *  ascii/digits/hyphens, 1-41). Underscores are NOT allowed for game slugs. */
 export function toGameSlug(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+	return name
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9-]+/g, "-")
+		.replace(/^-+|-+$/g, "");
 }
 
 /**
@@ -10,7 +14,7 @@ export function toGameSlug(name: string): string {
  * in onboarding's "已有项目" list — an empty instance should hide the section.
  */
 export function isUserExistingGame(slug: string): boolean {
-  return slug !== 'default';
+	return slug !== "default";
 }
 
 /**
@@ -18,16 +22,16 @@ export function isUserExistingGame(slug: string): boolean {
  * Otherwise allocate `untitled-1`, `untitled-2`, … skipping taken slugs.
  */
 export function resolveProjectName(
-  rawName: string,
-  existingSlugs: Iterable<string> = [],
+	rawName: string,
+	existingSlugs: Iterable<string> = [],
 ): { name: string; slug: string } {
-  const slug = toGameSlug(rawName);
-  if (slug.length >= 1) {
-    return { name: rawName.trim() || slug, slug };
-  }
-  const taken = new Set(existingSlugs);
-  let n = 1;
-  while (taken.has(`untitled-${n}`)) n += 1;
-  const auto = `untitled-${n}`;
-  return { name: auto, slug: auto };
+	const slug = toGameSlug(rawName);
+	if (slug.length >= 1) {
+		return { name: rawName.trim() || slug, slug };
+	}
+	const taken = new Set(existingSlugs);
+	let n = 1;
+	while (taken.has(`untitled-${n}`)) n += 1;
+	const auto = `untitled-${n}`;
+	return { name: auto, slug: auto };
 }

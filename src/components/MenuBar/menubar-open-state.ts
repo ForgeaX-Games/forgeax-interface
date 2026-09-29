@@ -1,4 +1,4 @@
-import type { MenuId } from '../../lib/menu-registry';
+import type { MenuId } from "../../lib/menu-registry";
 
 /**
  * A top-level trigger must claim the shared menubar state on pointer-down.
@@ -7,11 +7,11 @@ import type { MenuId } from '../../lib/menu-registry';
  * while ownership moves between independent DropdownMenu roots.
  */
 export function openMenuFromTriggerPointerDown(
-  current: MenuId | null,
-  menu: MenuId,
-  event: Pick<PointerEvent, 'button' | 'ctrlKey'>,
+	current: MenuId | null,
+	menu: MenuId,
+	event: Pick<PointerEvent, "button" | "ctrlKey">,
 ): MenuId | null {
-  // Match Radix Trigger's own activation gate. In particular, Ctrl+click is a
-  // context-menu gesture on macOS and secondary buttons must not arm the bar.
-  return event.button === 0 && !event.ctrlKey ? menu : current;
+	// Match Radix Trigger's own activation gate. In particular, Ctrl+click is a
+	// context-menu gesture on macOS and secondary buttons must not arm the bar.
+	return event.button === 0 && !event.ctrlKey ? menu : current;
 }

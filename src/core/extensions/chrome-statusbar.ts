@@ -8,34 +8,35 @@
 // imports or lists any of these chips — the imports converge inside interface.
 // Third-party plugins register their own footer chips the same way: their
 // extension's `contributes.panels.stripItems`, no root edit required.
-import type { AppExtension } from '../app-shell/types';
-import type { StatusItemContribution } from '../panels';
-import { surfaceOverlayStatusItem } from '../../components/Surfaces/SurfaceOverlay';
-import { pulseStatusItems } from '../../components/StatusBar/feeds/PulseFeeds';
-import { forgeaxBuildVersionStatusItem } from '../../components/StatusBar/footer/ForgeaxBuildPopover';
-import { diagnosticsStatusItem } from '../../components/StatusBar/footer/DiagnosticsPopover';
+
+import { pulseStatusItems } from "../../components/StatusBar/feeds/PulseFeeds";
+import { diagnosticsStatusItem } from "../../components/StatusBar/footer/DiagnosticsPopover";
+import { forgeaxBuildVersionStatusItem } from "../../components/StatusBar/footer/ForgeaxBuildPopover";
+import { surfaceOverlayStatusItem } from "../../components/Surfaces/SurfaceOverlay";
+import type { AppExtension } from "../app-shell/types";
+import type { StatusItemContribution } from "../panels";
 
 /** Fold an ordered list of status items into the keyed `stripItems` record the
  *  derive step sub-merges per id. Exported so product assemblers reuse it. */
 export function toStripItems(
-  items: readonly StatusItemContribution[],
+	items: readonly StatusItemContribution[],
 ): Record<string, StatusItemContribution> {
-  const out: Record<string, StatusItemContribution> = {};
-  for (const it of items) out[it.id] = it;
-  return out;
+	const out: Record<string, StatusItemContribution> = {};
+	for (const it of items) out[it.id] = it;
+	return out;
 }
 
 export const chromeStatusBarExtension: AppExtension = {
-  id: 'chrome.statusbar',
-  version: '1.0.0',
-  contributes: {
-    panels: {
-      stripItems: toStripItems([
-        forgeaxBuildVersionStatusItem,
-        diagnosticsStatusItem,
-        surfaceOverlayStatusItem,
-        ...pulseStatusItems,
-      ]),
-    },
-  },
+	id: "chrome.statusbar",
+	version: "1.0.0",
+	contributes: {
+		panels: {
+			stripItems: toStripItems([
+				forgeaxBuildVersionStatusItem,
+				diagnosticsStatusItem,
+				surfaceOverlayStatusItem,
+				...pulseStatusItems,
+			]),
+		},
+	},
 };

@@ -4,35 +4,34 @@
  *
  * Import from here, never reach into '@tauri-apps/*' directly from components.
  */
+
 export {
-  isTauri,
-  platformRuntime,
-  type PlatformRuntime,
-} from './runtime';
-export { getShellAdapter, type ShellAdapter } from './shell-adapter';
-export { getWindowManager } from './window-manager';
+	type DetachedWindowCapability,
+	type DetachedWindowTarget,
+	type DetachWindowOptions,
+	decodeSurfaceFromLocation,
+	encodeSurfaceQuery,
+	type SurfaceDescriptor,
+	type SurfaceKind,
+	type SurfacePane,
+	surfaceKey,
+	surfaceWindowLabel,
+	type WindowManager,
+} from "@forgeax/app-shell/window";
 export {
-  getSurfaceWindowingController,
-  VIEWPORT_CARRIER_WILL_DETACH,
-} from './surface-windowing';
-export { useFloatingSurfaces } from './use-surface-windowing';
+	isTauri,
+	type PlatformRuntime,
+	platformRuntime,
+} from "./runtime";
+export { getShellAdapter, type ShellAdapter } from "./shell-adapter";
 export {
-  type WindowManager,
-  type DetachWindowOptions,
-} from '@forgeax/app-shell/window';
+	type DetachedViewportCarrierKind,
+	encodeSurfaceWindowQuery,
+	surfaceWindowUrl,
+} from "./surface";
 export {
-  type DetachedWindowCapability,
-  type DetachedWindowTarget,
-  type SurfaceDescriptor,
-  type SurfaceKind,
-  type SurfacePane,
-  surfaceKey,
-  surfaceWindowLabel,
-  encodeSurfaceQuery,
-  decodeSurfaceFromLocation,
-} from '@forgeax/app-shell/window';
-export {
-  type DetachedViewportCarrierKind,
-  encodeSurfaceWindowQuery,
-  surfaceWindowUrl,
-} from './surface';
+	getSurfaceWindowingController,
+	VIEWPORT_CARRIER_WILL_DETACH,
+} from "./surface-windowing";
+export { useFloatingSurfaces } from "./use-surface-windowing";
+export { getWindowManager } from "./window-manager";

@@ -1,3 +1,34 @@
+import {
+	createCoalescedFrameTaskLifecycle,
+	createRestartableTimeoutTaskLifecycle,
+	installElementResizeObservation,
+	installViewportResizeObservation,
+	installViewportScrollObservation,
+	SurfacePlaceholder,
+	SurfaceRegion,
+} from "@forgeax/app-shell/react";
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useReducer,
+	useRef,
+} from "react";
+import { createPortal } from "react-dom";
+import { useHost } from "../../core/app-shell";
+import { useFloatingSurfaces } from "../../lib/platform";
+import {
+	getAnchor,
+	type SurfaceKind,
+	subscribeAnchors,
+	subscribeRelayout,
+} from "../../lib/surfaceAnchors";
+import { mapViewportRectToOverlayRoot } from "../../lib/surfaceKeepAliveLayout";
+import { usePanelRenderers } from "../DockShell/panelRenderers";
+import { FatalBanner } from "../StatusBar/FatalBanner";
+import "./SurfaceKeepAlive.css";
+import { clampOverlayRectBelowHeader } from "../../lib/surfaceKeepAliveLayout";
+
 // SurfaceKeepAliveLayer — always-mounted owner of the Viewport surface.
 //
 // THE FIX for the Viewport↔AI freeze. Viewport / AI are separate dockview
@@ -23,26 +54,16 @@
 // not an iframe. Stays editor-agnostic: the real surface comes from PanelRenderers
 // context (studio injects @forgeax/editor's SceneEditor); interface keeps ZERO
 // editor imports.
-import { useEffect, useReducer, useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { SurfacePlaceholder, SurfaceRegion } from '@forgeax/app-shell/react';
-import { useHost } from '../../core/app-shell';
-import { usePanelRenderers } from '../DockShell/panelRenderers';
-import { FatalBanner } from '../StatusBar/FatalBanner';
-import { useFloatingSurfaces } from '../../lib/platform';
-import { clampOverlayRectBelowHeader, mapViewportRectToOverlayRoot } from '../../lib/surfaceKeepAliveLayout';
-import {
-  getAnchor,
-  subscribeAnchors,
-  subscribeRelayout,
-  type SurfaceKind,
-} from '../../lib/surfaceAnchors';
-import './SurfaceKeepAlive.css';
+
+/** SSOT: packages/editor/packages/edit-runtime/src/viewport/viewport-boot-gate.ts */
+const VIEWPORT_HOST_GATE_FLAG = "__forgeax_viewport_host_gate";
+const VIEWPORT_HOST_READY_FLAG = "__forgeax_viewport_host_ready";
+const VIEWPORT_HOST_READY_EVENT = "forgeax-viewport-host-ready";
 
 // AppMode = shell workspace mode. The engine's edit-time surface kind is still
 // 'edit' (see SurfaceKind in ../../lib/surfaceAnchors); the page-id / mode-id
 // 'edit' was renamed to 'scene' by the v9 page-schema migration.
-const ALL_KINDS: SurfaceKind[] = ['edit'];
+const ALL_KINDS: SurfaceKind[] = ["edit"];
 
 // The keep-alive surface lives in a fixed overlay OUTSIDE dockview's DOM tree, so
 // clicking it never reaches dockview's group-focus machinery (doSetGroupActive via
@@ -51,209 +72,248 @@ const ALL_KINDS: SurfaceKind[] = ['edit'];
 // the viewport. Map each surface kind back to its in-dock panel id so a pointerdown
 // on the surface can re-emit `panel:focus` and hand dock focus to the viewport.
 const PANEL_ID_FOR_KIND: Partial<Record<SurfaceKind, string>> = {
-  edit: 'viewport',
+	edit: "viewport",
 };
 
 export function SurfaceKeepAliveLayer(): ReactNode {
-  // Derived from the active workspace (SSOT); 'scene' workspace → edit surface,
-  // every other workspace → no kept-alive surface.
-  const host = useHost();
-  const { surfaces } = usePanelRenderers();
-  const SceneEditor = surfaces?.SceneEditor;
-  const floatingSurfaces = useFloatingSurfaces();
-  const viewportFloating = Boolean(floatingSurfaces['panel:viewport']);
-  const activeKind: SurfaceKind | null = viewportFloating ? null : 'edit';
+	// Derived from the active workspace (SSOT); 'scene' workspace → edit surface,
+	// every other workspace → no kept-alive surface.
+	const host = useHost();
+	const { surfaces } = usePanelRenderers();
+	const SceneEditor = surfaces?.SceneEditor;
+	const floatingSurfaces = useFloatingSurfaces();
+	const viewportFloating = Boolean(floatingSurfaces["panel:viewport"]);
+	const activeKind: SurfaceKind | null = viewportFloating ? null : "edit";
 
-  // Visited set only grows — a surface, once mounted, is never torn down. Seeded
-  // with the boot mode's kind so the first surface mounts immediately; later kinds
-  // are added (and re-rendered) the first time their workspace becomes active.
-  const visitedRef = useRef<Set<SurfaceKind>>(new Set(activeKind ? [activeKind] : []));
-  const [, bump] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => {
-    if (activeKind && !visitedRef.current.has(activeKind)) {
-      visitedRef.current.add(activeKind);
-      bump();
-    }
-  }, [activeKind]);
+	// Visited set only grows — a surface, once mounted, is never torn down. Seeded
+	// with the boot mode's kind so the first surface mounts immediately; later kinds
+	// are added (and re-rendered) the first time their workspace becomes active.
+	const visitedRef = useRef<Set<SurfaceKind>>(
+		new Set(activeKind ? [activeKind] : []),
+	);
+	const [, bump] = useReducer((n: number) => n + 1, 0);
+	useEffect(() => {
+		if (activeKind && !visitedRef.current.has(activeKind)) {
+			visitedRef.current.add(activeKind);
+			bump();
+		}
+	}, [activeKind]);
 
-  // Portal overlay root + per-kind item DOM nodes — styled imperatively so dock
-  // resize/drag ticks don't churn React.
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const itemRefs = useRef<Map<SurfaceKind, HTMLDivElement | null>>(new Map());
+	// Portal overlay root + per-kind item DOM nodes — styled imperatively so dock
+	// resize/drag ticks don't churn React.
+	const rootRef = useRef<HTMLDivElement | null>(null);
+	const itemRefs = useRef<Map<SurfaceKind, HTMLDivElement | null>>(new Map());
 
-  // Imperative layout sync: overlay the active surface on its anchor's rect; hide
-  // the rest. Cheap enough to call on every resize/relayout tick.
-  const syncLayout = (): void => {
-    const overlayRoot = rootRef.current;
-    for (const kind of ALL_KINDS) {
-      const el = itemRefs.current.get(kind);
-      if (!el) continue;
-      const anchor = kind === activeKind ? getAnchor(kind) : null;
-      if (!anchor) {
-        // Inactive, or active-but-no-anchor (page mode / panel closed / popped
-        // to an OS window). DO NOT use display:none — on WKWebView (the desktop
-        // Studio app) display:none on a WebGPU <canvas> DROPS the GPU device, so
-        // flipping back finds a dead context and the re-create wedges WKWebView's
-        // GPU process (the "switching back and forth freezes" Play↔Edit bug).
-        // Instead park the
-        // surface OFF-SCREEN + visibility:hidden: the GPU context stays alive, the
-        // surface is invisible + click-through, and being outside the viewport still
-        // trips the surface's IntersectionObserver so its render loop pauses (no
-        // double-render). Switch-back just moves it back onto the anchor — no
-        // context re-create, so no wedge. Keep a real (non-zero) size so the
-        // swap-chain stays valid while parked.
-        el.style.display = 'flex';
-        el.style.visibility = 'hidden';
-        el.style.pointerEvents = 'none';
-        el.style.top = '0px';
-        el.style.left = '-100000px';
-        if (!el.style.width || el.style.width === '0px') el.style.width = '1280px';
-        if (!el.style.height || el.style.height === '0px') el.style.height = '720px';
-        continue;
-      }
-      const mapped = clampOverlayRectBelowHeader(
-        mapViewportRectToOverlayRoot(anchor.getBoundingClientRect(), overlayRoot),
-        overlayRoot,
-        document.querySelector('.fx-panel[data-dock-single-tab="hideTitle"] > .fx-panel-header')
-          ?.getBoundingClientRect() ?? null,
-      );
-      el.style.display = 'flex';
-      el.style.visibility = 'visible';
-      el.style.pointerEvents = '';
-      el.style.top = `${mapped.top}px`;
-      el.style.left = `${mapped.left}px`;
-      el.style.width = `${mapped.width}px`;
-      el.style.height = `${mapped.height}px`;
-    }
-  };
+	const markViewportHostReady = useCallback((): void => {
+		const editSurface = itemRefs.current.get("edit");
+		if (!editSurface?.isConnected) return;
+		const win = window as unknown as Record<string, unknown>;
+		if (win[VIEWPORT_HOST_READY_FLAG] === true) return;
+		win[VIEWPORT_HOST_READY_FLAG] = true;
+		window.dispatchEvent(new CustomEvent(VIEWPORT_HOST_READY_EVENT));
+	}, []);
 
-  // Re-sync on: active-kind change (mode), anchor add/remove, dock relayout ping,
-  // window resize/scroll, and ResizeObserver of whichever anchors currently exist.
-  useEffect(() => {
-    syncLayout();
-    let layoutRaf = 0;
-    const scheduleSync = () => {
-      if (layoutRaf) return;
-      layoutRaf = requestAnimationFrame(() => {
-        layoutRaf = 0;
-        syncLayout();
-      });
-    };
-    // macOS Chrome throttles rAF during live window drag, so a single rAF after
-    // `resize` often runs before dockview finishes its final reflow — the overlay
-    // gets sized to a stale (smaller) anchor rect and the dock's near-black
-    // --dv-background-color bleeds through on the right/bottom. Schedule a short
-    // settle burst after each resize so the final reflow is caught.
-    const settleTimers: ReturnType<typeof setTimeout>[] = [];
-    const SETTLE_TICKS = 4;
-    const SETTLE_STEP_MS = 60;
-    const cancelSettle = () => {
-      for (const t of settleTimers) clearTimeout(t);
-      settleTimers.length = 0;
-    };
-    const onWin = () => {
-      scheduleSync();
-      cancelSettle();
-      for (let i = 1; i <= SETTLE_TICKS; i++) {
-        settleTimers.push(setTimeout(scheduleSync, i * SETTLE_STEP_MS));
-      }
-    };
-    window.addEventListener('resize', onWin);
-    window.addEventListener('scroll', onWin, true);
-    const visualViewport = window.visualViewport;
-    visualViewport?.addEventListener('resize', onWin);
+	useEffect(() => {
+		const win = window as unknown as Record<string, unknown>;
+		win[VIEWPORT_HOST_GATE_FLAG] = true;
+		markViewportHostReady();
+		return () => {
+			delete win[VIEWPORT_HOST_GATE_FLAG];
+			delete win[VIEWPORT_HOST_READY_FLAG];
+		};
+	}, [markViewportHostReady]);
 
-    let ro: ResizeObserver | null = null;
-    const observeCurrentAnchors = () => {
-      if (!ro) return;
-      ro.disconnect();
-      for (const kind of ALL_KINDS) {
-        const a = getAnchor(kind);
-        if (a) ro.observe(a);
-      }
-    };
+	// Imperative layout sync: overlay the active surface on its anchor's rect; hide
+	// the rest. Cheap enough to call on every resize/relayout tick.
+	const syncLayout = useCallback((): void => {
+		const overlayRoot = rootRef.current;
+		for (const kind of ALL_KINDS) {
+			const el = itemRefs.current.get(kind);
+			if (!el) continue;
+			const anchor = kind === activeKind ? getAnchor(kind) : null;
+			if (!anchor) {
+				// Inactive, or active-but-no-anchor (page mode / panel closed / popped
+				// to an OS window). DO NOT use display:none — on WKWebView (the desktop
+				// Studio app) display:none on a WebGPU <canvas> DROPS the GPU device, so
+				// flipping back finds a dead context and the re-create wedges WKWebView's
+				// GPU process (the "switching back and forth freezes" Play↔Edit bug).
+				// Instead park the
+				// surface OFF-SCREEN + visibility:hidden: the GPU context stays alive, the
+				// surface is invisible + click-through, and being outside the viewport still
+				// trips the surface's IntersectionObserver so its render loop pauses (no
+				// double-render). Switch-back just moves it back onto the anchor — no
+				// context re-create, so no wedge. Keep a real (non-zero) size so the
+				// swap-chain stays valid while parked.
+				el.style.display = "flex";
+				el.style.visibility = "hidden";
+				el.style.pointerEvents = "none";
+				el.style.top = "0px";
+				el.style.left = "-100000px";
+				if (!el.style.width || el.style.width === "0px")
+					el.style.width = "1280px";
+				if (!el.style.height || el.style.height === "0px")
+					el.style.height = "720px";
+				continue;
+			}
+			const mapped = clampOverlayRectBelowHeader(
+				mapViewportRectToOverlayRoot(
+					anchor.getBoundingClientRect(),
+					overlayRoot,
+				),
+				overlayRoot,
+				document
+					.querySelector(
+						'.fx-panel[data-dock-single-tab="hideTitle"] > .fx-panel-header',
+					)
+					?.getBoundingClientRect() ?? null,
+			);
+			el.style.display = "flex";
+			el.style.visibility = "visible";
+			el.style.pointerEvents = "";
+			el.style.top = `${mapped.top}px`;
+			el.style.left = `${mapped.left}px`;
+			el.style.width = `${mapped.width}px`;
+			el.style.height = `${mapped.height}px`;
+		}
+		markViewportHostReady();
+	}, [activeKind, markViewportHostReady]);
 
-    if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(() => scheduleSync());
-      observeCurrentAnchors();
-    }
-    const offAnchors = subscribeAnchors(() => {
-      observeCurrentAnchors();
-      syncLayout();
-    });
-    const offRelayout = subscribeRelayout(scheduleSync);
+	// Re-sync on: active-kind change (mode), anchor add/remove, dock relayout ping,
+	// window resize/scroll, and ResizeObserver of whichever anchors currently exist.
+	useEffect(() => {
+		syncLayout();
+		const layoutFrameTask = createCoalescedFrameTaskLifecycle({
+			task: syncLayout,
+		});
+		const scheduleSync = layoutFrameTask.schedule;
+		// macOS Chrome throttles rAF during live window drag, so a single rAF after
+		// `resize` often runs before dockview finishes its final reflow — the overlay
+		// gets sized to a stale (smaller) anchor rect and the dock's near-black
+		// --dv-background-color bleeds through on the right/bottom. Schedule a short
+		// settle burst after each resize so the final reflow is caught.
+		const SETTLE_TICKS = 4;
+		const SETTLE_STEP_MS = 60;
+		const settleTimers = Array.from({ length: SETTLE_TICKS }, (_, index) =>
+			createRestartableTimeoutTaskLifecycle({
+				task: scheduleSync,
+				delayMs: (index + 1) * SETTLE_STEP_MS,
+			}),
+		);
+		const cancelSettle = () => {
+			for (const timer of settleTimers) timer.cancel();
+		};
+		const onWin = () => {
+			scheduleSync();
+			cancelSettle();
+			for (const timer of settleTimers) timer.schedule();
+		};
+		const disposeWindowResizeObservation = installViewportResizeObservation({
+			target: window,
+			onResize: onWin,
+		});
+		const disposeViewportScrollObservation = installViewportScrollObservation({
+			target: window,
+			onScroll: onWin,
+		});
+		const visualViewport = window.visualViewport;
+		const disposeVisualViewportResizeObservation = visualViewport
+			? installViewportResizeObservation({
+					target: visualViewport,
+					onResize: onWin,
+				})
+			: () => {};
 
-    // A short rAF burst right after a switch catches the dockview rebuild settling
-    // (anchor mounts a frame or two after the workspace flips) without a permanent
-    // loop. Each tick is a single getBoundingClientRect — negligible.
-    let frames = 0;
-    let burstRaf = 0;
-    const tick = () => {
-      syncLayout();
-      if (++frames < 30) burstRaf = requestAnimationFrame(tick);
-    };
-    burstRaf = requestAnimationFrame(tick);
+		const disposeAnchorResizeObservation = installElementResizeObservation({
+			getElements: () =>
+				ALL_KINDS.map(getAnchor).filter(
+					(anchor): anchor is HTMLElement => anchor !== null,
+				),
+			subscribeElements: subscribeAnchors,
+			onResize: scheduleSync,
+			onElementsChanged: syncLayout,
+		});
+		const offRelayout = subscribeRelayout(scheduleSync);
 
-    return () => {
-      window.removeEventListener('resize', onWin);
-      window.removeEventListener('scroll', onWin, true);
-      visualViewport?.removeEventListener('resize', onWin);
-      cancelSettle();
-      offAnchors();
-      offRelayout();
-      ro?.disconnect();
-      if (layoutRaf) cancelAnimationFrame(layoutRaf);
-      if (burstRaf) cancelAnimationFrame(burstRaf);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKind]);
+		// A short rAF burst right after a switch catches the dockview rebuild settling
+		// (anchor mounts a frame or two after the workspace flips) without a permanent
+		// loop. Each tick is a single getBoundingClientRect — negligible.
+		let frames = 0;
+		const burstFrameTask = createCoalescedFrameTaskLifecycle({
+			task: () => {
+				syncLayout();
+				if (++frames < 30) burstFrameTask.schedule();
+			},
+		});
+		burstFrameTask.schedule();
 
-  const renderSurface = (kind: SurfaceKind): ReactNode => {
-    // Single-kind surface today ('edit'); the preview/edit merge (2026-06-30)
-    // collapsed both into one viewport. Kept the kind-switch so future modes
-    // (play, debug) can add sibling branches without restructuring.
-    if (kind !== 'edit') return <NoEditor kind={kind} />;
-    return SceneEditor ? (
-      <div data-fx-slot="SceneEditor" style={{ display: 'contents' }}><SceneEditor /></div>
-    ) : (
-      <NoEditor kind="edit" />
-    );
-  };
+		return () => {
+			disposeWindowResizeObservation();
+			disposeViewportScrollObservation();
+			disposeVisualViewportResizeObservation();
+			for (const timer of settleTimers) timer.dispose();
+			disposeAnchorResizeObservation();
+			offRelayout();
+			layoutFrameTask.dispose();
+			burstFrameTask.dispose();
+		};
+	}, [syncLayout]);
 
-  const layer = (
-    <div
-      ref={rootRef}
-      className="fx-surface-keepalive-root"
-      aria-hidden={activeKind ? undefined : true}
-    >
-      {[...visitedRef.current].map((kind) => (
-        // Stable key + stable parent → the in-process surface is reconciled in
-        // place across every render: never remounted, never reloaded.
-        <SurfaceRegion
-          key={kind}
-          ref={(el) => { itemRefs.current.set(kind, el); }}
-          className="fx-surface-keepalive-item"
-          data-surface-kind={kind}
-          style={{ display: 'none' }}
-          overlay={<FatalBanner source="edit" />}
-          // Capture-phase so it fires before the surface's own handlers, and never
-          // preventDefault/stopPropagation — we only mirror the click as dock focus.
-          // Moves `dv-active-group` (the lime focus accent) onto the viewport group,
-          // clearing the stale highlight left on whatever tab was focused before.
-          onPointerDownCapture={() => {
-            const panelId = PANEL_ID_FOR_KIND[kind];
-            if (panelId) host.bus.emit('panel:focus', { id: panelId });
-          }}
-        >
-          {kind === 'edit' && viewportFloating ? null : renderSurface(kind)}
-        </SurfaceRegion>
-      ))}
-    </div>
-  );
+	const renderSurface = (kind: SurfaceKind): ReactNode => {
+		// Single-kind surface today ('edit'); the preview/edit merge (2026-06-30)
+		// collapsed both into one viewport. Kept the kind-switch so future modes
+		// (play, debug) can add sibling branches without restructuring.
+		if (kind !== "edit") return <NoEditor kind={kind} />;
+		return SceneEditor ? (
+			<div data-fx-slot="SceneEditor" style={{ display: "contents" }}>
+				<SceneEditor />
+			</div>
+		) : (
+			<NoEditor kind="edit" />
+		);
+	};
 
-  return createPortal(layer, document.body);
+	const layer = (
+		<div
+			ref={rootRef}
+			className="fx-surface-keepalive-root"
+			aria-hidden={activeKind ? undefined : true}
+		>
+			{[...visitedRef.current].map((kind) => (
+				// Stable key + stable parent → the in-process surface is reconciled in
+				// place across every render: never remounted, never reloaded.
+				<SurfaceRegion
+					key={kind}
+					ref={(el) => {
+						itemRefs.current.set(kind, el);
+						if (kind === "edit") markViewportHostReady();
+					}}
+					className="fx-surface-keepalive-item"
+					data-surface-kind={kind}
+					style={{ display: "none" }}
+					overlay={<FatalBanner source="edit" />}
+					// Capture-phase so it fires before the surface's own handlers, and never
+					// preventDefault/stopPropagation — we only mirror the click as dock focus.
+					// Moves `dv-active-group` (the lime focus accent) onto the viewport group,
+					// clearing the stale highlight left on whatever tab was focused before.
+					onPointerDownCapture={() => {
+						const panelId = PANEL_ID_FOR_KIND[kind];
+						if (panelId) host.bus.emit("panel:focus", { id: panelId });
+					}}
+				>
+					{kind === "edit" && viewportFloating ? null : renderSurface(kind)}
+				</SurfaceRegion>
+			))}
+		</div>
+	);
+
+	return createPortal(layer, document.body);
 }
 
 function NoEditor({ kind }: { kind: SurfaceKind }) {
-  return <SurfacePlaceholder title="No editor configured" className={`surface-placeholder--${kind}`} />;
+	return (
+		<SurfacePlaceholder
+			title="No editor configured"
+			className={`surface-placeholder--${kind}`}
+		/>
+	);
 }

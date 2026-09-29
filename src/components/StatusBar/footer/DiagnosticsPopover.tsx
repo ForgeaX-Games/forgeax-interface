@@ -11,193 +11,220 @@
  *
  * Lives in interface, auto-registered by chrome-statusbar; sits far-right.
  */
-import { useEffect, useState } from 'react';
-import { Gauge, Circle } from 'lucide-react';
-import { StripPopover } from '../StripPopover';
-import { useSharedHealth } from '../../../lib/shell-live-data';
-import { useEditorFacts } from '../../../lib/editor-facts-bus';
-import { useTranslation } from '../../../i18n';
-import type { StatusItemContribution } from '../../../core/panels';
-import './footer.css';
+
+import { Circle, Gauge } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { StatusItemContribution } from "../../../core/panels";
+import { useTranslation } from "../../../i18n";
+import { useEditorFacts } from "../../../lib/editor-facts-bus";
+import { useSharedHealth } from "../../../lib/shell-live-data";
+import { StripPopover } from "../StripPopover";
+import "./footer.css";
 
 /** Compact uptime: "2h13m" / "13m" / "<1m". */
 function fmtUptime(s: number): string {
-  if (s < 60) return '<1m';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}h${m}m` : `${m}m`;
+	if (s < 60) return "<1m";
+	const h = Math.floor(s / 3600);
+	const m = Math.floor((s % 3600) / 60);
+	return h > 0 ? `${h}h${m}m` : `${m}m`;
 }
 
 interface NavExt extends Navigator {
-  deviceMemory?: number;
-  gpu?: { requestAdapter?: () => Promise<GpuAdapterLike | null> };
+	deviceMemory?: number;
+	gpu?: { requestAdapter?: () => Promise<GpuAdapterLike | null> };
 }
 interface GpuAdapterLike {
-  info?: Record<string, unknown>;
-  requestAdapterInfo?: () => Promise<Record<string, unknown>>;
+	info?: Record<string, unknown>;
+	requestAdapterInfo?: () => Promise<Record<string, unknown>>;
 }
 interface PerfMem {
-  usedJSHeapSize: number;
-  jsHeapSizeLimit: number;
+	usedJSHeapSize: number;
+	jsHeapSizeLimit: number;
 }
 
 function deviceLabel(unknownDevice: string, coreUnit: string): string {
-  const nav = navigator as NavExt;
-  const cores = nav.hardwareConcurrency;
-  const plat = nav.platform || unknownDevice;
-  return cores ? `${plat} · ${cores} ${coreUnit}` : plat;
+	const nav = navigator as NavExt;
+	const cores = nav.hardwareConcurrency;
+	const plat = nav.platform || unknownDevice;
+	return cores ? `${plat} · ${cores} ${coreUnit}` : plat;
 }
 
 function readHeap(): { usedMB: number; totalMB: number } | null {
-  const m = (performance as Performance & { memory?: PerfMem }).memory;
-  if (!m || !m.jsHeapSizeLimit) return null;
-  return {
-    usedMB: Math.round(m.usedJSHeapSize / 1048576),
-    totalMB: Math.round(m.jsHeapSizeLimit / 1048576),
-  };
+	const m = (performance as Performance & { memory?: PerfMem }).memory;
+	if (!m?.jsHeapSizeLimit) return null;
+	return {
+		usedMB: Math.round(m.usedJSHeapSize / 1048576),
+		totalMB: Math.round(m.jsHeapSizeLimit / 1048576),
+	};
 }
 
 async function probeGpu(unavailable: string): Promise<string> {
-  try {
-    const gpu = (navigator as NavExt).gpu;
-    if (!gpu?.requestAdapter) return unavailable;
-    const adapter = await gpu.requestAdapter();
-    if (!adapter) return unavailable;
-    const info =
-      adapter.info ??
-      (typeof adapter.requestAdapterInfo === 'function' ? await adapter.requestAdapterInfo() : undefined);
-    if (!info) return 'WebGPU';
-    const parts = [info.vendor, info.architecture].filter(
-      (x): x is string => typeof x === 'string' && x.length > 0,
-    );
-    return parts.length ? parts.join(' · ') : 'WebGPU';
-  } catch {
-    return unavailable;
-  }
+	try {
+		const gpu = (navigator as NavExt).gpu;
+		if (!gpu?.requestAdapter) return unavailable;
+		const adapter = await gpu.requestAdapter();
+		if (!adapter) return unavailable;
+		const info =
+			adapter.info ??
+			(typeof adapter.requestAdapterInfo === "function"
+				? await adapter.requestAdapterInfo()
+				: undefined);
+		if (!info) return "WebGPU";
+		const parts = [info.vendor, info.architecture].filter(
+			(x): x is string => typeof x === "string" && x.length > 0,
+		);
+		return parts.length ? parts.join(" · ") : "WebGPU";
+	} catch {
+		return unavailable;
+	}
 }
 
 interface RuntimeRes {
-  rssMB: number;
-  uptime: number;
-  ws: number;
+	rssMB: number;
+	uptime: number;
+	ws: number;
 }
-type ResState = 'loading' | 'ok' | 'down';
+type ResState = "loading" | "ok" | "down";
 
 export function DiagnosticsChip() {
-  const facts = useEditorFacts();
-  const sharedHealth = useSharedHealth();
-  const { t, i18n } = useTranslation();
-  const [gpu, setGpu] = useState(() => t('statusBar.diagnostics.checking'));
-  const [heap, setHeap] = useState<{ usedMB: number; totalMB: number } | null>(null);
-  const [resState, setResState] = useState<ResState>('loading');
-  const [res, setRes] = useState<RuntimeRes | null>(null);
+	const facts = useEditorFacts();
+	const sharedHealth = useSharedHealth();
+	const { t, i18n } = useTranslation();
+	const [gpu, setGpu] = useState(() => t("statusBar.diagnostics.checking"));
+	const [heap, setHeap] = useState<{ usedMB: number; totalMB: number } | null>(
+		null,
+	);
+	const [resState, setResState] = useState<ResState>("loading");
+	const [res, setRes] = useState<RuntimeRes | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setGpu(t('statusBar.diagnostics.checking'));
-    void probeGpu(t('statusBar.diagnostics.webgpuUnavailable')).then((g) => {
-      if (!cancelled) setGpu(g);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [i18n.language, t]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: t is module-stable; locale changes must re-probe and translate the GPU fallback text.
+	useEffect(() => {
+		let cancelled = false;
+		setGpu(t("statusBar.diagnostics.checking"));
+		void probeGpu(t("statusBar.diagnostics.webgpuUnavailable")).then((g) => {
+			if (!cancelled) setGpu(g);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [i18n.language, t]);
 
-  useEffect(() => {
-    setHeap(readHeap());
-    if (sharedHealth.state === 'loading') return;
-    if (sharedHealth.state === 'down') {
-      setResState('down');
-      return;
-    }
-    const h = sharedHealth.value;
-    const rss = typeof h.mem?.rss === 'number' ? h.mem.rss : 0;
-    setRes({ rssMB: Math.round(rss / 1048576), uptime: h.uptime ?? 0, ws: h.wsClients ?? 0 });
-    setResState('ok');
-  }, [sharedHealth]);
+	useEffect(() => {
+		setHeap(readHeap());
+		if (sharedHealth.state === "loading") return;
+		if (sharedHealth.state === "down") {
+			setResState("down");
+			return;
+		}
+		const h = sharedHealth.value;
+		const rss = typeof h.mem?.rss === "number" ? h.mem.rss : 0;
+		setRes({
+			rssMB: Math.round(rss / 1048576),
+			uptime: h.uptime ?? 0,
+			ws: h.wsClients ?? 0,
+		});
+		setResState("ok");
+	}, [sharedHealth]);
 
-  const memPct = heap && heap.totalMB ? Math.round((heap.usedMB / heap.totalMB) * 100) : 0;
-  const resText = (fmt: (r: RuntimeRes) => string): string =>
-    resState === 'loading' ? '—' : resState === 'down' ? '!' : res ? fmt(res) : '—';
+	const memPct = heap?.totalMB
+		? Math.round((heap.usedMB / heap.totalMB) * 100)
+		: 0;
+	const resText = (fmt: (r: RuntimeRes) => string): string =>
+		resState === "loading"
+			? "—"
+			: resState === "down"
+				? "!"
+				: res
+					? fmt(res)
+					: "—";
 
-  return (
-    <StripPopover
-      icon="Gauge"
-      label={t('statusBar.diagnostics.title')}
-      tooltip={t('statusBar.diagnostics.tooltip')}
-      title={
-        <>
-          <Gauge size={13} />
-          {t('statusBar.diagnostics.title')}
-        </>
-      }
-    >
-      <div className="fx-pop-sec">
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.device')}</span>
-          <b>{deviceLabel(t('statusBar.diagnostics.unknownDevice'), t('statusBar.diagnostics.cores'))}</b>
-        </div>
-        <div className="fx-meter">
-          <div className="fx-meter-top">
-            <span>{t('statusBar.diagnostics.memory')}</span>
-            <b>{heap ? `${heap.usedMB} / ${heap.totalMB} MB` : t('statusBar.diagnostics.unavailable')}</b>
-          </div>
-          <div className="fx-meter-bar">
-            <i style={{ width: `${memPct}%` }} />
-          </div>
-        </div>
-        <div className="fx-kv">
-          <span>GPU</span>
-          <b>{gpu}</b>
-        </div>
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.engine')}</span>
-          <b className={facts ? 'ok' : undefined}>
-            {facts ? <Circle size={12} /> : null}
-            {facts?.engine ?? '—'}
-          </b>
-        </div>
-      </div>
-      <div className="fx-pop-div" />
-      <div className="fx-pop-sec">
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.processMemory')}</span>
-          <b>{resText((r) => `${r.rssMB} MB`)}</b>
-        </div>
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.uptime')}</span>
-          <b>{resText((r) => fmtUptime(r.uptime))}</b>
-        </div>
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.wsConnections')}</span>
-          <b>{resText((r) => String(r.ws))}</b>
-        </div>
-      </div>
-      <div className="fx-pop-div" />
-      <div className="fx-pop-sec">
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.project')}</span>
-          <b>{facts?.project ?? '—'}</b>
-        </div>
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.scene')}</span>
-          <b>{facts?.scene ?? '—'}</b>
-        </div>
-        <div className="fx-kv">
-          <span>{t('statusBar.diagnostics.assets')}</span>
-          <b>{facts ? facts.assets : '—'}</b>
-        </div>
-      </div>
-    </StripPopover>
-  );
+	return (
+		<StripPopover
+			icon="Gauge"
+			label={t("statusBar.diagnostics.title")}
+			tooltip={t("statusBar.diagnostics.tooltip")}
+			title={
+				<>
+					<Gauge size={13} />
+					{t("statusBar.diagnostics.title")}
+				</>
+			}
+		>
+			<div className="fx-pop-sec">
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.device")}</span>
+					<b>
+						{deviceLabel(
+							t("statusBar.diagnostics.unknownDevice"),
+							t("statusBar.diagnostics.cores"),
+						)}
+					</b>
+				</div>
+				<div className="fx-meter">
+					<div className="fx-meter-top">
+						<span>{t("statusBar.diagnostics.memory")}</span>
+						<b>
+							{heap
+								? `${heap.usedMB} / ${heap.totalMB} MB`
+								: t("statusBar.diagnostics.unavailable")}
+						</b>
+					</div>
+					<div className="fx-meter-bar">
+						<i style={{ width: `${memPct}%` }} />
+					</div>
+				</div>
+				<div className="fx-kv">
+					<span>GPU</span>
+					<b>{gpu}</b>
+				</div>
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.engine")}</span>
+					<b className={facts ? "ok" : undefined}>
+						{facts ? <Circle size={12} /> : null}
+						{facts?.engine ?? "—"}
+					</b>
+				</div>
+			</div>
+			<div className="fx-pop-div" />
+			<div className="fx-pop-sec">
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.processMemory")}</span>
+					<b>{resText((r) => `${r.rssMB} MB`)}</b>
+				</div>
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.uptime")}</span>
+					<b>{resText((r) => fmtUptime(r.uptime))}</b>
+				</div>
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.wsConnections")}</span>
+					<b>{resText((r) => String(r.ws))}</b>
+				</div>
+			</div>
+			<div className="fx-pop-div" />
+			<div className="fx-pop-sec">
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.project")}</span>
+					<b>{facts?.project ?? "—"}</b>
+				</div>
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.scene")}</span>
+					<b>{facts?.scene ?? "—"}</b>
+				</div>
+				<div className="fx-kv">
+					<span>{t("statusBar.diagnostics.assets")}</span>
+					<b>{facts ? facts.assets : "—"}</b>
+				</div>
+			</div>
+		</StripPopover>
+	);
 }
 
 // Pulse chips and diagnostics share statusbar.right. Its lower priority keeps
 // diagnostics after MB / SKILL / TOOL / AGENT and immediately before Version.
 export const diagnosticsStatusItem: StatusItemContribution = {
-  kind: 'status-item',
-  id: 'diagnostics',
-  location: 'statusbar.right',
-  priority: 5,
-  item: { type: 'custom', render: () => <DiagnosticsChip /> },
+	kind: "status-item",
+	id: "diagnostics",
+	location: "statusbar.right",
+	priority: 5,
+	item: { type: "custom", render: () => <DiagnosticsChip /> },
 };

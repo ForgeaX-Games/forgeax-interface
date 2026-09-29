@@ -10,31 +10,35 @@
  * synchronous and avoids a flash of un-branded content.
  */
 
-import { createContext, useContext, useMemo } from 'react';
-import type { ReactNode } from 'react';
-import type { BrandConfig, BrandRuntime } from './types';
-import { getBrandRuntimeSync, getBrandAssetUrl } from './runtime';
+import type { ReactNode } from "react";
+import { createContext, useContext, useMemo } from "react";
+import { getBrandAssetUrl, getBrandRuntimeSync } from "./runtime";
+import type { BrandConfig, BrandRuntime } from "./types";
 
 const BrandContext = createContext<BrandRuntime | null>(null);
 
 export function BrandProvider({ children }: { children: ReactNode }) {
-  const value = useMemo(() => getBrandRuntimeSync(), []);
-  return <BrandContext.Provider value={value}>{children}</BrandContext.Provider>;
+	const value = useMemo(() => getBrandRuntimeSync(), []);
+	return (
+		<BrandContext.Provider value={value}>{children}</BrandContext.Provider>
+	);
 }
 
 export function useBrand(): BrandConfig {
-  const ctx = useContext(BrandContext);
-  if (ctx) return ctx.config;
-  return getBrandRuntimeSync().config;
+	const ctx = useContext(BrandContext);
+	if (ctx) return ctx.config;
+	return getBrandRuntimeSync().config;
 }
 
 export function useBrandRuntime(): BrandRuntime {
-  const ctx = useContext(BrandContext);
-  if (ctx) return ctx;
-  return getBrandRuntimeSync();
+	const ctx = useContext(BrandContext);
+	if (ctx) return ctx;
+	return getBrandRuntimeSync();
 }
 
-export function useBrandAsset(key: 'favicon' | 'logo' | 'avatar'): string | null {
-  // Re-derive on every render; getBrandAssetUrl is pure and cheap.
-  return getBrandAssetUrl(key);
+export function useBrandAsset(
+	key: "favicon" | "logo" | "avatar",
+): string | null {
+	// Re-derive on every render; getBrandAssetUrl is pure and cheap.
+	return getBrandAssetUrl(key);
 }

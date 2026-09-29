@@ -1,7 +1,7 @@
 export {
-  DOCK_REGIONS,
-  REGIONS,
-  isDockRegion,
-  type DockRegion,
-  type Region,
-} from '@forgeax/app-shell/dock';
+	DOCK_REGIONS,
+	type DockRegion,
+	isDockRegion,
+	REGIONS,
+	type Region,
+} from "@forgeax/app-shell/dock";

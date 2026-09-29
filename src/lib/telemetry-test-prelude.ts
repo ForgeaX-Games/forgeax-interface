@@ -10,4 +10,6 @@
  * 用法:在任何会(直接或经组件)import 大 store 的测试文件里,把本模块作为**第一个**
  * side-effect import 放最上面(ESM 按出现顺序求值,确保先于 store)。
  */
-(globalThis as Record<string, unknown>).__FORGEAX_DAEMON_WS_BOUND__ ??= { handler: () => {} };
+(globalThis as Record<string, unknown>).__FORGEAX_DAEMON_WS_BOUND__ ??= {
+	handler: () => {},
+};

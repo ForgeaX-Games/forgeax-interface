@@ -6,24 +6,24 @@
 // 而不是拿列表第 0 位。
 
 export interface PickableSession {
-  sid: string;
-  lastActivityAt?: number;
+	sid: string;
+	lastActivityAt?: number;
 }
 
 /** 该 game 最近活跃的一条会话 sid；空列表 → null。 */
 export function mostRecentSid(tabs: readonly PickableSession[]): string | null {
-  let best: PickableSession | null = null;
-  for (const t of tabs) {
-    if (!best || (t.lastActivityAt ?? 0) > (best.lastActivityAt ?? 0)) best = t;
-  }
-  return best?.sid ?? null;
+	let best: PickableSession | null = null;
+	for (const t of tabs) {
+		if (!best || (t.lastActivityAt ?? 0) > (best.lastActivityAt ?? 0)) best = t;
+	}
+	return best?.sid ?? null;
 }
 
 /** persisted sid 仍在列表里 → 尊重用户上次的停留；否则回落最近活跃。 */
 export function pickActiveSid(
-  tabs: readonly PickableSession[],
-  persisted: string | null,
+	tabs: readonly PickableSession[],
+	persisted: string | null,
 ): string | null {
-  if (persisted && tabs.some((t) => t.sid === persisted)) return persisted;
-  return mostRecentSid(tabs);
+	if (persisted && tabs.some((t) => t.sid === persisted)) return persisted;
+	return mostRecentSid(tabs);
 }

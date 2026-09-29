@@ -1,22 +1,28 @@
-import { describe, expect, test } from 'bun:test';
-import { preferredCliProviderToKernel } from './agent-cli-provider';
+import { describe, expect, test } from "bun:test";
+import { preferredCliProviderToKernel } from "./agent-cli-provider";
 
-describe('preferredCliProviderToKernel', () => {
-  test('maps cursor marketplace plugin to cursor-agent kernel', () => {
-    expect(preferredCliProviderToKernel('@forgeax-plugin/cli-cursor-agent')).toBe('cursor-agent');
-  });
+describe("preferredCliProviderToKernel", () => {
+	test("maps cursor marketplace plugin to cursor-agent kernel", () => {
+		expect(
+			preferredCliProviderToKernel("@forgeax-plugin/cli-cursor-agent"),
+		).toBe("cursor-agent");
+	});
 
-  test('maps forgeax-native to null (EventBus path)', () => {
-    expect(preferredCliProviderToKernel('forgeax-native')).toBeNull();
-  });
+	test("maps forgeax-native to null (EventBus path)", () => {
+		expect(preferredCliProviderToKernel("forgeax-native")).toBeNull();
+	});
 
-  test('passes through kernel ids', () => {
-    expect(preferredCliProviderToKernel('claude-code')).toBe('claude-code');
-    expect(preferredCliProviderToKernel('kimi-code')).toBe('kimi-code');
-    expect(preferredCliProviderToKernel('deepseek-harness')).toBe('deepseek-harness');
-  });
+	test("passes through kernel ids", () => {
+		expect(preferredCliProviderToKernel("claude-code")).toBe("claude-code");
+		expect(preferredCliProviderToKernel("kimi-code")).toBe("kimi-code");
+		expect(preferredCliProviderToKernel("deepseek-harness")).toBe(
+			"deepseek-harness",
+		);
+	});
 
-  test('maps the DeepSeek Harness marketplace plugin defensively', () => {
-    expect(preferredCliProviderToKernel('@forgeax-plugin/cli-deepseek-harness')).toBe('deepseek-harness');
-  });
+	test("maps the DeepSeek Harness marketplace plugin defensively", () => {
+		expect(
+			preferredCliProviderToKernel("@forgeax-plugin/cli-deepseek-harness"),
+		).toBe("deepseek-harness");
+	});
 });

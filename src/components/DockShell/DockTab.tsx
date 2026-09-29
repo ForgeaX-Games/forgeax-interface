@@ -16,38 +16,51 @@
 // CLOSE BUTTON: React synthetic events and native mousedown/click are
 // unreliable here because calling preventDefault() on pointerdown (needed to
 // prevent tab activation) suppresses subsequent mousedown/click per the W3C
-// Pointer Events spec. We bypass React entirely and handle close directly on
-// a native `pointerdown` listener via ref+useEffect.
+// Pointer Events spec. The public App Shell interaction hook owns that native
+// pointerdown and the matching middle-button session; this file only injects
+// Dockview close policy and forwards Dockview's tab handlers.
+
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type PointerEvent,
-  type ReactElement,
-} from 'react';
-import { Pin, X } from 'lucide-react';
-import type { IDockviewDefaultTabProps } from 'dockview';
-import { barePanelId, iconForDockPanel } from '../../lib/panel-tab-icons';
-import { EDGE_PIN_CLASS, pinnedPanelIdIn, subscribeEdgePins } from './edgePinStore';
-import { useTranslation } from '@/i18n';
-import { useHealthStore } from '../StatusBar/healthStore';
+	DockTabAction,
+	DockTabFrame,
+	DockTabIcon,
+	DockTabStatusSummary,
+	DockTabTitle,
+	type LiveTabPlacementSource,
+	type LiveTabTitleSource,
+	useLiveTabPlacement,
+	useLiveTabTitle,
+	useTabCloseInteractions,
+	useTabPinnedState,
+} from "@forgeax/app-shell/react";
+import type { IDockviewDefaultTabProps } from "dockview";
+import { Pin, X } from "lucide-react";
+import {
+	type PointerEvent,
+	type ReactElement,
+	useCallback,
+	useMemo,
+} from "react";
+import { useTranslation } from "@/i18n";
+import { barePanelId, iconForDockPanel } from "../../lib/panel-tab-icons";
+import { useHealthStore } from "../StatusBar/healthStore";
+import { EDGE_PIN_CLASS, edgePinStateSource } from "./edgePinStore";
 
 const EMPTY_HEALTH_ENTRIES = Object.freeze([]);
 
 /** Track the live tab title (dockview mutates it via `api.setTitle`). */
-function useTitle(api: IDockviewDefaultTabProps['api']): string | undefined {
-  const [title, setTitle] = useState(api.title);
-  useEffect(() => {
-    const disposable = api.onDidTitleChange((event) => setTitle(event.title));
-    // Effect ordering can leave title stale on mount (dockview issue #1003).
-    if (title !== api.title) setTitle(api.title);
-    return () => disposable.dispose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api]);
-  return title;
+function useTitle(api: IDockviewDefaultTabProps["api"]): string | undefined {
+	const source = useMemo<LiveTabTitleSource>(
+		() => ({
+			getTitle: () => api.title,
+			subscribe: (listener) => {
+				const disposable = api.onDidTitleChange(listener);
+				return () => disposable.dispose();
+			},
+		}),
+		[api],
+	);
+	return useLiveTabTitle(source);
 }
 
 /**
@@ -59,26 +72,32 @@ function useTitle(api: IDockviewDefaultTabProps['api']): string | undefined {
  * Panels without a catalog key (host-injected editor/extension panels) fall
  * back to the live `api.title` the host set at mount — their own name, as-is.
  */
-function useDockTabName(api: IDockviewDefaultTabProps['api']): string | undefined {
-  const stored = useTitle(api);
-  const { t } = useTranslation();
-  const key = `dockShell.panelTitles.${barePanelId(api.id)}`;
-  const localized = t(key);
-  return localized !== key ? localized : stored;
+function useDockTabName(
+	api: IDockviewDefaultTabProps["api"],
+): string | undefined {
+	const stored = useTitle(api);
+	const { t } = useTranslation();
+	const key = `dockShell.panelTitles.${barePanelId(api.id)}`;
+	const localized = t(key);
+	return localized !== key ? localized : stored;
 }
 
-function useInfoIssueCounts(panelId: string): { error: number; warn: number } | null {
-  const entries = useHealthStore((s) => (barePanelId(panelId) === 'info' ? s.entries : EMPTY_HEALTH_ENTRIES));
-  return useMemo(() => {
-    if (barePanelId(panelId) !== 'info') return null;
-    let error = 0;
-    let warn = 0;
-    for (const entry of entries) {
-      if (entry.level === 'error') error++;
-      else if (entry.level === 'warn') warn++;
-    }
-    return { error, warn };
-  }, [entries, panelId]);
+function useInfoIssueCounts(
+	panelId: string,
+): { error: number; warn: number } | null {
+	const entries = useHealthStore((s) =>
+		barePanelId(panelId) === "info" ? s.entries : EMPTY_HEALTH_ENTRIES,
+	);
+	return useMemo(() => {
+		if (barePanelId(panelId) !== "info") return null;
+		let error = 0;
+		let warn = 0;
+		for (const entry of entries) {
+			if (entry.level === "error") error++;
+			else if (entry.level === "warn") warn++;
+		}
+		return { error, warn };
+	}, [entries, panelId]);
 }
 
 /**
@@ -88,149 +107,131 @@ function useInfoIssueCounts(panelId: string): { error: number; warn: number } | 
  * `onDidLocationChange` fires on any group change (dockviewPanelApi sets it from
  * the `group` setter), which covers dragging a panel into or out of a strip.
  */
-function useEdgePin(api: IDockviewDefaultTabProps['api']): { isEdge: boolean; pinned: boolean } {
-  const readHome = useCallback(
-    () => ({ isEdge: api.location.type === 'edge', groupId: api.group.id }),
-    [api],
-  );
-  const [home, setHome] = useState(readHome);
-  useEffect(() => {
-    const sync = (): void =>
-      setHome((prev) => {
-        const next = readHome();
-        return prev.isEdge === next.isEdge && prev.groupId === next.groupId ? prev : next;
-      });
-    sync();
-    const disposable = api.onDidLocationChange(sync);
-    return () => disposable.dispose();
-  }, [api, readHome]);
-  const pinned = useSyncExternalStore(
-    subscribeEdgePins,
-    () => pinnedPanelIdIn(home.groupId) === api.id,
-  );
-  return { isEdge: home.isEdge, pinned };
+function useEdgePin(api: IDockviewDefaultTabProps["api"]): {
+	isEdge: boolean;
+	pinned: boolean;
+} {
+	const source = useMemo<LiveTabPlacementSource>(
+		() => ({
+			getPlacement: () => ({
+				isEdge: api.location.type === "edge",
+				groupId: api.group.id,
+			}),
+			subscribe: (listener) => {
+				const disposable = api.onDidLocationChange(listener);
+				return () => disposable.dispose();
+			},
+		}),
+		[api],
+	);
+	const home = useLiveTabPlacement(source) ?? {
+		isEdge: false,
+		groupId: api.group.id,
+	};
+	const pinned = useTabPinnedState(edgePinStateSource, home.groupId, api.id);
+	return { isEdge: home.isEdge, pinned };
 }
 
 export function DockTab({
-  api,
-  containerApi: _containerApi,
-  params: _params,
-  hideClose,
-  closeActionOverride,
-  onPointerDown,
-  onPointerUp,
-  onPointerLeave,
-  tabLocation: _tabLocation,
-  ...rest
+	api,
+	containerApi: _containerApi,
+	params: _params,
+	hideClose,
+	closeActionOverride,
+	onPointerDown,
+	onPointerUp,
+	onPointerLeave,
+	tabLocation: _tabLocation,
+	...rest
 }: IDockviewDefaultTabProps): ReactElement {
-  const title = useDockTabName(api);
-  const infoIssueCounts = useInfoIssueCounts(api.id);
-  const Icon = iconForDockPanel(api.id);
-  const { isEdge, pinned } = useEdgePin(api);
-  const isMiddleMouseButton = useRef(false);
-  const closeRef = useRef<HTMLDivElement>(null);
+	const title = useDockTabName(api);
+	const infoIssueCounts = useInfoIssueCounts(api.id);
+	const Icon = iconForDockPanel(api.id);
+	const { isEdge, pinned } = useEdgePin(api);
+	const close = useCallback(() => {
+		if (closeActionOverride) closeActionOverride();
+		else api.close();
+	}, [api, closeActionOverride]);
+	const closeInteractions = useTabCloseInteractions<HTMLDivElement>({
+		close,
+		disabled: hideClose,
+		onPointerDown,
+		onPointerUp,
+		onPointerLeave,
+	});
 
-  // Native DOM listener on the close button — bypasses React event delegation
-  // which is unreliable inside dockview's vanilla-JS portal container.
-  // Must handle close on `pointerdown` because calling preventDefault() on
-  // pointerdown suppresses subsequent mousedown/click (W3C Pointer Events spec).
-  useEffect(() => {
-    const el = closeRef.current;
-    if (!el) return;
+	const onBtnPointerDown = useCallback(
+		(event: PointerEvent) => event.preventDefault(),
+		[],
+	);
+	const infoStatusItems =
+		infoIssueCounts === null
+			? []
+			: [
+					...(infoIssueCounts.error > 0
+						? [
+								{
+									id: "errors",
+									tone: "error" as const,
+									icon: "✖",
+									value: infoIssueCounts.error,
+								},
+							]
+						: []),
+					...(infoIssueCounts.warn > 0
+						? [
+								{
+									id: "warnings",
+									tone: "warning" as const,
+									icon: "⚠",
+									value: infoIssueCounts.warn,
+								},
+							]
+						: []),
+				];
+	const action = hideClose ? undefined : isEdge ? (
+		// The toggle itself is driven by edgeDrawer's capture-phase click
+		// handler (it must preventDefault dockview's native expand before the
+		// event ever reaches React), so this renders state and carries the
+		// panel id that handler reads back — no onClick of its own.
+		<DockTabAction
+			className={`${EDGE_PIN_CLASS}${pinned ? ` ${EDGE_PIN_CLASS}--on` : ""}`}
+			data-fx-edge-pin-panel={api.id}
+			role="button"
+			aria-pressed={pinned}
+			aria-label={pinned ? "Unpin tab" : "Pin tab"}
+			title={pinned ? "Unpin" : "Pin"}
+			onPointerDown={onBtnPointerDown}
+		>
+			<Pin className="fx-edge-pin-icon" size={12} aria-hidden />
+		</DockTabAction>
+	) : (
+		<DockTabAction ref={closeInteractions.closeRef}>
+			<X size={14} aria-hidden />
+		</DockTabAction>
+	);
 
-    const onPointerDownClose = (ev: globalThis.PointerEvent): void => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      try {
-        if (closeActionOverride) closeActionOverride();
-        else api.close();
-      } catch { /* panel may already be disposed */ }
-    };
-
-    el.addEventListener('pointerdown', onPointerDownClose);
-    return () => {
-      el.removeEventListener('pointerdown', onPointerDownClose);
-    };
-  }, [api, closeActionOverride]);
-
-  const onBtnPointerDown = useCallback((event: PointerEvent) => event.preventDefault(), []);
-  const handlePointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      isMiddleMouseButton.current = event.button === 1;
-      onPointerDown?.(event);
-    },
-    [onPointerDown],
-  );
-  const handlePointerUp = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (isMiddleMouseButton.current && event.button === 1 && !hideClose) {
-        isMiddleMouseButton.current = false;
-        if (closeActionOverride) closeActionOverride();
-        else api.close();
-      }
-      onPointerUp?.(event);
-    },
-    [onPointerUp, api, closeActionOverride, hideClose],
-  );
-  const handlePointerLeave = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      isMiddleMouseButton.current = false;
-      onPointerLeave?.(event);
-    },
-    [onPointerLeave],
-  );
-
-  return (
-    <div
-      data-testid="dockview-dv-default-tab"
-      {...rest}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerLeave}
-      className="dv-default-tab"
-    >
-      <Icon className="fx-dock-tab-icon" size={14} aria-hidden />
-      <span className="dv-default-tab-content">
-        <span className="fx-dock-tab-title">{title}</span>
-        {infoIssueCounts !== null && (infoIssueCounts.error > 0 || infoIssueCounts.warn > 0) && (
-          <span className="fx-info-tab-counts" aria-label={`${infoIssueCounts.error} errors, ${infoIssueCounts.warn} warnings`}>
-            {infoIssueCounts.error > 0 && (
-              <span className="fx-info-tab-count fx-info-tab-count--error">
-                <span className="fx-info-tab-count-icon" aria-hidden>✖</span>
-                <span className="fx-info-tab-count-value">{infoIssueCounts.error}</span>
-              </span>
-            )}
-            {infoIssueCounts.warn > 0 && (
-              <span className="fx-info-tab-count fx-info-tab-count--warn">
-                <span className="fx-info-tab-count-icon" aria-hidden>⚠</span>
-                <span className="fx-info-tab-count-value">{infoIssueCounts.warn}</span>
-              </span>
-            )}
-          </span>
-        )}
-      </span>
-      {!hideClose &&
-        (isEdge ? (
-          // The toggle itself is driven by edgeDrawer's capture-phase click
-          // handler (it must preventDefault dockview's native expand before the
-          // event ever reaches React), so this renders state and carries the
-          // panel id that handler reads back — no onClick of its own.
-          <div
-            className={`dv-default-tab-action ${EDGE_PIN_CLASS}${pinned ? ` ${EDGE_PIN_CLASS}--on` : ''}`}
-            data-fx-edge-pin-panel={api.id}
-            role="button"
-            aria-pressed={pinned}
-            aria-label={pinned ? 'Unpin tab' : 'Pin tab'}
-            title={pinned ? 'Unpin' : 'Pin'}
-            onPointerDown={onBtnPointerDown}
-          >
-            <Pin className="fx-edge-pin-icon" size={12} aria-hidden />
-          </div>
-        ) : (
-          <div ref={closeRef} className="dv-default-tab-action">
-            <X size={14} aria-hidden />
-          </div>
-        ))}
-    </div>
-  );
+	return (
+		<DockTabFrame
+			data-testid="dockview-dv-default-tab"
+			{...rest}
+			onPointerDown={closeInteractions.onPointerDown}
+			onPointerUp={closeInteractions.onPointerUp}
+			onPointerLeave={closeInteractions.onPointerLeave}
+			leading={
+				<DockTabIcon>
+					<Icon size={14} aria-hidden />
+				</DockTabIcon>
+			}
+			action={action}
+		>
+			<DockTabTitle>{title}</DockTabTitle>
+			{infoIssueCounts !== null && infoStatusItems.length > 0 && (
+				<DockTabStatusSummary
+					aria-label={`${infoIssueCounts.error} errors, ${infoIssueCounts.warn} warnings`}
+					items={infoStatusItems}
+				/>
+			)}
+		</DockTabFrame>
+	);
 }

@@ -1,3 +1,11 @@
+import { useShellStore } from "../../store";
+import {
+	getAgentModel,
+	listModels,
+	type ModelCatalogEntry,
+	setAgentModels,
+} from "../model-config";
+import { getLastModel } from "../model-prefs";
 // ActiveModelRoute — the single source of truth for "which model source is the
 // chat actually using right now", and the one place that mutation flows through.
 //
@@ -16,22 +24,18 @@
 // DERIVATION over (providerOverride, FORGEAX_MODEL), and switching source is a
 // single `applyModelRoute` that writes both consistently. No ghost field.
 
-import { useShellStore } from '../../store';
-import { getAgentModel, listModels, setAgentModels, type ModelCatalogEntry } from '../model-config';
-import { getLastModel } from '../model-prefs';
-
 /** Closed union of model sources the UI can present + switch between. */
 export type ModelSource =
-  /** BYO OpenAI-compatible key — native path, FORGEAX_MODEL=<vendor id>. */
-  | { kind: 'api-key'; model: string }
-  /** Local CLI driver — providerOverride=<id>. */
-  | { kind: 'cli'; providerId: string };
+	/** BYO OpenAI-compatible key — native path, FORGEAX_MODEL=<vendor id>. */
+	| { kind: "api-key"; model: string }
+	/** Local CLI driver — providerOverride=<id>. */
+	| { kind: "cli"; providerId: string };
 
 /**
  * The UI-facing "active source" identifier: 'api-key' | <cli-id> | null
  * (nothing set).
  */
-export type ActiveSourceId = 'api-key' | string | null;
+export type ActiveSourceId = "api-key" | string | null;
 
 const RE_OPENAI = /^(gpt-|o[1-9]|codex-)/i;
 
@@ -41,32 +45,35 @@ const RE_OPENAI = /^(gpt-|o[1-9]|codex-)/i;
  * the onboarding readiness gate.
  */
 export function deriveActiveSource(
-  providerOverride: string | null,
-  forgeaxModel: string | null,
+	providerOverride: string | null,
+	forgeaxModel: string | null,
 ): ActiveSourceId {
-  // A CLI override always wins — the chat is routed through /api/cli/chat.
-  if (providerOverride && providerOverride !== 'forgeax') {
-    return providerOverride;
-  }
-  // Native path: the model id tells us the source.
-  const m = (forgeaxModel ?? '').trim();
-  if (m && RE_OPENAI.test(m)) return 'api-key';
-  // Any native model (claude-*/gemini-*/proxy) — still the "api-key" bucket from
-  // the Providers UI's perspective (BYO credential).
-  if (m) return 'api-key';
-  return null;
+	// A CLI override always wins — the chat is routed through /api/cli/chat.
+	if (providerOverride && providerOverride !== "forgeax") {
+		return providerOverride;
+	}
+	// Native path: the model id tells us the source.
+	const m = (forgeaxModel ?? "").trim();
+	if (m && RE_OPENAI.test(m)) return "api-key";
+	// Any native model (claude-*/gemini-*/proxy) — still the "api-key" bucket from
+	// the Providers UI's perspective (BYO credential).
+	if (m) return "api-key";
+	return null;
 }
 
 async function patchEnv(patch: Record<string, string>): Promise<void> {
-  const r = await fetch('/api/settings/env', {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-  const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-  if (!r.ok || !j?.ok) {
-    throw new Error(j?.error ?? `HTTP ${r.status}`);
-  }
+	const r = await fetch("/api/settings/env", {
+		method: "PUT",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(patch),
+	});
+	const j = (await r.json().catch(() => null)) as {
+		ok?: boolean;
+		error?: string;
+	} | null;
+	if (!r.ok || !j?.ok) {
+		throw new Error(j?.error ?? `HTTP ${r.status}`);
+	}
 }
 
 /**
@@ -80,89 +87,75 @@ async function patchEnv(patch: Record<string, string>): Promise<void> {
  *              its own model selection)
  */
 export async function applyModelRoute(source: ModelSource): Promise<void> {
-  const setProviderOverride = useShellStore.getState().setProviderOverride;
-  switch (source.kind) {
-    case 'api-key':
-      await patchEnv({ FORGEAX_MODEL: source.model });
-      setProviderOverride(null);
-      return;
-    case 'cli':
-      setProviderOverride(source.providerId);
-      return;
-  }
+	const setProviderOverride = useShellStore.getState().setProviderOverride;
+	switch (source.kind) {
+		case "api-key":
+			await patchEnv({ FORGEAX_MODEL: source.model });
+			setProviderOverride(null);
+			return;
+		case "cli":
+			setProviderOverride(source.providerId);
+			return;
+	}
 }
 
 /** The catalog provider id currently in effect, derived from providerOverride. */
-export function currentCatalogProvider(providerOverride: string | null): string | null {
-  return providerOverride && providerOverride !== 'forgeax' ? providerOverride : null;
+export function currentCatalogProvider(
+	providerOverride: string | null,
+): string | null {
+	return providerOverride && providerOverride !== "forgeax"
+		? providerOverride
+		: null;
 }
 
 /** Preserve the last explicit user pick when it still belongs to this catalog;
  * otherwise use the provider's first visible/default entry. */
 export function preferredCatalogModel(
-  catalog: readonly ModelCatalogEntry[],
-  remembered: string | null,
+	catalog: readonly ModelCatalogEntry[],
+	remembered: string | null,
 ): string | undefined {
-  if (remembered && catalog.some((model) => model.id === remembered && !model.hidden)) {
-    return remembered;
-  }
-  return catalog.find((model) => !model.hidden)?.id ?? catalog[0]?.id;
+	if (
+		remembered &&
+		catalog.some((model) => model.id === remembered && !model.hidden)
+	) {
+		return remembered;
+	}
+	return catalog.find((model) => !model.hidden)?.id ?? catalog[0]?.id;
 }
 
 /** Reconcile against the active provider catalog. Preserve valid selections
  * (including hidden entries), but a nonempty foreign-provider default is not
  * a usable selection. Callers must discard stale session/provider responses. */
 export function passiveSessionCatalogModel(
-  catalog: readonly ModelCatalogEntry[],
-  current: string | null | undefined,
-  remembered: string | null,
+	catalog: readonly ModelCatalogEntry[],
+	current: string | null | undefined,
+	remembered: string | null,
 ): string | undefined {
-  if (catalog.length === 0 || (current && catalog.some((entry) => entry.id === current))) return undefined;
-  return preferredCatalogModel(catalog, remembered);
+	if (
+		catalog.length === 0 ||
+		(current && catalog.some((entry) => entry.id === current))
+	)
+		return undefined;
+	return preferredCatalogModel(catalog, remembered);
 }
 
 /** Model seeding policy for a newly scaffolded session. Native sessions only
  * override their scaffold default when the user has an applicable remembered
  * pick; CLI sessions must always land on a model from that driver's catalog. */
 export function initialSessionCatalogModel(
-  catalog: readonly ModelCatalogEntry[],
-  catalogProviderId: string | null,
-  remembered: string | null,
+	catalog: readonly ModelCatalogEntry[],
+	catalogProviderId: string | null,
+	remembered: string | null,
 ): string | undefined {
-  const rememberedEntry = remembered
-    ? catalog.find((model) => model.id === remembered && !model.hidden)
-    : undefined;
-  if (rememberedEntry) return rememberedEntry.id;
-  return catalogProviderId ? preferredCatalogModel(catalog, null) : undefined;
+	const rememberedEntry = remembered
+		? catalog.find((model) => model.id === remembered && !model.hidden)
+		: undefined;
+	if (rememberedEntry) return rememberedEntry.id;
+	return catalogProviderId ? preferredCatalogModel(catalog, null) : undefined;
 }
 
 /**
- * Restore the ACTIVE agent's remembered model, falling back to the catalog default.
- * This is the shared core of "switch source → land on a model that belongs to the
- * new source", so switching from the chat dropdown OR Settings › Providers behaves
- * identically (the reported drift: Settings changed the route but left the agent
- * pinned to the old provider's model). No-ops when there's no active agent/session
- * (e.g. onboarding init) or the catalog is empty. Returns what it set, or null.
- */
-export async function resetActiveAgentModelToProviderDefault(
-  catalogProviderId: string | null,
-): Promise<{ sid: string; agentPath: string; selected: string } | null> {
-  const st = useShellStore.getState();
-  const sid = st.activeSid;
-  const agentPath = sid ? (st.tabs.find((t) => t.sid === sid)?.agentId ?? null) : null;
-  if (!sid || !agentPath) return null;
-  const catalog = await listModels(catalogProviderId);
-  const nextModel = preferredCatalogModel(catalog, getLastModel(catalogProviderId));
-  if (!nextModel) return null;
-  const current = useShellStore.getState();
-  if (current.activeSid !== sid || current.tabs.find((t) => t.sid === sid)?.agentId !== agentPath ||
-      currentCatalogProvider(current.providerOverride) !== catalogProviderId) return null;
-  const res = await setAgentModels(sid, agentPath, [nextModel]);
-  return { sid, agentPath, selected: res.selected ?? nextModel };
-}
-
-/**
- * Restore EVERY open session's agent model from the destination provider's preference.
+ * Restore EVERY open session model from the destination provider preference.
  *
  * `providerOverride` is GLOBAL (one value for the whole app), so switching it
  * re-routes ALL sessions through the new provider — but each session's
@@ -174,82 +167,74 @@ export async function resetActiveAgentModelToProviderDefault(
  * the model set + how many sessions were updated, or null when nothing to do.
  */
 export async function resetOpenSessionsModelToProviderDefault(
-  catalogProviderId: string | null,
+	catalogProviderId: string | null,
 ): Promise<{ selected: string; count: number } | null> {
-  const st = useShellStore.getState();
-  const targets = st.tabs
-    .map((t) => ({ sid: t.sid, agentPath: t.agentId }))
-    .filter((x): x is { sid: string; agentPath: string } => !!x.sid && !!x.agentPath);
-  if (targets.length === 0) return null;
-  const catalog = await listModels(catalogProviderId);
-  const nextModel = preferredCatalogModel(catalog, getLastModel(catalogProviderId));
-  if (!nextModel) return null;
-  let count = 0;
-  for (const { sid, agentPath } of targets) {
-    if (useShellStore.getState().providerOverride !== st.providerOverride) break;
-    try {
-      await setAgentModels(sid, agentPath, [nextModel]);
-      count++;
-    } catch (e) {
-      // Best-effort per session — one bad agent.json must not abort the rest.
-      console.warn('[model-route] reset session model failed', { sid, agentPath, err: e });
-    }
-  }
-  return count > 0 ? { selected: nextModel, count } : null;
+	const st = useShellStore.getState();
+	const targets = st.tabs
+		.map((t) => ({ sid: t.sid, agentPath: t.agentId }))
+		.filter(
+			(x): x is { sid: string; agentPath: string } => !!x.sid && !!x.agentPath,
+		);
+	if (targets.length === 0) return null;
+	const catalog = await listModels(catalogProviderId);
+	const nextModel = preferredCatalogModel(
+		catalog,
+		getLastModel(catalogProviderId),
+	);
+	if (!nextModel) return null;
+	let count = 0;
+	for (const { sid, agentPath } of targets) {
+		if (useShellStore.getState().providerOverride !== st.providerOverride)
+			break;
+		try {
+			await setAgentModels(sid, agentPath, [nextModel]);
+			count++;
+		} catch (e) {
+			// Best-effort per session — one bad agent.json must not abort the rest.
+			console.warn("[model-route] reset session model failed", {
+				sid,
+				agentPath,
+				err: e,
+			});
+		}
+	}
+	return count > 0 ? { selected: nextModel, count } : null;
 }
 
 /** Reconcile session configuration against its active provider catalog. */
 export async function reconcileSessionModelToActiveProvider(
-  sid: string,
-  agentPath: string,
+	sid: string,
+	agentPath: string,
 ): Promise<{ selected: string } | null> {
-  const initial = useShellStore.getState();
-  const catalogProviderId = currentCatalogProvider(initial.providerOverride);
-  const catalog = await listModels(catalogProviderId).catch(() => null);
-  if (!catalog || catalog.length === 0) return null;
+	const initial = useShellStore.getState();
+	const catalogProviderId = currentCatalogProvider(initial.providerOverride);
+	const catalog = await listModels(catalogProviderId).catch(() => null);
+	if (!catalog || catalog.length === 0) return null;
 
-  const cur = await getAgentModel(sid, agentPath).catch(() => null);
-  const currentId = cur?.selected ?? null;
-  const next = passiveSessionCatalogModel(catalog, currentId, getLastModel(catalogProviderId));
-  if (!next) return null;
-  const current = useShellStore.getState();
-  if (current.activeSid !== initial.activeSid || !current.tabs.some((tab) => tab.sid === sid)
-    || currentCatalogProvider(current.providerOverride) !== catalogProviderId) return null;
-  try {
-    await setAgentModels(sid, agentPath, [next]);
-    return { selected: next };
-  } catch (e) {
-    console.warn('[model-route] reconcile session model failed', { sid, agentPath, err: e });
-    return null;
-  }
-}
-
-/**
- * Is there a usable model path RIGHT NOW? Used by the chat composer to
- * intercept a first send with no configured model (design §11 first-chat).
- *
- * Deliberately PRECISE + fail-open: we only return false for the one
- * unambiguous "definitely no path" case so a working setup is never wrongly
- * blocked (GET /api/settings can't see every credential, e.g. LiteLLM proxy):
- *   - native path + no model at all + no visible OpenAI/Anthropic credential
- * Any CLI override, any visible key, or any model id → ready.
- */
-export async function checkModelReady(): Promise<boolean> {
-  const providerOverride = useShellStore.getState().providerOverride;
-  if (providerOverride && providerOverride !== 'forgeax') return true; // CLI driver path
-
-  try {
-    const r = await fetch('/api/settings');
-    if (!r.ok) return true; // fail-open on infra hiccup — never block on our own error
-    const j = (await r.json()) as { env?: Record<string, string | null> };
-    const env = j.env ?? {};
-    const hasKey = !!(env.LITELLM_PROXY_KEY || env.OPENAI_API_KEY || env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN);
-    if (hasKey) return true;
-    const model = (env.FORGEAX_MODEL ?? '').trim();
-    // A model id is set → assume a proxy/vendor path resolves it.
-    if (model) return true;
-    return false;
-  } catch {
-    return true; // fail-open
-  }
+	const cur = await getAgentModel(sid, agentPath).catch(() => null);
+	const currentId = cur?.selected ?? null;
+	const next = passiveSessionCatalogModel(
+		catalog,
+		currentId,
+		getLastModel(catalogProviderId),
+	);
+	if (!next) return null;
+	const current = useShellStore.getState();
+	if (
+		current.activeSid !== initial.activeSid ||
+		!current.tabs.some((tab) => tab.sid === sid) ||
+		currentCatalogProvider(current.providerOverride) !== catalogProviderId
+	)
+		return null;
+	try {
+		await setAgentModels(sid, agentPath, [next]);
+		return { selected: next };
+	} catch (e) {
+		console.warn("[model-route] reconcile session model failed", {
+			sid,
+			agentPath,
+			err: e,
+		});
+		return null;
+	}
 }

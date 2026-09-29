@@ -18,107 +18,118 @@ const MAX_EDGE = 1568;
 const JPEG_QUALITY = 0.85;
 
 export interface ScreenshotOk {
-  evidenceType: 'application-dom-raster';
-  gameRenderingEvidence: false;
-  dataUrl: string;
-  width: number;
-  height: number;
-  target: string;
-  note: string;
+	evidenceType: "application-dom-raster";
+	gameRenderingEvidence: false;
+	dataUrl: string;
+	width: number;
+	height: number;
+	target: string;
+	note: string;
 }
 
 export interface ScreenshotFail {
-  captured: false;
-  reason: string;
-  target?: string;
+	captured: false;
+	reason: string;
+	target?: string;
 }
 
 /** 解析截屏目标元素;认不出 → null(调用方回 captured:false)。 */
 export function resolveScreenshotTarget(target: string): HTMLElement | null {
-  if (target === 'app') return document.body;
-  if (target.startsWith('panel:')) {
-    const id = target.slice('panel:'.length);
-    const host = document.querySelector(`[data-fx-slot="DockPanel:${CSS.escape(id)}"]`);
-    if (!(host instanceof HTMLElement)) return null;
-    // 外壳 display:contents(见 DockPanelHost)→ 用首个元素子节点量测/序列化。
-    const body = host.firstElementChild;
-    return body instanceof HTMLElement ? body : host;
-  }
-  return null;
+	if (target === "app") return document.body;
+	if (target.startsWith("panel:")) {
+		const id = target.slice("panel:".length);
+		const host = document.querySelector(
+			`[data-fx-slot="DockPanel:${CSS.escape(id)}"]`,
+		);
+		if (!(host instanceof HTMLElement)) return null;
+		// 外壳 display:contents(见 DockPanelHost)→ 用首个元素子节点量测/序列化。
+		const body = host.firstElementChild;
+		return body instanceof HTMLElement ? body : host;
+	}
+	return null;
 }
 
 /** 汇总同源样式表文本(跨源 cssRules 读取会抛 → 跳过;外链字体反正不加载)。 */
 function collectSameOriginCss(): string {
-  const chunks: string[] = [];
-  for (const sheet of Array.from(document.styleSheets)) {
-    try {
-      for (const rule of Array.from(sheet.cssRules)) chunks.push(rule.cssText);
-    } catch {
-      /* 跨源样式表 → 跳过(对应区域回退无样式,兜底证据可接受) */
-    }
-  }
-  // <style> 内容走 CDATA 包裹,CSS 里理论上不会出现的终结子串防御性剔除。
-  return chunks.join('\n').replaceAll(']]>', '');
+	const chunks: string[] = [];
+	for (const sheet of Array.from(document.styleSheets)) {
+		try {
+			for (const rule of Array.from(sheet.cssRules)) chunks.push(rule.cssText);
+		} catch {
+			/* 跨源样式表 → 跳过(对应区域回退无样式,兜底证据可接受) */
+		}
+	}
+	// <style> 内容走 CDATA 包裹,CSS 里理论上不会出现的终结子串防御性剔除。
+	return chunks.join("\n").replaceAll("]]>", "");
 }
 
 /** 克隆并去掉序列化无意义/有害的活性节点(script 不该出现在图里;其余空白节点保留占位)。 */
-function cloneForSerialization(el: HTMLElement, width: number, height: number): HTMLElement {
-  const clone = el.cloneNode(true) as HTMLElement;
-  for (const s of Array.from(clone.querySelectorAll('script'))) s.remove();
-  if (el === document.body) {
-    // A nested <body> is invalid XHTML and breaks the percentage-height chain
-    // used by the Studio shell. Replace it with an explicitly sized body-like
-    // root so shorter dock columns do not expose transparent bands.
-    const bodyRoot = document.createElement('div');
-    bodyRoot.className = clone.className;
-    for (const child of Array.from(clone.childNodes)) bodyRoot.appendChild(child);
-    const style = getComputedStyle(el);
-    Object.assign(bodyRoot.style, {
-      position: 'relative',
-      width: `${width}px`,
-      height: `${height}px`,
-      margin: '0',
-      padding: '0',
-      overflow: 'hidden',
-      color: style.color,
-      background: style.background,
-      fontFamily: style.fontFamily,
-      fontSize: style.fontSize,
-      lineHeight: style.lineHeight,
-    });
-    return bodyRoot;
-  }
-  return clone;
+function cloneForSerialization(
+	el: HTMLElement,
+	width: number,
+	height: number,
+): HTMLElement {
+	const clone = el.cloneNode(true) as HTMLElement;
+	for (const s of Array.from(clone.querySelectorAll("script"))) s.remove();
+	if (el === document.body) {
+		// A nested <body> is invalid XHTML and breaks the percentage-height chain
+		// used by the Studio shell. Replace it with an explicitly sized body-like
+		// root so shorter dock columns do not expose transparent bands.
+		const bodyRoot = document.createElement("div");
+		bodyRoot.className = clone.className;
+		for (const child of Array.from(clone.childNodes))
+			bodyRoot.appendChild(child);
+		const style = getComputedStyle(el);
+		Object.assign(bodyRoot.style, {
+			position: "relative",
+			width: `${width}px`,
+			height: `${height}px`,
+			margin: "0",
+			padding: "0",
+			overflow: "hidden",
+			color: style.color,
+			background: style.background,
+			fontFamily: style.fontFamily,
+			fontSize: style.fontSize,
+			lineHeight: style.lineHeight,
+		});
+		return bodyRoot;
+	}
+	return clone;
 }
 
 function captureBackground(el: HTMLElement): string {
-  let current: HTMLElement | null = el;
-  while (current) {
-    const color = getComputedStyle(current).backgroundColor;
-    if (color && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)') return color;
-    current = current.parentElement;
-  }
-  const bodyColor = getComputedStyle(document.body).backgroundColor;
-  return bodyColor && bodyColor !== 'transparent' ? bodyColor : '#0d0d0d';
+	let current: HTMLElement | null = el;
+	while (current) {
+		const color = getComputedStyle(current).backgroundColor;
+		if (color && color !== "transparent" && color !== "rgba(0, 0, 0, 0)")
+			return color;
+		current = current.parentElement;
+	}
+	const bodyColor = getComputedStyle(document.body).backgroundColor;
+	return bodyColor && bodyColor !== "transparent" ? bodyColor : "#0d0d0d";
 }
 
 /** 栅格化图片加载超时:UI 侧必须先于编排层的通道超时(15s)给出确定答复。 */
 const RASTER_TIMEOUT_MS = 5_000;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const timer = setTimeout(() => reject(new Error('svg rasterization timed out')), RASTER_TIMEOUT_MS);
-    img.onload = () => {
-      clearTimeout(timer);
-      resolve(img);
-    };
-    img.onerror = () => {
-      clearTimeout(timer);
-      reject(new Error('svg rasterization failed to load'));
-    };
-    img.src = src;
-  });
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		const timer = setTimeout(
+			() => reject(new Error("svg rasterization timed out")),
+			RASTER_TIMEOUT_MS,
+		);
+		img.onload = () => {
+			clearTimeout(timer);
+			resolve(img);
+		};
+		img.onerror = () => {
+			clearTimeout(timer);
+			reject(new Error("svg rasterization failed to load"));
+		};
+		img.src = src;
+	});
 }
 
 /** 压缩用户手动上传的截图文件,复用与一键截屏相同的长边上限 + JPEG 质量(MAX_EDGE/
@@ -126,80 +137,104 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  *  提交 body——桌面 WKWebView 对超大 fetch POST body 可能以 `TypeError: Load failed`
  *  失败。非图片/解码失败时 reject,由调用方跳过该文件,不阻塞其余截图。 */
 export async function compressUploadedImage(file: File): Promise<string> {
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const img = await loadImage(objectUrl);
-    const w = img.naturalWidth || img.width;
-    const h = img.naturalHeight || img.height;
-    const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
-    const outW = Math.max(1, Math.round(w * scale));
-    const outH = Math.max(1, Math.round(h * scale));
+	const objectUrl = URL.createObjectURL(file);
+	try {
+		const img = await loadImage(objectUrl);
+		const w = img.naturalWidth || img.width;
+		const h = img.naturalHeight || img.height;
+		const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+		const outW = Math.max(1, Math.round(w * scale));
+		const outH = Math.max(1, Math.round(h * scale));
 
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('canvas 2d context unavailable');
-    ctx.drawImage(img, 0, 0, outW, outH);
+		const canvas = document.createElement("canvas");
+		canvas.width = outW;
+		canvas.height = outH;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) throw new Error("canvas 2d context unavailable");
+		ctx.drawImage(img, 0, 0, outW, outH);
 
-    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
-    if (!dataUrl.startsWith('data:image/')) throw new Error('canvas produced no image data');
-    return dataUrl;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
+		const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+		if (!dataUrl.startsWith("data:image/"))
+			throw new Error("canvas produced no image data");
+		return dataUrl;
+	} finally {
+		URL.revokeObjectURL(objectUrl);
+	}
 }
 
 /** 应答 `ui_screenshot` 查询:成功 `{ dataUrl, width, height, target, note }`,
  *  失败一律 `{ captured:false, reason }`(fail-soft,勿重试语义由契约承担)。 */
-export async function captureUiScreenshot(query: unknown): Promise<ScreenshotOk | ScreenshotFail> {
-  const q = (query ?? {}) as { target?: unknown };
-  const target = typeof q.target === 'string' && q.target ? q.target : 'app';
-  const el = resolveScreenshotTarget(target);
-  if (!el) {
-    return { captured: false, reason: `unknown target "${target}" — use 'app' or 'panel:<id>'`, target };
-  }
-  try {
-    const rect = el.getBoundingClientRect();
-    const w = Math.max(1, Math.ceil(rect.width || el.scrollWidth));
-    const h = Math.max(1, Math.ceil(rect.height || el.scrollHeight));
-    const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
-    const outW = Math.max(1, Math.round(w * scale));
-    const outH = Math.max(1, Math.round(h * scale));
+export async function captureUiScreenshot(
+	query: unknown,
+): Promise<ScreenshotOk | ScreenshotFail> {
+	const q = (query ?? {}) as { target?: unknown };
+	const target = typeof q.target === "string" && q.target ? q.target : "app";
+	const el = resolveScreenshotTarget(target);
+	if (!el) {
+		return {
+			captured: false,
+			reason: `unknown target "${target}" — use 'app' or 'panel:<id>'`,
+			target,
+		};
+	}
+	try {
+		const rect = el.getBoundingClientRect();
+		const w = Math.max(1, Math.ceil(rect.width || el.scrollWidth));
+		const h = Math.max(1, Math.ceil(rect.height || el.scrollHeight));
+		const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+		const outW = Math.max(1, Math.round(w * scale));
+		const outH = Math.max(1, Math.round(h * scale));
 
-    const css = collectSameOriginCss();
-    const xhtml = new XMLSerializer().serializeToString(cloneForSerialization(el, w, h));
-    const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
-      `<foreignObject width="100%" height="100%">` +
-      `<div xmlns="http://www.w3.org/1999/xhtml"><style><![CDATA[${css}]]></style>${xhtml}</div>` +
-      `</foreignObject></svg>`;
-    const img = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+		const css = collectSameOriginCss();
+		const xhtml = new XMLSerializer().serializeToString(
+			cloneForSerialization(el, w, h),
+		);
+		const svg =
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+			`<foreignObject width="100%" height="100%">` +
+			`<div xmlns="http://www.w3.org/1999/xhtml"><style><![CDATA[${css}]]></style>${xhtml}</div>` +
+			`</foreignObject></svg>`;
+		const img = await loadImage(
+			`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+		);
 
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return { captured: false, reason: 'canvas 2d context unavailable', target };
-    ctx.fillStyle = captureBackground(el); // JPEG has no alpha; match the live surface instead of flashing white.
-    ctx.fillRect(0, 0, outW, outH);
-    ctx.drawImage(img, 0, 0, outW, outH);
+		const canvas = document.createElement("canvas");
+		canvas.width = outW;
+		canvas.height = outH;
+		const ctx = canvas.getContext("2d");
+		if (!ctx)
+			return {
+				captured: false,
+				reason: "canvas 2d context unavailable",
+				target,
+			};
+		ctx.fillStyle = captureBackground(el); // JPEG has no alpha; match the live surface instead of flashing white.
+		ctx.fillRect(0, 0, outW, outH);
+		ctx.drawImage(img, 0, 0, outW, outH);
 
-    // 栅格失败/污染(toDataURL 抛 SecurityError)都会落到 catch → fail-soft。
-    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
-    if (!dataUrl.startsWith('data:image/')) {
-      return { captured: false, reason: 'canvas produced no image data', target };
-    }
-    return {
-      dataUrl,
-      width: outW,
-      height: outH,
-      target,
-      evidenceType: 'application-dom-raster',
-      gameRenderingEvidence: false,
-      note: 'Best-effort application DOM rasterization. External images/fonts and embedded frames/canvases may render blank. Blank regions are not evidence of missing game rendering. Use the Editor gameplay capture contract for a live game image.',
-    };
-  } catch (e) {
-    return { captured: false, reason: `capture failed: ${(e as Error).message}`, target };
-  }
+		// 栅格失败/污染(toDataURL 抛 SecurityError)都会落到 catch → fail-soft。
+		const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+		if (!dataUrl.startsWith("data:image/")) {
+			return {
+				captured: false,
+				reason: "canvas produced no image data",
+				target,
+			};
+		}
+		return {
+			dataUrl,
+			width: outW,
+			height: outH,
+			target,
+			evidenceType: "application-dom-raster",
+			gameRenderingEvidence: false,
+			note: "Best-effort application DOM rasterization. External images/fonts and embedded frames/canvases may render blank. Blank regions are not evidence of missing game rendering. Use the Editor gameplay capture contract for a live game image.",
+		};
+	} catch (e) {
+		return {
+			captured: false,
+			reason: `capture failed: ${(e as Error).message}`,
+			target,
+		};
+	}
 }

@@ -1,39 +1,64 @@
-import { useShellStore } from '../../store';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from "@/i18n";
+import { type ConsoleEntry, useShellStore } from "../../store";
+
+const consoleEntryIds = new WeakMap<ConsoleEntry, number>();
+let nextConsoleEntryId = 0;
+
+function consoleEntryKey(entry: ConsoleEntry): number {
+	let id = consoleEntryIds.get(entry);
+	if (id === undefined) {
+		id = nextConsoleEntryId;
+		nextConsoleEntryId += 1;
+		consoleEntryIds.set(entry, id);
+	}
+	return id;
+}
 
 // ConsolePanel — a standalone dock panel for the engine/editor console stream
 // (the same `consoleLog` the Page bottom tab shows, surfaced as its own
 // dockable/floatable/pop-out-able panel). Reuses the existing console-row styles.
 export function ConsolePanel() {
-  const { t } = useTranslation();
-  const consoleLog = useShellStore((s) => s.consoleLog);
-  const clearConsole = useShellStore((s) => s.clearConsole);
-  return (
-    <div className="fx-console-panel">
-      <div className="fx-console-bar">
-        <span className="fx-console-title">Console{consoleLog.length ? ` · ${consoleLog.length}` : ''}</span>
-        {consoleLog.length > 0 && (
-          <button type="button" className="fx-console-clear" onClick={() => clearConsole()} title={t('consolePanel.clearTitle')}>clear</button>
-        )}
-      </div>
-      <div className="page-bottom-body thin-scrollbar fx-console-body">
-        {consoleLog.length === 0 && (
-          <div className="wbb-row" style={{ opacity: 0.5 }}>
-            <span>{t('consolePanel.empty')}</span>
-          </div>
-        )}
-        {consoleLog.map((e, i) => {
-          const d = new Date(e.ts);
-          const stamp = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-          return (
-            <div key={i} className={`wbb-row console-row level-${e.level}`}>
-              <span className="wbb-time">{stamp}</span>
-              <span className={`wbb-tag console-${e.level}`}>{e.level}</span>
-              <span className="console-text">{e.text}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+	const { t } = useTranslation();
+	const consoleLog = useShellStore((s) => s.consoleLog);
+	const clearConsole = useShellStore((s) => s.clearConsole);
+	return (
+		<div className="fx-console-panel">
+			<div className="fx-console-bar">
+				<span className="fx-console-title">
+					Console{consoleLog.length ? ` · ${consoleLog.length}` : ""}
+				</span>
+				{consoleLog.length > 0 && (
+					<button
+						type="button"
+						className="fx-console-clear"
+						onClick={() => clearConsole()}
+						title={t("consolePanel.clearTitle")}
+					>
+						clear
+					</button>
+				)}
+			</div>
+			<div className="page-bottom-body thin-scrollbar fx-console-body">
+				{consoleLog.length === 0 && (
+					<div className="wbb-row" style={{ opacity: 0.5 }}>
+						<span>{t("consolePanel.empty")}</span>
+					</div>
+				)}
+				{consoleLog.map((e) => {
+					const d = new Date(e.ts);
+					const stamp = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+					return (
+						<div
+							key={consoleEntryKey(e)}
+							className={`wbb-row console-row level-${e.level}`}
+						>
+							<span className="wbb-time">{stamp}</span>
+							<span className={`wbb-tag console-${e.level}`}>{e.level}</span>
+							<span className="console-text">{e.text}</span>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
 }

@@ -13,20 +13,20 @@
  */
 
 export interface SurfaceAction {
-  id: string;
-  label?: string;
-  args?: unknown;
-  enabled: boolean;
-  hotkey?: string;
+	id: string;
+	label?: string;
+	args?: unknown;
+	enabled: boolean;
+	hotkey?: string;
 }
 
 export interface SurfaceState {
-  extensionId: string;
-  surfaceId: string;
-  actions: SurfaceAction[];
-  snapshot: unknown;
-  /** Wall-clock ms when this surface was last refreshed by the plugin. */
-  updatedAt: number;
+	extensionId: string;
+	surfaceId: string;
+	actions: SurfaceAction[];
+	snapshot: unknown;
+	/** Wall-clock ms when this surface was last refreshed by the plugin. */
+	updatedAt: number;
 }
 
 type Listener = (snapshot: ReadonlyMap<string, SurfaceState>) => void;
@@ -35,53 +35,60 @@ const surfaces = new Map<string, SurfaceState>();
 const listeners = new Set<Listener>();
 
 function key(extensionId: string, surfaceId: string): string {
-  return `${extensionId}:${surfaceId}`;
+	return `${extensionId}:${surfaceId}`;
 }
 
 function fanout(): void {
-  for (const cb of listeners) {
-    try {
-      cb(surfaces);
-    } catch (e) {
-      if (typeof console !== 'undefined') console.error('[surface-store] listener', e);
-    }
-  }
+	for (const cb of listeners) {
+		try {
+			cb(surfaces);
+		} catch (e) {
+			if (typeof console !== "undefined")
+				console.error("[surface-store] listener", e);
+		}
+	}
 }
 
 export function upsertSurface(s: SurfaceState): void {
-  surfaces.set(key(s.extensionId, s.surfaceId), { ...s, updatedAt: Date.now() });
-  fanout();
+	surfaces.set(key(s.extensionId, s.surfaceId), {
+		...s,
+		updatedAt: Date.now(),
+	});
+	fanout();
 }
 
 /** Drop every surface owned by `extensionId`. Call when an iframe unmounts. */
 export function removeExtensionSurfaces(extensionId: string): void {
-  let changed = false;
-  for (const k of [...surfaces.keys()]) {
-    if (surfaces.get(k)!.extensionId === extensionId) {
-      surfaces.delete(k);
-      changed = true;
-    }
-  }
-  if (changed) fanout();
+	let changed = false;
+	for (const k of [...surfaces.keys()]) {
+		if (surfaces.get(k)!.extensionId === extensionId) {
+			surfaces.delete(k);
+			changed = true;
+		}
+	}
+	if (changed) fanout();
 }
 
 export function listSurfaces(): SurfaceState[] {
-  return [...surfaces.values()];
+	return [...surfaces.values()];
 }
 
-export function getSurface(extensionId: string, surfaceId: string): SurfaceState | null {
-  return surfaces.get(key(extensionId, surfaceId)) ?? null;
+export function getSurface(
+	extensionId: string,
+	surfaceId: string,
+): SurfaceState | null {
+	return surfaces.get(key(extensionId, surfaceId)) ?? null;
 }
 
 export function subscribeSurfaces(cb: Listener): () => void {
-  listeners.add(cb);
-  return () => {
-    listeners.delete(cb);
-  };
+	listeners.add(cb);
+	return () => {
+		listeners.delete(cb);
+	};
 }
 
 /** Test helper. */
 export function _resetSurfaceStoreForTests(): void {
-  surfaces.clear();
-  listeners.clear();
+	surfaces.clear();
+	listeners.clear();
 }

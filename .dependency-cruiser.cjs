@@ -14,52 +14,54 @@
  * @type {import('dependency-cruiser').IConfiguration}
  */
 module.exports = {
-  forbidden: [
-    {
-      name: 'interface-no-marketplace',
-      severity: 'error',
-      comment:
-        'interface must not import marketplace plugins (upper layer). Inject the ' +
-        'panel via PanelRenderers.extensionPanels from the studio assembly root instead.',
-      from: { path: '^src' },
-      to: { path: 'marketplace' },
-    },
-    {
-      name: 'interface-no-host-sdk-runtime',
-      severity: 'error',
-      comment:
-        'interface must not import @forgeax/host-sdk at RUNTIME (studio-only package). ' +
-        'Type-only imports are fine (erased at build); the runtime port factories are ' +
-        'injected via PanelRenderers.createPluginPort / createWindowTransport.',
-      from: { path: '^src' },
-      to: {
-        path: 'host-sdk',
-        // Allow `import type ...` — those are erased and never reach a standalone bundle.
-        dependencyTypesNot: ['type-only'],
-      },
-    },
-    {
-      name: 'interface-no-l2-apps',
-      severity: 'error',
-      comment:
-        'interface (前L1 AppKit 底座) must not import any 前L2 app runtime ' +
-        '(editor / chat / agents / settings / dashboard). Apps are injected by ' +
-        'studio via PanelRenderers / app composition; interface holds abstractions only. ' +
-        'This locks R4 (docs/v2-vision/architecture-evolution/17): once an app is extracted, ' +
-        'a reverse import here is a structural regression and fails CI instead of a ' +
-        'standalone runtime crash.',
-      from: { path: '^src' },
-      to: { path: 'node_modules/@forgeax/(editor|chat|agents|settings|dashboard)(/|$)' },
-    },
-  ],
-  options: {
-    doNotFollow: { path: ['node_modules', 'dist', '.vite'] },
-    // Resolve @forgeax/* aliases the same way the app + tsc do, and surface
-    // type-only imports so the host-sdk rule can exempt them.
-    tsConfig: { fileName: 'tsconfig.json' },
-    tsPreCompilationDeps: true,
-    enhancedResolveOptions: {
-      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
-    },
-  },
+	forbidden: [
+		{
+			name: "interface-no-marketplace",
+			severity: "error",
+			comment:
+				"interface must not import marketplace plugins (upper layer). Inject the " +
+				"panel via PanelRenderers.extensionPanels from the studio assembly root instead.",
+			from: { path: "^src" },
+			to: { path: "marketplace" },
+		},
+		{
+			name: "interface-no-host-sdk-runtime",
+			severity: "error",
+			comment:
+				"interface must not import @forgeax/host-sdk at RUNTIME (studio-only package). " +
+				"Type-only imports are fine (erased at build); the runtime port factories are " +
+				"injected via PanelRenderers.createPluginPort / createWindowTransport.",
+			from: { path: "^src" },
+			to: {
+				path: "host-sdk",
+				// Allow `import type ...` — those are erased and never reach a standalone bundle.
+				dependencyTypesNot: ["type-only"],
+			},
+		},
+		{
+			name: "interface-no-l2-apps",
+			severity: "error",
+			comment:
+				"interface (前L1 AppKit 底座) must not import any 前L2 app runtime " +
+				"(editor / chat / agents / settings / dashboard). Apps are injected by " +
+				"studio via PanelRenderers / app composition; interface holds abstractions only. " +
+				"This locks R4 (docs/v2-vision/architecture-evolution/17): once an app is extracted, " +
+				"a reverse import here is a structural regression and fails CI instead of a " +
+				"standalone runtime crash.",
+			from: { path: "^src" },
+			to: {
+				path: "node_modules/@forgeax/(editor|chat|agents|settings|dashboard)(/|$)",
+			},
+		},
+	],
+	options: {
+		doNotFollow: { path: ["node_modules", "dist", ".vite"] },
+		// Resolve @forgeax/* aliases the same way the app + tsc do, and surface
+		// type-only imports so the host-sdk rule can exempt them.
+		tsConfig: { fileName: "tsconfig.json" },
+		tsPreCompilationDeps: true,
+		enhancedResolveOptions: {
+			extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
+		},
+	},
 };

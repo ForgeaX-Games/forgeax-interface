@@ -11,254 +11,357 @@
 // exists: this file is a leaf plugin, nothing else imports it. Direct
 // static imports keep the concept count lower.
 
-import type { AppExtension } from '../app-shell/types';
-import { useShellStore } from '../../store';
-import { bumpDockResetEpoch } from '../../components/DockShell/dockResetEpoch';
-import { useChatWidth, CHAT_DEFAULT_WIDTH } from '../../components/ChatColumn/useChatWidth';
-import { isDockPanelVisible } from '@forgeax/app-shell/dock';
-import { useFeedbackStore } from '../../components/Feedback/store';
-import { isTauri } from '../../lib/platform/runtime';
-import { getSessionClient, hasSessionClient } from '../../store-parts/session-client';
-import { executeFocusedTextEditAction, type TextEditAction } from '../../lib/text-edit-actions';
+import { isDockPanelVisible } from "@forgeax/app-shell/dock";
+import {
+	CHAT_DEFAULT_WIDTH,
+	chatWidthStore,
+} from "../../components/ChatColumn/useChatWidth";
+import { useFeedbackStore } from "../../components/Feedback/store";
+import { isTauri } from "../../lib/platform/runtime";
+import {
+	executeFocusedTextEditAction,
+	type TextEditAction,
+} from "../../lib/text-edit-actions";
+import { useShellStore } from "../../store";
+import {
+	getSessionClient,
+	hasSessionClient,
+} from "../../store-parts/session-client";
+import type { AppExtension } from "../app-shell/types";
 
 const getState = () => useShellStore.getState();
 
 export const builtinCommandsExtension: AppExtension = {
-  id: 'builtin-commands',
-  version: '1.0.0',
-  requires: ['commands'],
-  setup(ctx) {
-    const { registerCommand } = ctx;
-    const cleanups: Array<() => void> = [];
+	id: "builtin-commands",
+	version: "1.0.0",
+	requires: ["commands"],
+	setup(ctx) {
+		const { registerCommand } = ctx;
+		const cleanups: Array<() => void> = [];
 
-    const registerTextEditCommand = (id: string, title: string, action: TextEditAction): void => {
-      cleanups.push(registerCommand({
-        id,
-        title,
-        execute: async () => ({
-          status: await executeFocusedTextEditAction(action) ? 'completed' as const : 'rejected' as const,
-        }),
-      }));
-    };
+		const registerTextEditCommand = (
+			id: string,
+			title: string,
+			action: TextEditAction,
+		): void => {
+			cleanups.push(
+				registerCommand({
+					id,
+					title,
+					execute: async () => ({
+						status: (await executeFocusedTextEditAction(action))
+							? ("completed" as const)
+							: ("rejected" as const),
+					}),
+				}),
+			);
+		};
 
-    registerTextEditCommand('text.cut', '剪切输入框选区', 'cut');
-    registerTextEditCommand('text.copy', '复制输入框选区', 'copy');
-    registerTextEditCommand('text.paste', '粘贴到输入框', 'paste');
+		registerTextEditCommand("text.cut", "剪切输入框选区", "cut");
+		registerTextEditCommand("text.copy", "复制输入框选区", "copy");
+		registerTextEditCommand("text.paste", "粘贴到输入框", "paste");
+		registerTextEditCommand(
+			"text.selectAll",
+			"Select all focused text",
+			"selectAll",
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.panel.open',
-      title: 'Open (or focus) a dock panel by id',
-      execute: (args) => {
-        const id = (args as { id?: string })?.id;
-        if (!id) throw new Error('app.panel.open: missing { id }');
-        ctx.bus.emit('panel:open', { id });
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.panel.open",
+				title: "Open (or focus) a dock panel by id",
+				execute: (args) => {
+					const id = (args as { id?: string })?.id;
+					if (!id) throw new Error("app.panel.open: missing { id }");
+					ctx.bus.emit("panel:open", { id });
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.panel.reveal',
-      title: 'Reveal a dock panel wherever it lives (grid, closed, or edge drawer)',
-      execute: (args) => {
-        const id = (args as { id?: string })?.id;
-        if (!id) throw new Error('app.panel.reveal: missing { id }');
-        ctx.bus.emit('panel:reveal', { id });
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.panel.reveal",
+				title:
+					"Reveal a dock panel wherever it lives (grid, closed, or edge drawer)",
+				execute: (args) => {
+					const id = (args as { id?: string })?.id;
+					if (!id) throw new Error("app.panel.reveal: missing { id }");
+					ctx.bus.emit("panel:reveal", { id });
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.panel.focus',
-      title: 'Focus an existing dock panel by id (no reopen)',
-      execute: (args) => {
-        const id = (args as { id?: string })?.id;
-        if (!id) throw new Error('app.panel.focus: missing { id }');
-        ctx.bus.emit('panel:focus', { id });
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.panel.focus",
+				title: "Focus an existing dock panel by id (no reopen)",
+				execute: (args) => {
+					const id = (args as { id?: string })?.id;
+					if (!id) throw new Error("app.panel.focus: missing { id }");
+					ctx.bus.emit("panel:focus", { id });
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.panel.close',
-      title: 'Close a dock panel by id (no-op if not open)',
-      execute: (args) => {
-        const id = (args as { id?: string })?.id;
-        if (!id) throw new Error('app.panel.close: missing { id }');
-        ctx.bus.emit('panel:close', { id });
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.panel.close",
+				title: "Close a dock panel by id (no-op if not open)",
+				execute: (args) => {
+					const id = (args as { id?: string })?.id;
+					if (!id) throw new Error("app.panel.close: missing { id }");
+					ctx.bus.emit("panel:close", { id });
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.panel.toggle',
-      title: 'Toggle a dock panel by id (open if hidden, close if visible)',
-      execute: (args) => {
-        const id = (args as { id?: string })?.id;
-        if (!id) throw new Error('app.panel.toggle: missing { id }');
-        // Visibility comes from App Shell's shared mount registry, which
-        // DockRegion updates from Dockview lifecycle events. This product
-        // command only chooses which existing event to emit.
-        if (isDockPanelVisible(id)) ctx.bus.emit('panel:close', { id });
-        else ctx.bus.emit('panel:open', { id });
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.panel.toggle",
+				title: "Toggle a dock panel by id (open if hidden, close if visible)",
+				execute: (args) => {
+					const id = (args as { id?: string })?.id;
+					if (!id) throw new Error("app.panel.toggle: missing { id }");
+					// Visibility comes from App Shell's shared mount registry, which
+					// DockRegion updates from Dockview lifecycle events. This product
+					// command only chooses which existing event to emit.
+					if (isDockPanelVisible(id)) ctx.bus.emit("panel:close", { id });
+					else ctx.bus.emit("panel:open", { id });
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.open_url',
-      title: 'Open an external http(s) URL in the OS default browser',
-      execute: async (args) => {
-        const url = (args as { url?: string })?.url;
-        if (typeof url !== 'string' || !url) throw new Error('app.open_url: missing { url }');
-        const trimmed = url.trim();
-        if (!/^https?:\/\//i.test(trimmed)) {
-          throw new Error(`app.open_url: only http(s) URLs are allowed, got: ${trimmed}`);
-        }
-        if (isTauri()) {
-          // Prefer the plugin-shell opener so the URL goes to the OS default
-          // browser, not the tauri webview. If the capability isn't granted the
-          // call rejects — fall through to window.open in that case.
-          try {
-            const shell = await import('@tauri-apps/plugin-shell');
-            await shell.open(trimmed);
-            return { status: 'completed' as const };
-          } catch { /* fall through */ }
-        }
-        try { window.open(trimmed, '_blank', 'noopener'); } catch { /* noop */ }
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.open_url",
+				title: "Open an external http(s) URL in the OS default browser",
+				execute: async (args) => {
+					const url = (args as { url?: string })?.url;
+					if (typeof url !== "string" || !url)
+						throw new Error("app.open_url: missing { url }");
+					const trimmed = url.trim();
+					if (!/^https?:\/\//i.test(trimmed)) {
+						throw new Error(
+							`app.open_url: only http(s) URLs are allowed, got: ${trimmed}`,
+						);
+					}
+					if (isTauri()) {
+						// Prefer the plugin-shell opener so the URL goes to the OS default
+						// browser, not the tauri webview. If the capability isn't granted the
+						// call rejects — fall through to window.open in that case.
+						try {
+							const shell = await import("@tauri-apps/plugin-shell");
+							await shell.open(trimmed);
+							return { status: "completed" as const };
+						} catch {
+							/* fall through */
+						}
+					}
+					try {
+						window.open(trimmed, "_blank", "noopener");
+					} catch {
+						/* noop */
+					}
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.dock.reset',
-      title: 'Reset dock layout',
-      execute: () => {
-        // Epoch first so DockRegions that are not yet subscribed / onReady can
-        // still apply this reset exactly once when they become ready.
-        bumpDockResetEpoch();
-        ctx.bus.emit('dock:reset', {});
-        // The chat column's WIDTH is a shell store (ChatDockResizer), not part of
-        // the dockview layout the dock:reset rebuild restores — reset it here at
-        // the single command entry point so 重置布局 also restores chat's width.
-        try { useChatWidth.getState().setWidth(CHAT_DEFAULT_WIDTH); } catch { /* noop */ }
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.dock.reset",
+				title: "Reset dock layout",
+				execute: () => {
+					// Epoch first so DockRegions that are not yet subscribed / onReady can
+					// still apply this reset exactly once when they become ready.
+					ctx.bus.emit("dock:reset", {});
+					// The chat column's WIDTH is a shell store (ChatDockResizer), not part of
+					// the dockview layout the dock:reset rebuild restores — reset it here at
+					// the single command entry point so 重置布局 also restores chat's width.
+					try {
+						chatWidthStore.setSize(CHAT_DEFAULT_WIDTH);
+					} catch {
+						/* noop */
+					}
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.dock.layoutToggle',
-      title: 'Open the dock layout menu',
-      execute: (args) => {
-        ctx.bus.emit('dock:layout-toggle', (args as { pageId?: string; rect?: { top: number; bottom: number; left: number; right: number } }) ?? {});
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.dock.layoutToggle",
+				title: "Open the dock layout menu",
+				execute: (args) => {
+					ctx.bus.emit(
+						"dock:layout-toggle",
+						(args as {
+							pageId?: string;
+							rect?: {
+								top: number;
+								bottom: number;
+								left: number;
+								right: number;
+							};
+						}) ?? {},
+					);
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'panel.toggle_sidebar',
-      title: '折叠/展开侧栏',
-      execute: () => { getState().toggleSidebar(); return { status: 'completed' as const }; },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "panel.toggle_sidebar",
+				title: "折叠/展开侧栏",
+				execute: () => {
+					getState().toggleSidebar();
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'panel.toggle_chatpanel',
-      title: '折叠/展开聊天面板',
-      execute: () => { getState().toggleChatpanel(); return { status: 'completed' as const }; },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "panel.toggle_chatpanel",
+				title: "折叠/展开聊天面板",
+				execute: () => {
+					getState().toggleChatpanel();
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'app.set_fullscreen',
-      title: '沉浸模式',
-      execute: (args) => {
-        const value = (args as { value?: boolean })?.value ?? false;
-        getState().setFullscreen(value);
-        return { status: 'completed' as const, value };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "app.set_fullscreen",
+				title: "沉浸模式",
+				execute: (args) => {
+					const value = (args as { value?: boolean })?.value ?? false;
+					getState().setFullscreen(value);
+					return { status: "completed" as const, value };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'overlay.open',
-      title: '打开浮层',
-      execute: (args) => {
-        const p = args as { id?: string; param?: string } | undefined;
-        if (!p?.id) throw new Error('overlay.open: missing { id }');
-        getState().openOverlay(p.id, p.param);
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "overlay.open",
+				title: "打开浮层",
+				execute: (args) => {
+					const p = args as { id?: string; param?: string } | undefined;
+					if (!p?.id) throw new Error("overlay.open: missing { id }");
+					getState().openOverlay(p.id, p.param);
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'overlay.close',
-      title: '关闭浮层',
-      execute: () => { getState().closeOverlay(); return { status: 'completed' as const }; },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "overlay.close",
+				title: "关闭浮层",
+				execute: () => {
+					getState().closeOverlay();
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'feedback.open',
-      title: '打开反馈面板',
-      execute: () => {
-        useFeedbackStore.getState().openPanel('write');
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "feedback.open",
+				title: "打开反馈面板",
+				execute: () => {
+					useFeedbackStore.getState().openPanel("write");
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'session.reconnect',
-      title: '重连当前会话',
-      execute: () => {
-        const sid = getState().activeSid;
-        if (!sid || !hasSessionClient()) throw new Error('session.reconnect: no active session client');
-        const client = getSessionClient();
-        client.disconnectForgeaXWs();
-        client.connectForgeaXWs(sid);
-        return { status: 'completed' as const };
-      },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "session.reconnect",
+				title: "重连当前会话",
+				execute: () => {
+					const sid = getState().activeSid;
+					if (!sid || !hasSessionClient())
+						throw new Error("session.reconnect: no active session client");
+					const client = getSessionClient();
+					client.disconnectForgeaXWs();
+					client.connectForgeaXWs(sid);
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    // Game flows — a game is exactly one game directory.
-    cleanups.push(registerCommand({
-      id: 'game.open-directory',
-      title: '打开游戏目录',
-      execute: () => { getState().openGameDirectoryModal(); return { status: 'completed' as const }; },
-    }));
+		// Game flows — a game is exactly one game directory.
+		cleanups.push(
+			registerCommand({
+				id: "game.open-directory",
+				title: "打开游戏目录",
+				execute: () => {
+					getState().openGameDirectoryModal();
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'game.new',
-      title: '新建游戏',
-      execute: () => { getState().openGameModal(); return { status: 'completed' as const }; },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "game.new",
+				title: "新建游戏",
+				execute: () => {
+					getState().openGameModal();
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    cleanups.push(registerCommand({
-      id: 'game.open',
-      title: '打开游戏（游戏列表）',
-      execute: () => { getState().setGameSwitcherOpen(true); return { status: 'completed' as const }; },
-    }));
+		cleanups.push(
+			registerCommand({
+				id: "game.open",
+				title: "打开游戏（游戏列表）",
+				execute: () => {
+					getState().setGameSwitcherOpen(true);
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    // game.pick — switch directly to a specific game by slug. Drives the File →
-    // 打开最近 submenu (each recent-game row dispatches this with its slug). Same
-    // store.setActiveGame mechanism the game.switch action + game-list modal use —
-    // no second code path, just a command-bus entry so the menu can reach it.
-    cleanups.push(registerCommand({
-      id: 'game.pick',
-      title: '切换到游戏',
-      execute: (args) => {
-        const slug = (args as { slug?: unknown } | undefined)?.slug;
-        if (typeof slug !== 'string' || !slug) return { status: 'rejected' as const };
-        void getState().setActiveGame(slug);
-        return { status: 'completed' as const };
-      },
-    }));
+		// game.pick — switch directly to a specific game by slug. Drives the File →
+		// 打开最近 submenu (each recent-game row dispatches this with its slug). Same
+		// store.setActiveGame mechanism the game.switch action + game-list modal use —
+		// no second code path, just a command-bus entry so the menu can reach it.
+		cleanups.push(
+			registerCommand({
+				id: "game.pick",
+				title: "切换到游戏",
+				execute: (args) => {
+					const slug = (args as { slug?: unknown } | undefined)?.slug;
+					if (typeof slug !== "string" || !slug)
+						return { status: "rejected" as const };
+					void getState().setActiveGame(slug);
+					return { status: "completed" as const };
+				},
+			}),
+		);
 
-    // Remaining actions (extension.list / extension.open /
-    // console.clear / console.read / network.clear / session.* / game.switch)
-    // stay in lib/builtin-actions.ts for now — they're consumed by
-    // action-registry (AI's tool registry). PR 3 will unify.
+		// Remaining actions (extension.list / extension.open /
+		// console.clear / console.read / network.clear / session.* / game.switch)
+		// stay in lib/builtin-actions.ts for now — they're consumed by
+		// action-registry (AI's tool registry). PR 3 will unify.
 
-    return () => {
-      // Reverse order so first-registered is torn down last (T9 fixup lesson).
-      // `.slice()` clones the array — never mutate the closed-over `cleanups`
-      // directly with `.reverse()` or repeat unloads would break.
-      for (const c of cleanups.slice().reverse()) c();
-    };
-  },
+		return () => {
+			// Reverse order so first-registered is torn down last (T9 fixup lesson).
+			// `.slice()` clones the array — never mutate the closed-over `cleanups`
+			// directly with `.reverse()` or repeat unloads would break.
+			for (const c of cleanups.slice().reverse()) c();
+		};
+	},
 };

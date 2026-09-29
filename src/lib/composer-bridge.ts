@@ -2,10 +2,9 @@
 //
 // This is the chrome-level bridge any app/surface uses to push a reference into
 // the chat composer WITHOUT sharing the chat store's internals. It owns three
-// concerns that must stay in interface (per R4, docs/v2-vision/architecture-
-// evolution/17): (1) the `PillPayload` wire model + sentinel codec, (2) the
-// reference registry that maps a DOM target to a pill, and (3) the pending-
-// insert slot (`requestComposerInsert` / `useComposerPendingInsert`). The chat
+// compatibility concerns: (1) the `PillPayload` wire model + sentinel codec,
+// (2) the reference registry that maps a DOM target to a pill, and (3) access
+// to the product-injected pending-insert queue (with a standalone fallback). The chat
 // app (@forgeax/chat) and chrome (App.tsx / ContextMenu / TopBar) talk through
 // these exports; the chat store no longer exposes a `composerPendingInsert`
 // field on `useShellStore`.
@@ -39,8 +38,9 @@
 //   bus plugin    [data-extension-id]        data-extension-id (+ first text line)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { create } from 'zustand';
-import { t } from '@/i18n';
+import { useSyncExternalStore } from "react";
+import { t } from "@/i18n";
+import { createComposerInsertRuntimeBinding } from "./composer-insert-runtime";
 
 // ── Pill data model + sentinel wire codec (was components/Composer/pill.ts) ──
 //
@@ -55,361 +55,448 @@ import { t } from '@/i18n';
 // effectively a private band the rest of the pipeline can pass through.
 
 export type PillKind =
-  | 'file' | 'dir' | 'agent' | 'tool' | 'game' | 'log' | 'entity' | 'paste'
-  | 'skill' | 'command';
+	| "file"
+	| "dir"
+	| "agent"
+	| "tool"
+	| "game"
+	| "log"
+	| "entity"
+	| "paste"
+	| "skill"
+	| "command";
 
 /** Pill kinds kept as chips in chat history (others expand to detail text). */
-const DISPLAY_PRESERVE_KINDS = new Set<PillKind>(['skill', 'command']);
+const DISPLAY_PRESERVE_KINDS = new Set<PillKind>(["skill", "command"]);
 
 export interface PillPayload {
-  kind: PillKind;
-  display: string;
-  icon?: string;
-  detail: string;
-  tooltip: { title: string; lines: string[] };
+	kind: PillKind;
+	display: string;
+	icon?: string;
+	detail: string;
+	tooltip: { title: string; lines: string[] };
 }
 
-const SENTINEL_RE = /⟦pill:([A-Za-z0-9_\-]+=*)⟧/g;
+const SENTINEL_RE = /⟦pill:([A-Za-z0-9_-]+=*)⟧/g;
 
 function b64urlEncode(s: string): string {
-  const bytes = new TextEncoder().encode(s);
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_');
+	const bytes = new TextEncoder().encode(s);
+	let bin = "";
+	for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+	return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 function b64urlDecode(s: string): string {
-  const norm = s.replace(/-/g, '+').replace(/_/g, '/');
-  const pad = norm.length % 4 ? '='.repeat(4 - (norm.length % 4)) : '';
-  const bin = atob(norm + pad);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
+	const norm = s.replace(/-/g, "+").replace(/_/g, "/");
+	const pad = norm.length % 4 ? "=".repeat(4 - (norm.length % 4)) : "";
+	const bin = atob(norm + pad);
+	const bytes = new Uint8Array(bin.length);
+	for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+	return new TextDecoder().decode(bytes);
 }
 
 export function encodePill(p: PillPayload): string {
-  return `⟦pill:${b64urlEncode(JSON.stringify(p))}⟧`;
+	return `⟦pill:${b64urlEncode(JSON.stringify(p))}⟧`;
 }
 
 export function decodePill(token: string): PillPayload | null {
-  const m = token.match(/^⟦pill:([A-Za-z0-9_\-]+=*)⟧$/);
-  if (!m) return null;
-  try {
-    const obj = JSON.parse(b64urlDecode(m[1]));
-    if (!obj || typeof obj !== 'object' || !obj.kind || !obj.detail) return null;
-    return obj as PillPayload;
-  } catch {
-    return null;
-  }
+	const m = token.match(/^⟦pill:([A-Za-z0-9_-]+=*)⟧$/);
+	if (!m) return null;
+	try {
+		const obj = JSON.parse(b64urlDecode(m[1]));
+		if (!obj || typeof obj !== "object" || !obj.kind || !obj.detail)
+			return null;
+		return obj as PillPayload;
+	} catch {
+		return null;
+	}
 }
 
 export type TextSegment =
-  | { kind: 'text'; text: string }
-  | { kind: 'pill'; token: string; payload: PillPayload };
+	| { kind: "text"; text: string }
+	| { kind: "pill"; token: string; payload: PillPayload };
 
 export function parseSegments(text: string): TextSegment[] {
-  const out: TextSegment[] = [];
-  let last = 0;
-  for (const m of text.matchAll(SENTINEL_RE)) {
-    const idx = m.index ?? 0;
-    if (idx > last) out.push({ kind: 'text', text: text.slice(last, idx) });
-    const payload = decodePill(m[0]);
-    if (payload) out.push({ kind: 'pill', token: m[0], payload });
-    else out.push({ kind: 'text', text: m[0] });
-    last = idx + m[0].length;
-  }
-  if (last < text.length) out.push({ kind: 'text', text: text.slice(last) });
-  return out;
+	const out: TextSegment[] = [];
+	let last = 0;
+	for (const m of text.matchAll(SENTINEL_RE)) {
+		const idx = m.index ?? 0;
+		if (idx > last) out.push({ kind: "text", text: text.slice(last, idx) });
+		const payload = decodePill(m[0]);
+		if (payload) out.push({ kind: "pill", token: m[0], payload });
+		else out.push({ kind: "text", text: m[0] });
+		last = idx + m[0].length;
+	}
+	if (last < text.length) out.push({ kind: "text", text: text.slice(last) });
+	return out;
 }
 
 export function expandPills(text: string): string {
-  return text.replace(SENTINEL_RE, (full) => {
-    const p = decodePill(full);
-    return p ? p.detail : full;
-  });
+	return text.replace(SENTINEL_RE, (full) => {
+		const p = decodePill(full);
+		return p ? p.detail : full;
+	});
 }
 
 /** Expand pills for transcript display — paste/file/etc. become detail text;
  *  skill/command pills stay as sentinels so PillText renders tag chips. */
 export function expandPillsForDisplay(text: string): string {
-  return text.replace(SENTINEL_RE, (full) => {
-    const p = decodePill(full);
-    if (!p) return full;
-    if (DISPLAY_PRESERVE_KINDS.has(p.kind)) return full;
-    return p.detail;
-  });
+	return text.replace(SENTINEL_RE, (full) => {
+		const p = decodePill(full);
+		if (!p) return full;
+		if (DISPLAY_PRESERVE_KINDS.has(p.kind)) return full;
+		return p.detail;
+	});
 }
 
-export type SlashPillSource = 'skill' | 'command';
+export type SlashPillSource = "skill" | "command";
 
 /** Build a slash-trigger pill for the composer slash menu (skill or server command). */
 export function buildSlashPill(p: {
-  trigger: string;
-  source: SlashPillSource;
-  displayName?: string;
-  description?: string;
+	trigger: string;
+	source: SlashPillSource;
+	displayName?: string;
+	description?: string;
 }): PillPayload {
-  const trigger = p.trigger.startsWith('/') ? p.trigger : `/${p.trigger}`;
-  const kind: PillKind = p.source === 'skill' ? 'skill' : 'command';
-  const title = p.displayName?.trim() || trigger;
-  const desc = p.description?.trim();
-  return {
-    kind,
-    display: trigger,
-    detail: trigger,
-    tooltip: {
-      title: kind === 'skill' ? `✦ ${title}` : trigger,
-      lines: [desc, kind === 'skill' ? 'Skill' : 'Command'].filter(Boolean) as string[],
-    },
-  };
+	const trigger = p.trigger.startsWith("/") ? p.trigger : `/${p.trigger}`;
+	const kind: PillKind = p.source === "skill" ? "skill" : "command";
+	const title = p.displayName?.trim() || trigger;
+	const desc = p.description?.trim();
+	return {
+		kind,
+		display: trigger,
+		detail: trigger,
+		tooltip: {
+			title: kind === "skill" ? `✦ ${title}` : trigger,
+			lines: [desc, kind === "skill" ? "Skill" : "Command"].filter(
+				Boolean,
+			) as string[],
+		},
+	};
 }
 
 function buildLegacySlashPill(trigger: string): PillPayload {
-  return buildSlashPill({ trigger, source: 'command' });
+	return buildSlashPill({ trigger, source: "command" });
 }
 
 /** Parse message text for display — pill sentinels + leading `/command` tags. */
 export function parseDisplaySegments(text: string): TextSegment[] {
-  const segs = parseSegments(text);
-  if (segs.length === 0) return segs;
-  const first = segs[0];
-  if (first.kind !== 'text') return segs;
-  const m = first.text.match(/^(\/[a-z][a-z0-9_-]*)([\s\S]*)$/i);
-  if (!m) return segs;
-  const out: TextSegment[] = [
-    { kind: 'pill', token: '', payload: buildLegacySlashPill(m[1]) },
-  ];
-  if (m[2]) out.push({ kind: 'text', text: m[2] });
-  if (segs.length > 1) out.push(...segs.slice(1));
-  return out;
+	const segs = parseSegments(text);
+	if (segs.length === 0) return segs;
+	const first = segs[0];
+	if (first.kind !== "text") return segs;
+	const m = first.text.match(/^(\/[a-z][a-z0-9_-]*)([\s\S]*)$/i);
+	if (!m) return segs;
+	const out: TextSegment[] = [
+		{ kind: "pill", token: "", payload: buildLegacySlashPill(m[1]) },
+	];
+	if (m[2]) out.push({ kind: "text", text: m[2] });
+	if (segs.length > 1) out.push(...segs.slice(1));
+	return out;
 }
 
 /** Canonical visible label for the "send this into Chat" action. The ONLY
  *  place this string is defined — every menu reads it so the wording can never
  *  drift (it previously existed as 3 variants). */
-export const REFERENCE_LABEL = t('reference.send_to_chat');
+export const REFERENCE_LABEL = t("reference.send_to_chat");
 
 /** A copy action a unit can offer in its context menu (in addition to the
  *  reference action). Plain data so this module stays free of menu/JSX deps. */
 export interface RefCopyItem {
-  label: string;
-  text: string;
+	label: string;
+	text: string;
 }
 
 /** One referenceable unit type. */
 export interface RefDescriptor {
-  /** Stable id (tests / telemetry). */
-  kind: string;
-  /** CSS selector; the first matching ancestor of the event target wins.
-   *  Order in REFERENCE_REGISTRY = specificity priority (most specific first). */
-  match: string;
-  /** Build the pill payload from the matched element. Return null to skip
-   *  (e.g. a required data-* is missing) and let later descriptors try. */
-  build: (el: HTMLElement) => PillPayload | null;
-  /** Optional extra copy items for this unit's context menu. */
-  copy?: (el: HTMLElement) => RefCopyItem[];
-  /** True when this unit has its OWN dedicated context menu (e.g. workspace
-   *  tabs open a rename/delete menu via onContextMenu). The global ContextMenu
-   *  then skips it entirely so the two menus don't stack and fight for clicks. */
-  ownMenu?: boolean;
+	/** Stable id (tests / telemetry). */
+	kind: string;
+	/** CSS selector; the first matching ancestor of the event target wins.
+	 *  Order in REFERENCE_REGISTRY = specificity priority (most specific first). */
+	match: string;
+	/** Build the pill payload from the matched element. Return null to skip
+	 *  (e.g. a required data-* is missing) and let later descriptors try. */
+	build: (el: HTMLElement) => PillPayload | null;
+	/** Optional extra copy items for this unit's context menu. */
+	copy?: (el: HTMLElement) => RefCopyItem[];
+	/** True when this unit has its OWN dedicated context menu (e.g. workspace
+	 *  tabs open a rename/delete menu via onContextMenu). The global ContextMenu
+	 *  then skips it entirely so the two menus don't stack and fight for clicks. */
+	ownMenu?: boolean;
 }
 
-const text = (el: Element | null): string => (el?.textContent ?? '').trim();
-const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n) + '…' : s);
+const text = (el: Element | null): string => (el?.textContent ?? "").trim();
+const truncate = (s: string, n: number): string =>
+	s.length > n ? s.slice(0, n) + "…" : s;
 
 export const REFERENCE_REGISTRY: RefDescriptor[] = [
-  {
-    kind: 'file',
-    match: '.fp-row.file',
-    build: (el) => {
-      const path = el.dataset.fpPath || text(el.querySelector('.fp-name'));
-      if (!path) return null;
-      const name = path.split('/').pop() || path;
-      return {
-        kind: 'file', display: name, icon: '📄',
-        detail: `[${t('reference.file_ref')}: \`${path}\`]`,
-        tooltip: { title: `📄 ${t('reference.file')} · ${name}`, lines: [`${t('reference.path')}: ${path}`, t('reference.chip_hint')] },
-      };
-    },
-    copy: (el) => {
-      const path = el.dataset.fpPath || text(el.querySelector('.fp-name'));
-      const name = path.split('/').pop() || path;
-      return name ? [{ label: t('reference.copy_file_name'), text: name }] : [];
-    },
-  },
-  {
-    kind: 'dir',
-    match: '.fp-row.dir',
-    build: (el) => {
-      const name = text(el.querySelector('.fp-name'));
-      if (!name) return null;
-      return {
-        kind: 'dir', display: name, icon: '📁',
-        detail: `[${t('reference.dir_ref')}: \`${name}\`]`,
-        tooltip: { title: `📁 ${t('reference.directory')} · ${name}`, lines: [`${t('reference.dir_name')}: ${name}`] },
-      };
-    },
-  },
-  {
-    kind: 'agent',
-    match: '.agent-card',
-    build: (el) => {
-      const agentId = el.dataset.agentId || '';
-      if (!agentId) return null;
-      const name = text(el.querySelector('.ac-name')).replace('★', '').trim() || agentId;
-      const role = el.dataset.role || '';
-      return {
-        kind: 'agent', display: name || agentId, icon: '🤝',
-        detail: `@${agentId}`,
-        tooltip: { title: `🤝 Agent · ${name}`, lines: [`id: ${agentId}`, role ? `role: ${role}` : ''].filter(Boolean) },
-      };
-    },
-  },
-  {
-    kind: 'agent-page',
-    match: '.agents-agent-card[data-agent-id]',
-    build: (el) => {
-      const agentId = el.dataset.agentId || '';
-      if (!agentId) return null;
-      const name = el.dataset.agentName || agentId;
-      return {
-        kind: 'agent', display: name, icon: '🤝',
-        detail: `@${agentId}`,
-        tooltip: { title: `🤝 Agent · ${name}`, lines: [`id: ${agentId}`] },
-      };
-    },
-  },
-  {
-    kind: 'preview-game',
-    match: '.preview-toolbar',
-    build: (el) => {
-      const slug = el.dataset.gameSlug || '';
-      if (!slug) return null;
-      return {
-        kind: 'game', display: slug, icon: '🎮',
-        detail: `[${t('reference.current_game_ref')}: \`games/${slug}\`]`,
-        tooltip: { title: `🎮 ${t('reference.current_game')} · ${slug}`, lines: [`slug: ${slug}`, `${t('reference.path_prefix')}: .forgeax/games/${slug}/`] },
-      };
-    },
-  },
-  {
-    kind: 'console-row',
-    match: '.console-row',
-    build: (el) => {
-      const line = text(el);
-      if (!line) return null;
-      return {
-        kind: 'log', display: truncate(line, 40), icon: '📜',
-        detail: `[${t('reference.console_log')}: \`${line}\`]`,
-        tooltip: { title: t('reference.console_log_line'), lines: [line] },
-      };
-    },
-    copy: (el) => { const line = text(el); return line ? [{ label: t('reference.copy_log_line'), text: line }] : []; },
-  },
-  {
-    kind: 'workspace-tab',
-    match: '.mode-tab[data-ws-id]',
-    ownMenu: true, // TopBar opens a dedicated rename/delete/reference menu
-    build: (el) => {
-      const wsId = el.dataset.wsId || '';
-      if (!wsId) return null;
-      return buildWorkspacePill(wsId, el.dataset.wsName || wsId);
-    },
-  },
-  {
-    kind: 'game-row',
-    match: '.tb-game-row[data-game-slug]',
-    build: (el) => {
-      const slug = el.dataset.gameSlug || '';
-      if (!slug) return null;
-      return {
-        kind: 'game', display: slug, icon: '🎮',
-        detail: `[${t('reference.game_ref')}: \`games/${slug}\`]`,
-        tooltip: { title: `🎮 Game · ${slug}`, lines: [`${t('reference.path')}: .forgeax/games/${slug}/`, `slug: ${slug}`] },
-      };
-    },
-    copy: (el) => { const s = el.dataset.gameSlug || ''; return s ? [{ label: t('reference.copy_slug'), text: s }] : []; },
-  },
-  {
-    kind: 'session-row',
-    match: '.tb-game-row[data-session-id]',
-    build: (el) => {
-      const sid = el.dataset.sessionId || '';
-      if (!sid) return null;
-      const name = el.dataset.sessionName || sid.slice(0, 8);
-      return {
-        kind: 'tool', display: name, icon: '💬',
-        detail: `[${t('reference.session_ref')}: sid=${sid} name="${name}"]`,
-        tooltip: { title: `💬 Session · ${name}`, lines: [`sid: ${sid}`] },
-      };
-    },
-    copy: (el) => { const s = el.dataset.sessionId || ''; return s ? [{ label: t('reference.copy_session_id'), text: s }] : []; },
-  },
-  {
-    kind: 'chat-msg',
-    match: '.kc-text, .kc-body',
-    build: (el) => {
-      const raw = text(el);
-      if (!raw) return null;
-      const head = truncate(raw, 60);
-      return {
-        kind: 'log', display: head, icon: '💭',
-        detail: `[${t('reference.chat_ref')}: "${truncate(raw, 200)}"]`,
-        tooltip: { title: `💭 ${t('reference.chat_message_ref')}`, lines: [head] },
-      };
-    },
-    copy: (el) => { const m = text(el); return m ? [{ label: t('reference.copy_message'), text: m }] : []; },
-  },
-  {
-    kind: 'user-msg',
-    match: '.user-bubble',
-    build: (el) => {
-      const raw = text(el);
-      if (!raw) return null;
-      const head = truncate(raw, 60);
-      return {
-        kind: 'log', display: head, icon: '🧑',
-        detail: `[${t('reference.user_message_ref')}: "${truncate(raw, 200)}"]`,
-        tooltip: { title: `🧑 ${t('reference.user_message_ref')}`, lines: [head] },
-      };
-    },
-    copy: (el) => { const m = text(el); return m ? [{ label: t('reference.copy_message'), text: m }] : []; },
-  },
-  {
-    kind: 'bus-plugin',
-    match: '[data-extension-id]',
-    build: (el) => {
-      const extensionId = el.dataset.extensionId || '';
-      if (!extensionId) return null;
-      const label = truncate(text(el).split('\n')[0] || extensionId, 40);
-      return {
-        kind: 'tool', display: label || extensionId, icon: '🔌',
-        detail: `[${t('reference.bus_extension_ref')}: id="${extensionId}" label="${label}"]`,
-        tooltip: { title: `🔌 ${t('reference.bus_extension')} · ${label}`, lines: [`extension id: ${extensionId}`] },
-      };
-    },
-    copy: (el) => { const id = el.dataset.extensionId || ''; return id ? [{ label: t('reference.copy_extension_id'), text: id }] : []; },
-  },
+	{
+		kind: "file",
+		match: ".fp-row.file",
+		build: (el) => {
+			const path = el.dataset.fpPath || text(el.querySelector(".fp-name"));
+			if (!path) return null;
+			const name = path.split("/").pop() || path;
+			return {
+				kind: "file",
+				display: name,
+				icon: "📄",
+				detail: `[${t("reference.file_ref")}: \`${path}\`]`,
+				tooltip: {
+					title: `📄 ${t("reference.file")} · ${name}`,
+					lines: [`${t("reference.path")}: ${path}`, t("reference.chip_hint")],
+				},
+			};
+		},
+		copy: (el) => {
+			const path = el.dataset.fpPath || text(el.querySelector(".fp-name"));
+			const name = path.split("/").pop() || path;
+			return name ? [{ label: t("reference.copy_file_name"), text: name }] : [];
+		},
+	},
+	{
+		kind: "dir",
+		match: ".fp-row.dir",
+		build: (el) => {
+			const name = text(el.querySelector(".fp-name"));
+			if (!name) return null;
+			return {
+				kind: "dir",
+				display: name,
+				icon: "📁",
+				detail: `[${t("reference.dir_ref")}: \`${name}\`]`,
+				tooltip: {
+					title: `📁 ${t("reference.directory")} · ${name}`,
+					lines: [`${t("reference.dir_name")}: ${name}`],
+				},
+			};
+		},
+	},
+	{
+		kind: "agent",
+		match: ".agent-card",
+		build: (el) => {
+			const agentId = el.dataset.agentId || "";
+			if (!agentId) return null;
+			const name =
+				text(el.querySelector(".ac-name")).replace("★", "").trim() || agentId;
+			const role = el.dataset.role || "";
+			return {
+				kind: "agent",
+				display: name || agentId,
+				icon: "🤝",
+				detail: `@${agentId}`,
+				tooltip: {
+					title: `🤝 Agent · ${name}`,
+					lines: [`id: ${agentId}`, role ? `role: ${role}` : ""].filter(
+						Boolean,
+					),
+				},
+			};
+		},
+	},
+	{
+		kind: "agent-page",
+		match: ".agents-agent-card[data-agent-id]",
+		build: (el) => {
+			const agentId = el.dataset.agentId || "";
+			if (!agentId) return null;
+			const name = el.dataset.agentName || agentId;
+			return {
+				kind: "agent",
+				display: name,
+				icon: "🤝",
+				detail: `@${agentId}`,
+				tooltip: { title: `🤝 Agent · ${name}`, lines: [`id: ${agentId}`] },
+			};
+		},
+	},
+	{
+		kind: "preview-game",
+		match: ".preview-toolbar",
+		build: (el) => {
+			const slug = el.dataset.gameSlug || "";
+			if (!slug) return null;
+			return {
+				kind: "game",
+				display: slug,
+				icon: "🎮",
+				detail: `[${t("reference.current_game_ref")}: \`games/${slug}\`]`,
+				tooltip: {
+					title: `🎮 ${t("reference.current_game")} · ${slug}`,
+					lines: [
+						`slug: ${slug}`,
+						`${t("reference.path_prefix")}: .forgeax/games/${slug}/`,
+					],
+				},
+			};
+		},
+	},
+	{
+		kind: "console-row",
+		match: ".console-row",
+		build: (el) => {
+			const line = text(el);
+			if (!line) return null;
+			return {
+				kind: "log",
+				display: truncate(line, 40),
+				icon: "📜",
+				detail: `[${t("reference.console_log")}: \`${line}\`]`,
+				tooltip: { title: t("reference.console_log_line"), lines: [line] },
+			};
+		},
+		copy: (el) => {
+			const line = text(el);
+			return line ? [{ label: t("reference.copy_log_line"), text: line }] : [];
+		},
+	},
+	{
+		kind: "workspace-tab",
+		match: ".mode-tab[data-ws-id]",
+		ownMenu: true, // TopBar opens a dedicated rename/delete/reference menu
+		build: (el) => {
+			const wsId = el.dataset.wsId || "";
+			if (!wsId) return null;
+			return buildWorkspacePill(wsId, el.dataset.wsName || wsId);
+		},
+	},
+	{
+		kind: "game-row",
+		match: ".tb-game-row[data-game-slug]",
+		build: (el) => {
+			const slug = el.dataset.gameSlug || "";
+			if (!slug) return null;
+			return {
+				kind: "game",
+				display: slug,
+				icon: "🎮",
+				detail: `[${t("reference.game_ref")}: \`games/${slug}\`]`,
+				tooltip: {
+					title: `🎮 Game · ${slug}`,
+					lines: [
+						`${t("reference.path")}: .forgeax/games/${slug}/`,
+						`slug: ${slug}`,
+					],
+				},
+			};
+		},
+		copy: (el) => {
+			const s = el.dataset.gameSlug || "";
+			return s ? [{ label: t("reference.copy_slug"), text: s }] : [];
+		},
+	},
+	{
+		kind: "session-row",
+		match: ".tb-game-row[data-session-id]",
+		build: (el) => {
+			const sid = el.dataset.sessionId || "";
+			if (!sid) return null;
+			const name = el.dataset.sessionName || sid.slice(0, 8);
+			return {
+				kind: "tool",
+				display: name,
+				icon: "💬",
+				detail: `[${t("reference.session_ref")}: sid=${sid} name="${name}"]`,
+				tooltip: { title: `💬 Session · ${name}`, lines: [`sid: ${sid}`] },
+			};
+		},
+		copy: (el) => {
+			const s = el.dataset.sessionId || "";
+			return s ? [{ label: t("reference.copy_session_id"), text: s }] : [];
+		},
+	},
+	{
+		kind: "chat-msg",
+		match: ".kc-text, .kc-body",
+		build: (el) => {
+			const raw = text(el);
+			if (!raw) return null;
+			const head = truncate(raw, 60);
+			return {
+				kind: "log",
+				display: head,
+				icon: "💭",
+				detail: `[${t("reference.chat_ref")}: "${truncate(raw, 200)}"]`,
+				tooltip: {
+					title: `💭 ${t("reference.chat_message_ref")}`,
+					lines: [head],
+				},
+			};
+		},
+		copy: (el) => {
+			const m = text(el);
+			return m ? [{ label: t("reference.copy_message"), text: m }] : [];
+		},
+	},
+	{
+		kind: "user-msg",
+		match: ".user-bubble",
+		build: (el) => {
+			const raw = text(el);
+			if (!raw) return null;
+			const head = truncate(raw, 60);
+			return {
+				kind: "log",
+				display: head,
+				icon: "🧑",
+				detail: `[${t("reference.user_message_ref")}: "${truncate(raw, 200)}"]`,
+				tooltip: {
+					title: `🧑 ${t("reference.user_message_ref")}`,
+					lines: [head],
+				},
+			};
+		},
+		copy: (el) => {
+			const m = text(el);
+			return m ? [{ label: t("reference.copy_message"), text: m }] : [];
+		},
+	},
+	{
+		kind: "bus-plugin",
+		match: "[data-extension-id]",
+		build: (el) => {
+			const extensionId = el.dataset.extensionId || "";
+			if (!extensionId) return null;
+			const label = truncate(text(el).split("\n")[0] || extensionId, 40);
+			return {
+				kind: "tool",
+				display: label || extensionId,
+				icon: "🔌",
+				detail: `[${t("reference.bus_extension_ref")}: id="${extensionId}" label="${label}"]`,
+				tooltip: {
+					title: `🔌 ${t("reference.bus_extension")} · ${label}`,
+					lines: [`extension id: ${extensionId}`],
+				},
+			};
+		},
+		copy: (el) => {
+			const id = el.dataset.extensionId || "";
+			return id ? [{ label: t("reference.copy_extension_id"), text: id }] : [];
+		},
+	},
 ];
 
 /** Walk the registry and return the first matching unit for an event target. */
 export function buildReferenceFor(
-  target: Element | null,
+	target: Element | null,
 ): { el: HTMLElement; descriptor: RefDescriptor; pill: PillPayload } | null {
-  if (!target) return null;
-  for (const descriptor of REFERENCE_REGISTRY) {
-    const el = target.closest<HTMLElement>(descriptor.match);
-    if (!el) continue;
-    const pill = descriptor.build(el);
-    if (pill) return { el, descriptor, pill };
-    // matched the selector but data was missing — keep trying other descriptors.
-  }
-  return null;
+	if (!target) return null;
+	for (const descriptor of REFERENCE_REGISTRY) {
+		const el = target.closest<HTMLElement>(descriptor.match);
+		if (!el) continue;
+		const pill = descriptor.build(el);
+		if (pill) return { el, descriptor, pill };
+		// matched the selector but data was missing — keep trying other descriptors.
+	}
+	return null;
 }
 
 /** Back-compat thin wrapper: DOM target → pill payload (or null). */
-export function buildPillFromTarget(target: Element | null): PillPayload | null {
-  return buildReferenceFor(target)?.pill ?? null;
+export function buildPillFromTarget(
+	target: Element | null,
+): PillPayload | null {
+	return buildReferenceFor(target)?.pill ?? null;
 }
 
 // ── Editor reference builders ───────────────────────────────────────────────
@@ -418,61 +505,116 @@ export function buildPillFromTarget(target: Element | null): PillPayload | null 
 // builders, keeping pill construction (icons/labels/detail format) in one place
 // so it cannot drift from the DOM path.
 
-export function buildEntityPill(p: { id?: number | string; name: string; components?: unknown; source?: { plugin?: string; docId?: string } }): PillPayload {
-  const comps = Array.isArray(p.components) ? (p.components as string[]).join(', ') : '';
-  const srcStr = p.source?.plugin ? ` ${t('reference.source')}=${p.source.plugin}/${p.source.docId ?? ''}` : '';
-  return {
-    kind: 'entity', display: p.name, icon: '🎯',
-    detail: `[${t('reference.scene_entity')}: id=${p.id} name="${p.name}"${comps ? ` components=[${comps}]` : ''}${srcStr}]`,
-    tooltip: {
-      title: `🎯 ${t('reference.scene_entity')} · ${p.name}`,
-      lines: [`id: ${p.id}`, comps ? `${t('reference.components')}: ${comps}` : '', p.source?.plugin ? `${t('reference.source')}: ${p.source.plugin}/${p.source.docId ?? ''}` : ''].filter(Boolean),
-    },
-  };
+export function buildEntityPill(p: {
+	id?: number | string;
+	name: string;
+	components?: unknown;
+	source?: { plugin?: string; docId?: string };
+}): PillPayload {
+	const comps = Array.isArray(p.components)
+		? (p.components as string[]).join(", ")
+		: "";
+	const srcStr = p.source?.plugin
+		? ` ${t("reference.source")}=${p.source.plugin}/${p.source.docId ?? ""}`
+		: "";
+	return {
+		kind: "entity",
+		display: p.name,
+		icon: "🎯",
+		detail: `[${t("reference.scene_entity")}: id=${p.id} name="${p.name}"${comps ? ` components=[${comps}]` : ""}${srcStr}]`,
+		tooltip: {
+			title: `🎯 ${t("reference.scene_entity")} · ${p.name}`,
+			lines: [
+				`id: ${p.id}`,
+				comps ? `${t("reference.components")}: ${comps}` : "",
+				p.source?.plugin
+					? `${t("reference.source")}: ${p.source.plugin}/${p.source.docId ?? ""}`
+					: "",
+			].filter(Boolean),
+		},
+	};
 }
 
-export function buildAssetPill(p: { guid: string; name?: string; assetKind?: string; packPath?: string; payload?: Record<string, unknown> }): PillPayload {
-  const name = p.name ?? p.guid.slice(0, 8);
-  const isFolderSummary = p.assetKind === 'folder' && p.payload;
-  let detail: string;
-  if (isFolderSummary) {
-    const s = p.payload as { totalAssets?: number; kinds?: Record<string, number>; guids?: string[] };
-    const kindList = s.kinds ? Object.entries(s.kinds).map(([k, v]) => `${k} × ${v}`).join(', ') : '';
-    detail = `[${t('reference.asset')}: folder="${name}" path=${p.packPath ?? ''} totalAssets=${s.totalAssets ?? 0} kinds=(${kindList})]`;
-  } else if (p.payload) {
-    const payloadStr = JSON.stringify(p.payload, null, 2);
-    const truncPayload = payloadStr.length > 2000 ? payloadStr.slice(0, 2000) + '\n…(truncated)' : payloadStr;
-    detail = `[${t('reference.asset')}: guid=${p.guid} kind=${p.assetKind ?? ''}${p.packPath ? ` pack=${p.packPath}` : ''}\npayload:\n${truncPayload}]`;
-  } else {
-    detail = `[${t('reference.asset')}: guid=${p.guid} kind=${p.assetKind ?? ''}${p.packPath ? ` pack=${p.packPath}` : ''}]`;
-  }
-  return {
-    kind: 'entity', display: name, icon: isFolderSummary ? '📁' : '🧱',
-    detail,
-    tooltip: {
-      title: `${isFolderSummary ? '📁' : '🧱'} ${t('reference.asset')} · ${name}`,
-      lines: [`guid: ${p.guid}`, p.assetKind ? `kind: ${p.assetKind}` : '', p.packPath ? `pack: ${p.packPath}` : ''].filter(Boolean),
-    },
-  };
+export function buildAssetPill(p: {
+	guid: string;
+	name?: string;
+	assetKind?: string;
+	packPath?: string;
+	payload?: Record<string, unknown>;
+}): PillPayload {
+	const name = p.name ?? p.guid.slice(0, 8);
+	const isFolderSummary = p.assetKind === "folder" && p.payload;
+	let detail: string;
+	if (isFolderSummary) {
+		const s = p.payload as {
+			totalAssets?: number;
+			kinds?: Record<string, number>;
+			guids?: string[];
+		};
+		const kindList = s.kinds
+			? Object.entries(s.kinds)
+					.map(([k, v]) => `${k} × ${v}`)
+					.join(", ")
+			: "";
+		detail = `[${t("reference.asset")}: folder="${name}" path=${p.packPath ?? ""} totalAssets=${s.totalAssets ?? 0} kinds=(${kindList})]`;
+	} else if (p.payload) {
+		const payloadStr = JSON.stringify(p.payload, null, 2);
+		const truncPayload =
+			payloadStr.length > 2000
+				? payloadStr.slice(0, 2000) + "\n…(truncated)"
+				: payloadStr;
+		detail = `[${t("reference.asset")}: guid=${p.guid} kind=${p.assetKind ?? ""}${p.packPath ? ` pack=${p.packPath}` : ""}\npayload:\n${truncPayload}]`;
+	} else {
+		detail = `[${t("reference.asset")}: guid=${p.guid} kind=${p.assetKind ?? ""}${p.packPath ? ` pack=${p.packPath}` : ""}]`;
+	}
+	return {
+		kind: "entity",
+		display: name,
+		icon: isFolderSummary ? "📁" : "🧱",
+		detail,
+		tooltip: {
+			title: `${isFolderSummary ? "📁" : "🧱"} ${t("reference.asset")} · ${name}`,
+			lines: [
+				`guid: ${p.guid}`,
+				p.assetKind ? `kind: ${p.assetKind}` : "",
+				p.packPath ? `pack: ${p.packPath}` : "",
+			].filter(Boolean),
+		},
+	};
 }
 
 /** Workspace pill — used by both the DOM descriptor and TopBar's dedicated
  *  workspace-tab context menu (which has only {id,name}, not a DOM node). */
 export function buildWorkspacePill(wsId: string, wsName: string): PillPayload {
-  return {
-    kind: 'tool', display: wsName, icon: '🗂',
-    detail: `[${t('reference.workspace_ref')}: "${wsName}" id=${wsId}]`,
-    tooltip: { title: `🗂 ${t('reference.workspace')} · ${wsName}`, lines: [`id: ${wsId}`, t('reference.workspace_context_hint')] },
-  };
+	return {
+		kind: "tool",
+		display: wsName,
+		icon: "🗂",
+		detail: `[${t("reference.workspace_ref")}: "${wsName}" id=${wsId}]`,
+		tooltip: {
+			title: `🗂 ${t("reference.workspace")} · ${wsName}`,
+			lines: [`id: ${wsId}`, t("reference.workspace_context_hint")],
+		},
+	};
 }
 
-export function buildComponentPill(p: { entityId?: number; entityName: string; comp: string; value: unknown }): PillPayload {
-  const json = JSON.stringify({ [p.comp]: p.value }, null, 2);
-  return {
-    kind: 'entity', display: `${p.entityName}.${p.comp}`, icon: '🔧',
-    detail: `[${t('reference.component_property')}: ${p.entityName}#${p.entityId ?? '?'}.${p.comp} = ${json}]`,
-    tooltip: { title: `🔧 ${p.comp} · ${p.entityName}`, lines: [truncate(json, 80)] },
-  };
+export function buildComponentPill(p: {
+	entityId?: number;
+	entityName: string;
+	comp: string;
+	value: unknown;
+}): PillPayload {
+	const json = JSON.stringify({ [p.comp]: p.value }, null, 2);
+	return {
+		kind: "entity",
+		display: `${p.entityName}.${p.comp}`,
+		icon: "🔧",
+		detail: `[${t("reference.component_property")}: ${p.entityName}#${p.entityId ?? "?"}.${p.comp} = ${json}]`,
+		tooltip: {
+			title: `🔧 ${p.comp} · ${p.entityName}`,
+			lines: [truncate(json, 80)],
+		},
+	};
 }
 
 // ── Cross-app pending-insert slot ────────────────────────────────────────────
@@ -481,171 +623,27 @@ export function buildComponentPill(p: { entityId?: number; entityName: string; c
 // render tick via useComposerPendingInsert(), inserts the chip at the caret, then
 // clears. A queue lets batch "Add to AI Chat" (multi-select) insert all pills.
 //
-// Lives in the interface foundation, NOT in the chat store, so the slot is a chrome-level
-// bridge the chat app reads — chat never shares useShellStore internals (R4 §5.3).
-interface ComposerInsertBridge {
-  pendingInsert: PillPayload | null;
-  queue: PillPayload[];
-  pendingText: ComposerTextRequest | null;
-  textQueue: ComposerTextRequest[];
-  composerRevision: number;
-  lastRecommendationId: string | null;
-  seenRecommendations: Record<string, number>;
-  request: (p: PillPayload) => void;
-  requestText: (request: ComposerTextRequest) => void;
-  advanceTextRevision: () => void;
-  clear: () => void;
-  clearText: () => void;
-}
-
-export type ComposerTextMode = 'append' | 'replace';
-
-export interface ComposerTextRequest {
-  text: string;
-  mode: ComposerTextMode;
-  /** Stable identity of a recommendation action. */
-  recommendationId?: string;
-  /** Assigned by the bridge; useful for telemetry and deterministic tests. */
-  composerRevision?: number;
-}
-
-export interface ComposerTextBridgeState {
-  pendingText: ComposerTextRequest | null;
-  textQueue: ComposerTextRequest[];
-  composerRevision: number;
-  lastRecommendationId: string | null;
-  seenRecommendations: Record<string, number>;
-}
-
-/** Queue a text request while keeping repeated recommendation clicks idempotent.
- * This pure transition is shared by the Zustand bridge and its regression tests;
- * the Composer advances the revision separately for genuine manual edits.
- */
-export function enqueueComposerTextRequest(
-  state: ComposerTextBridgeState,
-  request: ComposerTextRequest,
-): ComposerTextBridgeState {
-  let revision = state.composerRevision;
-  let seen = state.seenRecommendations;
-  if (request.mode === 'append' && request.recommendationId) {
-    // Repeated clicks on the same action within one composer revision are
-    // idempotent. Selecting a different recommendation starts a new
-    // recommendation revision, so A → B → A remains an intentional choice.
-    if (state.lastRecommendationId === request.recommendationId
-        && seen[request.recommendationId] === revision) return state;
-    if (state.lastRecommendationId !== request.recommendationId) {
-      revision += 1;
-      seen = {};
-    }
-    seen = { ...seen, [request.recommendationId]: revision };
-  }
-  const next = { ...request, composerRevision: revision };
-  return {
-    textQueue: [...state.textQueue, next],
-    pendingText: state.textQueue.length === 0 ? next : state.pendingText,
-    composerRevision: revision,
-    lastRecommendationId: request.recommendationId ?? state.lastRecommendationId,
-    seenRecommendations: seen,
-  };
-}
-
-/** Append a suggestion only when the current draft does not already contain it.
- *
- * Suggestions are intentionally appended so a user can queue more than one
- * next step. Re-clicking the same suggestion, however, should be idempotent;
- * otherwise the composer grows a duplicate line on every click.
- */
-export function appendComposerTextOnce(current: string, addition: string): string {
-  const normalizedAddition = addition.replace(/\r\n?/g, '\n').trim();
-  if (!normalizedAddition) return current;
-
-  const normalizedCurrent = current.replace(/\r\n?/g, '\n');
-  const comparableCurrent = normalizedCurrent.trim();
-  const hasSameLine = normalizedCurrent
-    .split('\n')
-    .some((line) => line.trim() === normalizedAddition);
-  const hasSameBlock = comparableCurrent === normalizedAddition
-    || comparableCurrent.startsWith(`${normalizedAddition}\n`)
-    || comparableCurrent.endsWith(`\n${normalizedAddition}`)
-    || comparableCurrent.includes(`\n${normalizedAddition}\n`);
-
-  if (hasSameLine || hasSameBlock) return current;
-  return `${current}${current ? '\n' : ''}${addition}`;
-}
-
-/** Append one recommendation line without inspecting old draft text.  The
- * recommendation bridge owns idempotency; text-level de-duplication would make
- * a deliberate A -> B -> A sequence impossible. */
-export function appendComposerText(current: string, addition: string): string {
-  const normalized = addition.replace(/\r\n?/g, '\n').trim();
-  if (!normalized) return current;
-  return `${current}${current ? '\n' : ''}${normalized}`;
-}
-
-const useComposerInsertBridge = create<ComposerInsertBridge>((set) => ({
-  pendingInsert: null,
-  queue: [],
-  pendingText: null,
-  textQueue: [],
-  composerRevision: 0,
-  lastRecommendationId: null,
-  seenRecommendations: {},
-  request: (p) => set((s) => ({
-    queue: [...s.queue, p],
-    pendingInsert: s.queue.length === 0 ? p : s.pendingInsert,
-  })),
-  requestText: (request) => set((s) => enqueueComposerTextRequest(s, request)),
-  advanceTextRevision: () => set((s) => ({
-    composerRevision: s.composerRevision + 1,
-    lastRecommendationId: null,
-    seenRecommendations: {},
-  })),
-  clear: () => set((s) => {
-    const q = s.queue.slice(1);
-    return { queue: q, pendingInsert: q[0] ?? null };
-  }),
-  clearText: () => set((s) => {
-    const q = s.textQueue.slice(1);
-    return { textQueue: q, pendingText: q[0] ?? null };
-  }),
-}));
+// Product boot may adopt this queue before any extension setup. Standalone
+// retains the same fallback FIFO; all compatibility writers use this binding.
+const composerInsert = createComposerInsertRuntimeBinding();
+export const configureComposerInsertRuntime = composerInsert.configure;
+const getServerComposerPendingInsert = () => null;
 
 /** Publish a pill into the composer. Callable from any surface (no React ctx). */
 export function requestComposerInsert(p: PillPayload): void {
-  useComposerInsertBridge.getState().request(p);
+	composerInsert.request(p);
 }
 
 /** React hook — the next pending pill to insert (null when none). */
 export function useComposerPendingInsert(): PillPayload | null {
-  return useComposerInsertBridge((s) => s.pendingInsert);
+	return useSyncExternalStore(
+		composerInsert.subscribe,
+		composerInsert.getPending,
+		getServerComposerPendingInsert,
+	);
 }
 
 /** Drop the consumed pill and advance the queue. */
 export function clearComposerPendingInsert(): void {
-  useComposerInsertBridge.getState().clear();
-}
-
-/** Publish plain text into the composer without changing pill semantics. */
-export function requestComposerText(
-  text: string,
-  mode: ComposerTextMode = 'append',
-  recommendationId?: string,
-): void {
-  if (!text) return;
-  useComposerInsertBridge.getState().requestText({ text, mode, recommendationId });
-}
-
-/** React hook — the next pending plain-text request. */
-export function useComposerPendingText(): ComposerTextRequest | null {
-  return useComposerInsertBridge((s) => s.pendingText);
-}
-
-/** Drop the consumed text request and advance the text queue. */
-export function clearComposerPendingText(): void {
-  useComposerInsertBridge.getState().clearText();
-}
-
-/** Mark a manual edit/send/clear boundary in the recommendation stream. */
-export function advanceComposerTextRevision(): void {
-  useComposerInsertBridge.getState().advanceTextRevision();
+	composerInsert.clear();
 }

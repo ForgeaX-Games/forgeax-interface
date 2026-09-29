@@ -1,58 +1,77 @@
 export interface ApiCallRule {
-  pattern: RegExp;
-  source?: string;
+	pattern: RegExp;
+	source?: string;
 }
 
 export const allowedApiRules: ApiCallRule[] = [
-  { pattern: /^\/api\/boot-splash$/ },
-  { pattern: /^\/api\/extensions\/list(?:\?kind=(?:\$\{[^}]+\}|cli-provider))?$/ },
-  { pattern: /^\/api\/extensions\/capabilities$/ },
-  // surface id 段既可能是模板串,也可能是字面量(MenuBar 直写 host.menubar);
-  // 动词含 dispatched(人机同账补记),pending 与 DELETE 都可带 ?page=(按页计数/注销)。
-  { pattern: /^\/api\/bus\/ui\/surfaces(?:\/(?:\$\{[^}]+\}|[a-zA-Z0-9._-]+)(?:\/(?:ack|dispatched|snapshot)|\/pending(?:\?page=\$\{[^}]+\})?|\?page=\$\{[^}]+\})?)?$/ },
-  { pattern: /^\/api\/cli\/health$/ },
-  { pattern: /^\/api\/commands\/(?:\$\{[^}]+\}|upload)\/(?:execute|query)$/ },
-  { pattern: /^\/api\/events\/stream\?topic=(?:plugin\.reloaded|tool\.confirm-\*|tool\.confirm-required)$/ },
-  { pattern: /^\/api\/files\/tree\?root=.forgeax\/games\/\$\{[^}]+\}$/ },
-  {
-    pattern: /^\/api\/feedback(?:\/\$\{[^}]+\}\/status)?$/,
-    source: "src/components/Feedback/store.ts",
-  },
-  { pattern: /^\/api\/fs\/browse\?dir=\$\{[^}]+\}$/ },
-  { pattern: /^\/api\/fs\/pick-directory$/ },
-  {
-    pattern: /^\/api\/game-host\/games\/\$\{[^}]+\}\/package\/(?:initialize|status)$/,
-    source: "src/lib/game-host-api.ts",
-  },
-  {
-    pattern: /^\/api\/projects\/templates$/,
-    source: "src/lib/game-templates.ts",
-  },
-  { pattern: /^\/api\/health$/ },
-  { pattern: /^\/api\/logs$/ },
-  { pattern: /^\/api\/narrative\/history$/ },
-  { pattern: /^\/api\/prefs\/browser-localStorage$/ },
-  { pattern: /^\/api\/projects(?:\/link)?$/ },
-  { pattern: /^\/api\/projects\/(?:active|registered\?path=\$\{[^}]+\}|\$\{[^}]+\})$/ },
-  { pattern: /^\/api\/agents(?:\?.*)?$/ },
-  { pattern: /^\/api\/agents\/events\/recent\?.*$/ },
-  { pattern: /^\/api\/builds\/(?:reveal|play\/\$\{[^}]+\}\/?)$/ },
-  { pattern: /^\/api\/sessions\/\$\{[^}]+\}(?:\/(?:abort\$\{[^}]+\}|checkpoints|file-activity\?limit=100|perception-reply|rewind(?:\/(?:cancel|overwrite-dirty|preview|undo-overwrite))?|ui-lease|ui-manifest))?$/ },
-  { pattern: /^\/api\/settings(?:\/env)?$/ },
-  { pattern: /^\/api\/telemetry$/ },
-  { pattern: /^\/api\/threads\/\$\{[^}]+\}$/ },
-  { pattern: /^\/api\/tools(?:\/call|\/confirm)?$/ },
-  { pattern: /^\/api\/version(?:\/tags)?$/ },
-  { pattern: /^\/api\/workspaces\/activate$/ },
-  { pattern: /^\/api\/workspaces\/active$/ },
+	{ pattern: /^\/api\/boot-splash$/ },
+	{
+		pattern:
+			/^\/api\/extensions\/list(?:\?kind=(?:\$\{[^}]+\}|cli-provider))?$/,
+	},
+	{ pattern: /^\/api\/extensions\/capabilities$/ },
+	// surface id 段既可能是模板串,也可能是字面量(MenuBar 直写 host.menubar);
+	// 动词含 dispatched(人机同账补记),pending 与 DELETE 都可带 ?page=(按页计数/注销)。
+	{
+		pattern:
+			/^\/api\/bus\/ui\/surfaces(?:\/(?:\$\{[^}]+\}|[a-zA-Z0-9._-]+)(?:\/(?:ack|dispatched|snapshot)|\/pending(?:\?page=\$\{[^}]+\})?|\?page=\$\{[^}]+\})?)?$/,
+	},
+	{ pattern: /^\/api\/cli\/health$/ },
+	{ pattern: /^\/api\/commands\/(?:\$\{[^}]+\}|upload)\/(?:execute|query)$/ },
+	{
+		pattern:
+			/^\/api\/events\/stream\?topic=(?:plugin\.reloaded|tool\.confirm-\*|tool\.confirm-required)$/,
+	},
+	{ pattern: /^\/api\/files\/tree\?root=.forgeax\/games\/\$\{[^}]+\}$/ },
+	{
+		pattern: /^\/api\/feedback(?:\/\$\{[^}]+\}\/status)?$/,
+		source: "src/components/Feedback/store.ts",
+	},
+	{ pattern: /^\/api\/fs\/browse\?dir=\$\{[^}]+\}$/ },
+	{ pattern: /^\/api\/fs\/pick-directory$/ },
+	{
+		pattern:
+			/^\/api\/game-host\/games\/\$\{[^}]+\}\/package\/(?:initialize|status)$/,
+		source: "src/lib/game-host-api.ts",
+	},
+	{
+		pattern: /^\/api\/projects\/templates$/,
+		source: "src/lib/game-templates.ts",
+	},
+	{ pattern: /^\/api\/health$/ },
+	{ pattern: /^\/api\/logs$/ },
+	{ pattern: /^\/api\/narrative\/history$/ },
+	{ pattern: /^\/api\/prefs\/browser-localStorage$/ },
+	{ pattern: /^\/api\/projects(?:\/link)?$/ },
+	{
+		pattern:
+			/^\/api\/projects\/(?:active|registered\?path=\$\{[^}]+\}|\$\{[^}]+\})$/,
+	},
+	{ pattern: /^\/api\/agents(?:\?.*)?$/ },
+	{ pattern: /^\/api\/agents\/events\/recent\?.*$/ },
+	{ pattern: /^\/api\/builds\/(?:reveal|play\/\$\{[^}]+\}\/?)$/ },
+	{
+		pattern:
+			/^\/api\/sessions\/\$\{[^}]+\}(?:\/(?:abort\$\{[^}]+\}|checkpoints|file-activity\?limit=100|perception-reply|rewind(?:\/(?:cancel|overwrite-dirty|preview|undo-overwrite))?|ui-lease|ui-manifest))?$/,
+	},
+	{ pattern: /^\/api\/settings(?:\/env)?$/ },
+	{ pattern: /^\/api\/telemetry$/ },
+	{ pattern: /^\/api\/threads\/\$\{[^}]+\}$/ },
+	{ pattern: /^\/api\/tools(?:\/call|\/confirm)?$/ },
+	{ pattern: /^\/api\/version(?:\/tags)?$/ },
+	{ pattern: /^\/api\/workspaces\/activate$/ },
+	{ pattern: /^\/api\/workspaces\/active$/ },
 ];
 
-export function validateApiCall(endpoint: string, source: string): string | null {
-  const rule = allowedApiRules.find(({ pattern }) => pattern.test(endpoint));
-  if (!rule) return `calls unallowlisted API endpoint ${endpoint}`;
-  const normalizedSource = source.replaceAll("\\", "/");
-  if (rule.source && rule.source !== normalizedSource) {
-    return `calls ${endpoint}, which must be called from ${rule.source}`;
-  }
-  return null;
+export function validateApiCall(
+	endpoint: string,
+	source: string,
+): string | null {
+	const rule = allowedApiRules.find(({ pattern }) => pattern.test(endpoint));
+	if (!rule) return `calls unallowlisted API endpoint ${endpoint}`;
+	const normalizedSource = source.replaceAll("\\", "/");
+	if (rule.source && rule.source !== normalizedSource) {
+		return `calls ${endpoint}, which must be called from ${rule.source}`;
+	}
+	return null;
 }

@@ -7,15 +7,21 @@
 // 注意：owner 每次变更必须发布**新的对象引用**（快照语义），否则 useSyncExternalStore
 // 认为未变、不重渲染。返回 `undefined` 表示 owner 尚未发布过（消费者自行 `?? 缺省`）。
 
-import { useSyncExternalStore } from 'react';
-import { peek, subscribe, type BusTopics } from './bus';
+import {
+	type BusTopics,
+	peekTopic as peek,
+	subscribeTopic as subscribe,
+} from "@forgeax/app-shell/application";
+import { useSyncExternalStore } from "react";
 
-export function useBusSnapshot<K extends keyof BusTopics>(topic: K): BusTopics[K] | undefined;
+export function useBusSnapshot<K extends keyof BusTopics>(
+	topic: K,
+): BusTopics[K] | undefined;
 export function useBusSnapshot(topic: string): unknown;
 export function useBusSnapshot(topic: string): unknown {
-  return useSyncExternalStore(
-    (onChange) => subscribe(topic as keyof BusTopics, () => onChange()),
-    () => peek(topic as keyof BusTopics),
-    () => peek(topic as keyof BusTopics),
-  );
+	return useSyncExternalStore(
+		(onChange) => subscribe(topic as keyof BusTopics, () => onChange()),
+		() => peek(topic as keyof BusTopics),
+		() => peek(topic as keyof BusTopics),
+	);
 }

@@ -6,12 +6,12 @@
 // so callers can `import './core/extensions/session-client.d'` for the type
 // side-effect without pulling in the plugin's runtime code.
 
-import type { SessionCapability } from './session-client';
+import type { SessionCapability } from "./session-client";
 
-declare module '../app-shell/types' {
-  interface AppHost {
-    readonly session?: SessionCapability;
-  }
+declare module "../app-shell/types" {
+	interface AppHost {
+		readonly session?: SessionCapability;
+	}
 }
 
 export {}; // ensure this file is treated as a module, not a global script

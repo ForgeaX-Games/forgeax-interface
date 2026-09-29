@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from "./storageKeys";
+
 // Per-provider "last hand-picked model" memory.
 //
 // Only an explicit model pick writes this preference. Both provider switching
@@ -7,45 +9,32 @@
 // Keyed by catalog-provider id: a CLI driver id (claude-code / codex / …) or
 // 'forgeax' for the native gateway path (catalogProviderId === null).
 
-import { STORAGE_KEYS } from './storageKeys';
-
 function storageKey(): string {
-  return STORAGE_KEYS.lastModelByProvider;
+	return STORAGE_KEYS.lastModelByProvider;
 }
 
 function providerKey(catalogProviderId: string | null): string {
-  return catalogProviderId && catalogProviderId !== 'forgeax' ? catalogProviderId : 'forgeax';
+	return catalogProviderId && catalogProviderId !== "forgeax"
+		? catalogProviderId
+		: "forgeax";
 }
 
 function readMap(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(storageKey());
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, string>;
-    }
-    return {};
-  } catch {
-    return {};
-  }
+	try {
+		const raw = localStorage.getItem(storageKey());
+		if (!raw) return {};
+		const parsed = JSON.parse(raw) as unknown;
+		if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+			return parsed as Record<string, string>;
+		}
+		return {};
+	} catch {
+		return {};
+	}
 }
 
 /** The model the user last hand-picked for this provider, or null if none. */
 export function getLastModel(catalogProviderId: string | null): string | null {
-  const v = readMap()[providerKey(catalogProviderId)];
-  return typeof v === 'string' && v.length > 0 ? v : null;
-}
-
-/** Record a HAND-PICKED model for this provider (called from the composer's
- *  model picker onChange — never from a provider-switch reset). */
-export function recordLastModel(catalogProviderId: string | null, modelId: string): void {
-  if (!modelId) return;
-  try {
-    const map = readMap();
-    map[providerKey(catalogProviderId)] = modelId;
-    localStorage.setItem(storageKey(), JSON.stringify(map));
-  } catch {
-    /* ignore (private mode / SSR) */
-  }
+	const v = readMap()[providerKey(catalogProviderId)];
+	return typeof v === "string" && v.length > 0 ? v : null;
 }

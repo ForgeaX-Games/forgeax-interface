@@ -1,82 +1,84 @@
-import type { SurfaceDescriptor } from '@forgeax/app-shell/window';
-import { getSurfaceWindowingController } from '../lib/platform';
-import type { AppState } from '../store';
-import { loadSettingsSection, saveSettingsSection } from './persistence';
+import type { SurfaceDescriptor } from "@forgeax/app-shell/window";
+import { getSurfaceWindowingController } from "../lib/platform";
+import type { AppState } from "../store";
+import { loadSettingsSection, saveSettingsSection } from "./persistence";
 
 type SetAppState = (
-  partial: Partial<AppState> | ((state: AppState) => Partial<AppState>),
+	partial: Partial<AppState> | ((state: AppState) => Partial<AppState>),
 ) => void;
 type GetAppState = () => AppState;
 
 export function createShellState(
-  set: SetAppState,
-  get: GetAppState,
+	set: SetAppState,
+	get: GetAppState,
 ): Pick<
-  AppState,
-  | 'detachSurface'
-  | 'redockSurface'
-  | 'activeSession'
-  | 'setActiveSession'
-  | 'activeOverlay'
-  | 'overlayParam'
-  | 'openOverlay'
-  | 'setOverlayParam'
-  | 'closeOverlay'
-  | 'gameDirectoryModalOpen'
-  | 'openGameDirectoryModal'
-  | 'closeGameDirectoryModal'
-  | 'gameSwitcherOpen'
-  | 'setGameSwitcherOpen'
-  | 'gameModalOpen'
-  | 'openGameModal'
-  | 'closeGameModal'
-  | 'fullscreen'
-  | 'setFullscreen'
-  | 'toggleFullscreen'
-  | 'sidebarCollapsed'
-  | 'chatpanelCollapsed'
-  | 'toggleSidebar'
-  | 'toggleChatpanel'
+	AppState,
+	| "detachSurface"
+	| "redockSurface"
+	| "activeSession"
+	| "setActiveSession"
+	| "activeOverlay"
+	| "overlayParam"
+	| "openOverlay"
+	| "setOverlayParam"
+	| "closeOverlay"
+	| "gameDirectoryModalOpen"
+	| "openGameDirectoryModal"
+	| "closeGameDirectoryModal"
+	| "gameSwitcherOpen"
+	| "setGameSwitcherOpen"
+	| "gameModalOpen"
+	| "openGameModal"
+	| "closeGameModal"
+	| "fullscreen"
+	| "setFullscreen"
+	| "toggleFullscreen"
+	| "sidebarCollapsed"
+	| "chatpanelCollapsed"
+	| "toggleSidebar"
+	| "toggleChatpanel"
 > {
-  return {
-    detachSurface: (d: SurfaceDescriptor, opts) =>
-      getSurfaceWindowingController().detachSurface(d, opts),
-    redockSurface: (d: SurfaceDescriptor) =>
-      getSurfaceWindowingController().redockSurface(d),
+	return {
+		detachSurface: (d: SurfaceDescriptor, opts) =>
+			getSurfaceWindowingController().detachSurface(d, opts),
+		redockSurface: (d: SurfaceDescriptor) =>
+			getSurfaceWindowingController().redockSurface(d),
 
-    activeSession: 'main-design',
-    setActiveSession: (s) => set({ activeSession: s }),
+		activeSession: "main-design",
+		setActiveSession: (s) => set({ activeSession: s }),
 
-    activeOverlay: null,
-    overlayParam: loadSettingsSection(),
-    openOverlay: (id, param) => {
-      const p = param ?? get().overlayParam ?? null;
-      saveSettingsSection(p);
-      set({ activeOverlay: id, overlayParam: p });
-    },
-    setOverlayParam: (param) => {
-      saveSettingsSection(param);
-      set({ overlayParam: param });
-    },
-    closeOverlay: () => set({ activeOverlay: null }),
+		activeOverlay: null,
+		overlayParam: loadSettingsSection(),
+		openOverlay: (id, param) => {
+			const p = param ?? get().overlayParam ?? null;
+			saveSettingsSection(p);
+			set({ activeOverlay: id, overlayParam: p });
+		},
+		setOverlayParam: (param) => {
+			saveSettingsSection(param);
+			set({ overlayParam: param });
+		},
+		closeOverlay: () => set({ activeOverlay: null }),
 
-    gameDirectoryModalOpen: false,
-    openGameDirectoryModal: () => set({ gameDirectoryModalOpen: true }),
-    closeGameDirectoryModal: () => set({ gameDirectoryModalOpen: false }),
+		gameDirectoryModalOpen: false,
+		openGameDirectoryModal: () => set({ gameDirectoryModalOpen: true }),
+		closeGameDirectoryModal: () => set({ gameDirectoryModalOpen: false }),
 
-    gameSwitcherOpen: false,
-    setGameSwitcherOpen: (v) => set({ gameSwitcherOpen: v }),
-    gameModalOpen: false,
-    openGameModal: () => set({ gameModalOpen: true }),
-    closeGameModal: () => set({ gameModalOpen: false }),
+		gameSwitcherOpen: false,
+		setGameSwitcherOpen: (v) => set({ gameSwitcherOpen: v }),
+		gameModalOpen: false,
+		openGameModal: () => set({ gameModalOpen: true }),
+		closeGameModal: () => set({ gameModalOpen: false }),
 
-    fullscreen: false,
-    setFullscreen: (v) => set({ fullscreen: v }),
-    toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
+		fullscreen: false,
+		setFullscreen: (v) => set({ fullscreen: v }),
+		toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
 
-    sidebarCollapsed: false,
-    chatpanelCollapsed: false,
-    toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-    toggleChatpanel: () => set((s) => ({ chatpanelCollapsed: !s.chatpanelCollapsed })),
-  };
+		sidebarCollapsed: false,
+		chatpanelCollapsed: false,
+		toggleSidebar: () =>
+			set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+		toggleChatpanel: () =>
+			set((s) => ({ chatpanelCollapsed: !s.chatpanelCollapsed })),
+	};
 }

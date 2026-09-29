@@ -9,23 +9,93 @@
  *  可序列化:entry 只含原始标量 / 浅裁剪后的 args,过得了 snapshotState 的 JSON 出墙。
  *  隐私:credential 级 action 的 args 整体打码(不把密钥类入参喂进 AI 上下文)。 */
 
-import { getAction, UI_ACTION_DISPATCH_EVENT } from './action-registry';
+import {
+	getAction,
+	UI_ACTION_DISPATCH_EVENT,
+} from "@forgeax/app-shell/application";
+import { installCustomEventObservation } from "@forgeax/app-shell/react";
 
 export interface TrajectoryEntry {
-  /** 单调自增序号(即使同毫秒也可稳定排序 / 去重)。 */
-  seq: number;
-  /** Date.now() 毫秒时间戳。 */
-  ts: number;
-  /** action id('domain.verb')。 */
-  id: string;
-  /** 人读标题(从注册表 derive;action 已注销则缺省)。 */
-  title?: string;
-  /** 谁触发的。 */
-  source: 'human' | 'ai';
-  /** 权限分级(从注册表 derive)。 */
-  capability?: string;
-  /** 浅裁剪后的入参(credential 级打码;缺省 = 无参)。 */
-  args?: Record<string, unknown>;
+	/** 单调自增序号(即使同毫秒也可稳定排序 / 去重)。 */
+	seq: number;
+	/** Date.now() 毫秒时间戳。 */
+	ts: number;
+	/** action id('domain.verb')。 */
+	id: string;
+	/** 人读标题(从注册表 derive;action 已注销则缺省)。 */
+	title?: string;
+	/** 谁触发的。 */
+	source: "human" | "ai";
+	/** 权限分级(从注册表 derive)。 */
+	capability?: string;
+	/** 浅裁剪后的入参(credential 级打码;缺省 = 无参)。 */
+	args?: Record<string, unknown>;
+}
+
+export interface TrajectoryRuntime {
+	record(detail: {
+		id: string;
+		source: "human" | "ai";
+		args?: Record<string, unknown>;
+	}): void;
+	read(opts?: { limit?: number; source?: "human" | "ai" }): {
+		total: number;
+		count: number;
+		entries: TrajectoryEntry[];
+	};
+	clear(): number;
+	start(): () => void;
+}
+
+export type TrajectoryRuntimeFactory = (seed: {
+	readonly entries: readonly TrajectoryEntry[];
+	readonly sequence: number;
+}) => TrajectoryRuntime;
+
+let productRuntime: TrajectoryRuntime | undefined;
+let productFactory: TrajectoryRuntimeFactory | undefined;
+let configuring = false;
+
+/** Bind once during page initialization. Compatibility readers, including
+ * Feedback, then use the product history. Standalone keeps the local fallback. */
+export function configureTrajectoryRuntime(
+	factory: TrajectoryRuntimeFactory,
+): void {
+	if (productFactory === factory) return;
+	if (productFactory) throw new Error("Trajectory runtime already configured");
+	if (configuring)
+		throw new Error("Trajectory runtime configuration is reentrant");
+	if (stop)
+		throw new Error("Configure trajectory runtime before recording starts");
+	configuring = true;
+	try {
+		const seed = Object.freeze({
+			entries: Object.freeze([...buffer]),
+			sequence: seq,
+		});
+		const runtime = factory(seed);
+		if (
+			stop ||
+			seq !== seed.sequence ||
+			buffer.length !== seed.entries.length ||
+			buffer.some((entry, index) => entry !== seed.entries[index])
+		) {
+			throw new Error("Trajectory changed during runtime configuration");
+		}
+		if (
+			!runtime ||
+			[runtime.record, runtime.read, runtime.clear, runtime.start].some(
+				(method) => typeof method !== "function",
+			)
+		) {
+			throw new Error("Invalid trajectory runtime");
+		}
+		productRuntime = runtime;
+		productFactory = factory;
+		buffer.length = 0;
+	} finally {
+		configuring = false;
+	}
 }
 
 // 环形缓冲容量 == `trajectory.read` 单次可拉上限(readTrajectory 用它收敛 limit)。
@@ -42,77 +112,96 @@ export const TRAJECTORY_MAX = MAX;
 
 /** 浅裁剪 args:长字符串截断、嵌套结构降级为占位、credential 级整体打码。 */
 function redactArgs(
-  args: Record<string, unknown> | undefined,
-  capability?: string,
+	args: Record<string, unknown> | undefined,
+	capability?: string,
 ): Record<string, unknown> | undefined {
-  if (!args || Object.keys(args).length === 0) return undefined;
-  if (capability === 'credential') return { redacted: true };
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(args)) {
-    if (typeof v === 'string') out[k] = v.length > 120 ? `${v.slice(0, 120)}…` : v;
-    else if (v === null || typeof v === 'number' || typeof v === 'boolean') out[k] = v;
-    else out[k] = Array.isArray(v) ? `[array:${v.length}]` : `[${typeof v}]`;
-  }
-  return out;
+	if (!args || Object.keys(args).length === 0) return undefined;
+	if (capability === "credential") return { redacted: true };
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(args)) {
+		if (typeof v === "string")
+			out[k] = v.length > 120 ? `${v.slice(0, 120)}…` : v;
+		else if (v === null || typeof v === "number" || typeof v === "boolean")
+			out[k] = v;
+		else out[k] = Array.isArray(v) ? `[array:${v.length}]` : `[${typeof v}]`;
+	}
+	return out;
 }
 
 /** 记录一条轨迹。跳过 `trajectory.*` 自省读写,避免 AI 拉轨迹时污染轨迹本身。 */
 export function recordTrajectory(detail: {
-  id: string;
-  source: 'human' | 'ai';
-  args?: Record<string, unknown>;
+	id: string;
+	source: "human" | "ai";
+	args?: Record<string, unknown>;
 }): void {
-  if (!detail || typeof detail.id !== 'string') return;
-  if (detail.id.startsWith('trajectory.')) return;
-  const def = getAction(detail.id);
-  const entry: TrajectoryEntry = {
-    seq: ++seq,
-    ts: Date.now(),
-    id: detail.id,
-    source: detail.source === 'ai' ? 'ai' : 'human',
-  };
-  if (def?.title) entry.title = def.title;
-  if (def?.capability) entry.capability = def.capability;
-  const args = redactArgs(detail.args, def?.capability);
-  if (args) entry.args = args;
-  buffer.push(entry);
-  if (buffer.length > MAX) buffer.splice(0, buffer.length - MAX);
+	if (productRuntime) {
+		productRuntime.record(detail);
+		return;
+	}
+	if (!detail || typeof detail.id !== "string") return;
+	if (detail.id.startsWith("trajectory.")) return;
+	const def = getAction(detail.id);
+	const entry: TrajectoryEntry = {
+		seq: ++seq,
+		ts: Date.now(),
+		id: detail.id,
+		source: detail.source === "ai" ? "ai" : "human",
+	};
+	if (def?.title) entry.title = def.title;
+	if (def?.capability) entry.capability = def.capability;
+	const args = redactArgs(detail.args, def?.capability);
+	if (args) entry.args = args;
+	buffer.push(entry);
+	if (buffer.length > MAX) buffer.splice(0, buffer.length - MAX);
 }
 
 /** 读取轨迹尾部(oldest→newest)。source 过滤按「谁触发」。 */
-export function readTrajectory(opts: { limit?: number; source?: 'human' | 'ai' } = {}): {
-  total: number;
-  count: number;
-  entries: TrajectoryEntry[];
+export function readTrajectory(
+	opts: { limit?: number; source?: "human" | "ai" } = {},
+): {
+	total: number;
+	count: number;
+	entries: TrajectoryEntry[];
 } {
-  const src = opts.source === 'human' || opts.source === 'ai' ? opts.source : undefined;
-  const filtered = src ? buffer.filter((e) => e.source === src) : buffer;
-  const limit = Math.min(opts.limit && opts.limit > 0 ? Math.floor(opts.limit) : 50, MAX);
-  const entries = filtered.slice(-limit);
-  return { total: filtered.length, count: entries.length, entries };
+	if (productRuntime) return productRuntime.read(opts);
+	const src =
+		opts.source === "human" || opts.source === "ai" ? opts.source : undefined;
+	const filtered = src ? buffer.filter((e) => e.source === src) : buffer;
+	const limit = Math.min(
+		opts.limit && opts.limit > 0 ? Math.floor(opts.limit) : 50,
+		MAX,
+	);
+	const entries = filtered.slice(-limit);
+	return { total: filtered.length, count: entries.length, entries };
 }
 
 /** 清空缓冲,返回清掉的条数。 */
 export function clearTrajectory(): number {
-  const n = buffer.length;
-  buffer.length = 0;
-  return n;
+	if (productRuntime) return productRuntime.clear();
+	const n = buffer.length;
+	buffer.length = 0;
+	return n;
 }
 
 /** 订阅派发事件开始记录(幂等:重复调返回同一退订)。返回退订函数。 */
 export function startTrajectoryRecording(): () => void {
-  if (typeof window === 'undefined') return () => {};
-  if (stop) return stop;
-  const onDispatch = (e: Event) => {
-    const d = (e as CustomEvent).detail as
-      | { id: string; source: 'human' | 'ai'; args?: Record<string, unknown> }
-      | undefined;
-    if (d) recordTrajectory(d);
-  };
-  window.addEventListener(UI_ACTION_DISPATCH_EVENT, onDispatch);
-  stop = () => {
-    window.removeEventListener(UI_ACTION_DISPATCH_EVENT, onDispatch);
-    stop = null;
-  };
-  return stop;
+	if (productRuntime) return productRuntime.start();
+	if (typeof window === "undefined") return () => {};
+	if (stop) return stop;
+	const onDispatch = (e: Event) => {
+		const d = (e as CustomEvent).detail as
+			| { id: string; source: "human" | "ai"; args?: Record<string, unknown> }
+			| undefined;
+		if (d) recordTrajectory(d);
+	};
+	const disposeDispatchObservation = installCustomEventObservation({
+		target: window,
+		eventType: UI_ACTION_DISPATCH_EVENT,
+		onEvent: onDispatch,
+	});
+	stop = () => {
+		disposeDispatchObservation();
+		stop = null;
+	};
+	return stop;
 }

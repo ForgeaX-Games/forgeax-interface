@@ -6,10 +6,15 @@
  *
  *  纯 DOM overlay,零 store 依赖,装不上(SSR)静默跳过;观测层绝不影响派发主流程。
  */
-import { UI_ACTION_DISPATCH_EVENT, getAction } from './action-registry';
 
-const STYLE_ID = 'fx-ui-action-highlight-style';
-const BADGE_ID = 'fx-ui-action-badge';
+import {
+	getAction,
+	UI_ACTION_DISPATCH_EVENT,
+} from "@forgeax/app-shell/application";
+import { installCustomEventObservation } from "@forgeax/app-shell/react";
+
+const STYLE_ID = "fx-ui-action-highlight-style";
+const BADGE_ID = "fx-ui-action-badge";
 
 const HIGHLIGHT_CSS = `
 @keyframes fx-ai-pulse {
@@ -26,64 +31,73 @@ const HIGHLIGHT_CSS = `
 `;
 
 function ensureStyle(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = HIGHLIGHT_CSS;
-  document.head.appendChild(style);
+	if (document.getElementById(STYLE_ID)) return;
+	const style = document.createElement("style");
+	style.id = STYLE_ID;
+	style.textContent = HIGHLIGHT_CSS;
+	document.head.appendChild(style);
 }
 
 let badgeTimer: ReturnType<typeof setTimeout> | null = null;
 
 function showBadge(text: string): void {
-  let badge = document.getElementById(BADGE_ID);
-  if (!badge) {
-    badge = document.createElement('div');
-    badge.id = BADGE_ID;
-    document.body.appendChild(badge);
-  }
-  badge.textContent = text;
-  badge.style.opacity = '1';
-  if (badgeTimer) clearTimeout(badgeTimer);
-  badgeTimer = setTimeout(() => {
-    badge!.style.opacity = '0';
-  }, 2_500);
+	let badge = document.getElementById(BADGE_ID);
+	if (!badge) {
+		badge = document.createElement("div");
+		badge.id = BADGE_ID;
+		document.body.appendChild(badge);
+	}
+	badge.textContent = text;
+	badge.style.opacity = "1";
+	if (badgeTimer) clearTimeout(badgeTimer);
+	badgeTimer = setTimeout(() => {
+		badge!.style.opacity = "0";
+	}, 2_500);
 }
 
 function flashElement(el: HTMLElement): void {
-  el.classList.remove('fx-ai-highlight');
-  // 强制 reflow 让同元素连续两次派发都能重播动画。
-  void el.offsetWidth;
-  el.classList.add('fx-ai-highlight');
-  setTimeout(() => el.classList.remove('fx-ai-highlight'), 2_600);
+	el.classList.remove("fx-ai-highlight");
+	// 强制 reflow 让同元素连续两次派发都能重播动画。
+	void el.offsetWidth;
+	el.classList.add("fx-ai-highlight");
+	setTimeout(() => el.classList.remove("fx-ai-highlight"), 2_600);
 }
 
 let installed = false;
 
 /** bootUiBridge 调用一次(幂等)。 */
 export function installUiActionHighlight(): void {
-  if (installed || typeof document === 'undefined') return;
-  installed = true;
-  ensureStyle();
-  window.addEventListener(UI_ACTION_DISPATCH_EVENT, (e) => {
-    const detail = (e as CustomEvent).detail as { id?: string; source?: string } | undefined;
-    if (!detail || detail.source !== 'ai' || !detail.id) return; // 人类操作不标注
-    try {
-      const el = document.querySelector<HTMLElement>(`[data-fx-action="${CSS_escape(detail.id)}"]`);
-      const title = getAction(detail.id)?.title ?? detail.id;
-      if (el && el.isConnected) flashElement(el);
-      showBadge(`AI 正在:${title}`);
-    } catch {
-      /* 观测层绝不影响主流程 */
-    }
-  });
+	if (installed || typeof document === "undefined") return;
+	installed = true;
+	ensureStyle();
+	const onUiActionDispatch = (e: Event): void => {
+		const detail = (e as CustomEvent).detail as
+			| { id?: string; source?: string }
+			| undefined;
+		if (!detail || detail.source !== "ai" || !detail.id) return; // 人类操作不标注
+		try {
+			const el = document.querySelector<HTMLElement>(
+				`[data-fx-action="${CSS_escape(detail.id)}"]`,
+			);
+			const title = getAction(detail.id)?.title ?? detail.id;
+			if (el && el.isConnected) flashElement(el);
+			showBadge(`AI 正在:${title}`);
+		} catch {
+			/* 观测层绝不影响主流程 */
+		}
+	};
+	void installCustomEventObservation({
+		target: window,
+		eventType: UI_ACTION_DISPATCH_EVENT,
+		onEvent: onUiActionDispatch,
+	});
 }
 
 /** CSS.escape 兜底(老 WebView 可能缺)。 */
 function CSS_escape(s: string): string {
-  try {
-    return CSS.escape(s);
-  } catch {
-    return s.replace(/["\\\]]/g, '\\$&');
-  }
+	try {
+		return CSS.escape(s);
+	} catch {
+		return s.replace(/["\\\]]/g, "\\$&");
+	}
 }

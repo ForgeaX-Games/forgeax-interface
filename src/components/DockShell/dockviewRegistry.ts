@@ -1,8 +1,8 @@
 export {
-  getDockRegions,
-  getDockviewApi,
-  registerDockRegion,
-  registerDockviewApi,
-  type DockRegionEntry,
-  type DockviewApiLike,
-} from '@forgeax/app-shell/dock';
+	type DockRegionEntry,
+	type DockviewApiLike,
+	getDockRegions,
+	getDockviewApi,
+	registerDockRegion,
+	registerDockviewApi,
+} from "@forgeax/app-shell/dock";

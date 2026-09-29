@@ -11,57 +11,57 @@
  * either — the `ep:` prefix is stripped before lookup.
  */
 import {
-  Activity,
-  Bell,
-  Bot,
-  Box,
-  Flag,
-  FolderTree,
-  Grid3x3,
-  History,
-  Info,
-  LayoutDashboard,
-  ListChecks,
-  ListTree,
-  MessageSquare,
-  Monitor,
-  Package,
-  Puzzle,
-  Rocket,
-  SlidersHorizontal,
-  SquareTerminal,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react';
+	Activity,
+	Bell,
+	Bot,
+	Box,
+	Flag,
+	FolderTree,
+	Grid3x3,
+	History,
+	Info,
+	LayoutDashboard,
+	ListChecks,
+	ListTree,
+	type LucideIcon,
+	MessageSquare,
+	Monitor,
+	Package,
+	Puzzle,
+	Rocket,
+	SlidersHorizontal,
+	SquareTerminal,
+	Wrench,
+} from "lucide-react";
 
 /** Bare-panel-id → Lucide glyph. Keys are ids WITHOUT the `ep:` dock prefix. */
 const ICON_BY_PANEL: Record<string, LucideIcon> = {
-  // interface static panels (panelRegistry.tsx)
-  tools: Wrench,
-  main: LayoutDashboard,
-  viewport: Monitor,
-  chat: MessageSquare,
-  agents: Bot,
-  files: FolderTree,
-  console: SquareTerminal,
-  telemetry: Activity,
-  info: Info,
-  checkpoints: Flag,
-  events: Bell,
-  // editor business panels (EDITOR_PANELS, injected as ep:*)
-  hierarchy: ListTree,
-  inspector: SlidersHorizontal,
-  assets: Package,
-  history: History,
-  capabilities: Puzzle,
-  launcher: Rocket,
-  'asset-properties': ListChecks,
-  'mesh-slots': Grid3x3,
+	// interface static panels (panelRegistry.tsx)
+	tools: Wrench,
+	main: LayoutDashboard,
+	viewport: Monitor,
+	chat: MessageSquare,
+	agents: Bot,
+	files: FolderTree,
+	console: SquareTerminal,
+	telemetry: Activity,
+	info: Info,
+	checkpoints: Flag,
+	events: Bell,
+	// editor business panels (EDITOR_PANELS, injected as ep:*)
+	hierarchy: ListTree,
+	inspector: SlidersHorizontal,
+	assets: Package,
+	history: History,
+	capabilities: Puzzle,
+	launcher: Rocket,
+	"asset-properties": ListChecks,
+	"mesh-slots": Grid3x3,
 };
 
 /** Normalize a dock panel id to its bare form (drop the `ep:` editor prefix). */
 export function barePanelId(id: string): string {
-  return id.startsWith('ep:') ? id.slice(3) : id;
+	return id.startsWith("ep:") ? id.slice(3) : id;
 }
 
 /**
@@ -70,5 +70,5 @@ export function barePanelId(id: string): string {
  * falls back to a neutral `Box` glyph rather than nothing.
  */
 export function iconForDockPanel(id: string): LucideIcon {
-  return ICON_BY_PANEL[barePanelId(id)] ?? Box;
+	return ICON_BY_PANEL[barePanelId(id)] ?? Box;
 }

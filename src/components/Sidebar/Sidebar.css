@@ -1,51 +1,53 @@
 .sidebar {
-  background: var(--color-background-elevated);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+	background: var(--color-background-elevated);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
 }
 
 .sb-nav-icons-h {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
 }
 .sb-nav-divider {
-  height: 12px;
-  flex-shrink: 0;
+	height: 12px;
+	flex-shrink: 0;
 }
 .sb-nav-icons-v {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
 }
 .ss-section {
-  padding: 14px 12px 10px;
-  border-bottom: 1px solid var(--color-border-default);
+	padding: 14px 12px 10px;
+	border-bottom: 1px solid var(--color-border-default);
 }
-.ss-section:last-child { border-bottom: none; }
+.ss-section:last-child {
+	border-bottom: none;
+}
 
 /* extension section claims all remaining vertical space (the only section
    today; the footer-kinds row was removed 2026-05-17). Allows iframe / split-
    surface plugin panels to fill the full Sidebar height instead of collapsing
    to their natural ~200px content height. */
 .ss-section.extension {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+	flex: 1 1 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 }
 .ss-section.extension .ws-active-content {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-  /* Positioning context for the keep-alive left-pane plugin overlay. */
-  position: relative;
+	flex: 1 1 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
+	/* Positioning context for the keep-alive left-pane plugin overlay. */
+	position: relative;
 }
 
 /* Keep-alive overlay for left-pane standalone plugins (Plan A). Absolute over
@@ -53,10 +55,10 @@
  * when the active tab is not a left-pane plugin, while the visited iframes
  * inside stay mounted & alive. */
 .ws-pane-keepalive {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
 }
 /* The rail-panel flow-in animation rule `.ws-active-content.rail-panel > *`
    (below) forces position:relative on EVERY direct child — its (0,2,0)
@@ -65,134 +67,168 @@
    iframe becomes invisible. Restore the overlay with a higher-specificity
    selector. (Regression fix 2026-06: extension plugin options panel blank.) */
 .ws-active-content.rail-panel > .ws-pane-keepalive {
-  position: absolute;
-  inset: 0;
+	position: absolute;
+	inset: 0;
 }
 .ws-pane-keepalive .fx-keepalive-stack {
-  flex: 1 1 auto;
-  min-height: 0;
+	flex: 1 1 auto;
+	min-height: 0;
 }
 .ws-pane-keepalive .page-plugin-iframe-wrap {
-  flex: 1 1 auto;
-  display: flex;
-  min-height: 0;
+	flex: 1 1 auto;
+	display: flex;
+	min-height: 0;
 }
 
 /* Windowing — left-pane 弹出/收回 (Tauri only). A small corner affordance so it
    doesn't steal sidebar width. */
 .ws-pane-window-toggle {
-  position: absolute;
-  top: 4px; right: 4px;
-  z-index: 2;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px;
-  color: var(--color-text-primary);
-  background: var(--color-background-base);
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0.7;
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	color: var(--color-text-primary);
+	background: var(--color-background-base);
+	border: 1px solid var(--color-border-default);
+	border-radius: 4px;
+	cursor: pointer;
+	opacity: 0.7;
 }
-.ws-pane-window-toggle:hover { opacity: 1; }
+.ws-pane-window-toggle:hover {
+	opacity: 1;
+}
 .ws-pane-floating {
-  position: absolute; inset: 0; z-index: 2;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 10px;
-  font-size: 12px; color: var(--color-text-secondary, #888);
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	font-size: 12px;
+	color: var(--color-text-secondary, #888);
 }
-.ws-pane-floating .ws-pane-window-toggle { position: static; }
+.ws-pane-floating .ws-pane-window-toggle {
+	position: static;
+}
 
 /* P3.1 — bus health chip: dot + plugin-count badge inline.
  * Previously a 7×7 lamp with hover-only tooltip; now the count is visible by default
  * so the sidebar exposes bus host scale without leaving the home view. */
 .bus-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 5px 1px 4px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  line-height: 1;
-  flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 5px 1px 4px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	line-height: 1;
+	flex-shrink: 0;
 }
 .bus-chip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
 }
 .bus-chip-text {
-  font-size: 9px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  color: var(--text-muted);
+	font-size: 9px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0;
+	color: var(--text-muted);
 }
-.bus-chip-ok    .bus-chip-dot  { background: var(--accent-green); box-shadow: none; }
-.bus-chip-ok    .bus-chip-text { color: var(--accent-green); }
-.bus-chip-warn  .bus-chip-dot  { background: var(--accent-orange); animation: pulse 1.5s infinite; }
-.bus-chip-warn  .bus-chip-text { color: var(--accent-orange); }
-.bus-chip-down  .bus-chip-dot  { background: var(--accent-error); }
-.bus-chip-down  .bus-chip-text { color: var(--accent-error); }
-.bus-chip-idle  .bus-chip-dot  { background: rgba(255,255,255,0.25); }
-.bus-chip-idle  .bus-chip-text { color: var(--text-dim); }
+.bus-chip-ok .bus-chip-dot {
+	background: var(--accent-green);
+	box-shadow: none;
+}
+.bus-chip-ok .bus-chip-text {
+	color: var(--accent-green);
+}
+.bus-chip-warn .bus-chip-dot {
+	background: var(--accent-orange);
+	animation: pulse 1.5s infinite;
+}
+.bus-chip-warn .bus-chip-text {
+	color: var(--accent-orange);
+}
+.bus-chip-down .bus-chip-dot {
+	background: var(--accent-error);
+}
+.bus-chip-down .bus-chip-text {
+	color: var(--accent-error);
+}
+.bus-chip-idle .bus-chip-dot {
+	background: rgba(255, 255, 255, 0.25);
+}
+.bus-chip-idle .bus-chip-text {
+	color: var(--text-dim);
+}
 
 /* P3.87 (2026-05-17): BusHealthLamp upgraded to deep-link button — adds
  * cursor:pointer + hover/focus/active states + sliding-in `→` arrow + an
  * is-active variant when current mode === 'bus' (current-tab indicator). */
 button.bus-chip.is-link {
-  appearance: none;
-  -webkit-appearance: none;
-  font: inherit;
-  cursor: pointer;
-  outline: none;
-  margin: 0;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    box-shadow 160ms ease,
-    transform 120ms ease;
+	appearance: none;
+	-webkit-appearance: none;
+	font: inherit;
+	cursor: pointer;
+	outline: none;
+	margin: 0;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease,
+		box-shadow 160ms ease,
+		transform 120ms ease;
 }
 button.bus-chip.is-link:hover {
-  background: rgba(0, 255, 135, 0.10);
-  border-color: rgba(0, 255, 135, 0.45);
-  box-shadow: none;
-  transform: translateY(-0.5px);
+	background: rgba(0, 255, 135, 0.1);
+	border-color: rgba(0, 255, 135, 0.45);
+	box-shadow: none;
+	transform: translateY(-0.5px);
 }
 button.bus-chip.is-link:hover .bus-chip-arrow {
-  opacity: 0.92;
-  transform: translateX(1px);
+	opacity: 0.92;
+	transform: translateX(1px);
 }
 button.bus-chip.is-link:focus-visible {
-  border-color: rgba(0, 255, 135, 0.55);
-  box-shadow: 0 0 0 2px rgba(0, 255, 135, 0.55);
+	border-color: rgba(0, 255, 135, 0.55);
+	box-shadow: 0 0 0 2px rgba(0, 255, 135, 0.55);
 }
 button.bus-chip.is-link:active {
-  background: rgba(0, 255, 135, 0.16);
-  transform: translateY(0);
-  box-shadow: none;
+	background: rgba(0, 255, 135, 0.16);
+	transform: translateY(0);
+	box-shadow: none;
 }
 button.bus-chip.is-link.is-active {
-  background: rgba(0, 255, 135, 0.18);
-  border-color: rgba(0, 255, 135, 0.55);
+	background: rgba(0, 255, 135, 0.18);
+	border-color: rgba(0, 255, 135, 0.55);
 }
 button.bus-chip.is-link.bus-chip-warn:hover {
-  background: rgba(255, 170, 60, 0.12);
-  border-color: rgba(255, 170, 60, 0.50);
-  box-shadow: none;
+	background: rgba(255, 170, 60, 0.12);
+	border-color: rgba(255, 170, 60, 0.5);
+	box-shadow: none;
 }
 button.bus-chip.is-link.bus-chip-warn:focus-visible {
-  box-shadow: 0 0 0 2px rgba(255, 170, 60, 0.55);
+	box-shadow: 0 0 0 2px rgba(255, 170, 60, 0.55);
 }
 .bus-chip-arrow {
-  font-size: 9px;
-  line-height: 1;
-  color: currentColor;
-  opacity: 0;
-  margin-left: 1px;
-  transform: translateX(-1px);
-  transition: opacity 140ms ease, transform 140ms ease;
+	font-size: 9px;
+	line-height: 1;
+	color: currentColor;
+	opacity: 0;
+	margin-left: 1px;
+	transform: translateX(-1px);
+	transition:
+		opacity 140ms ease,
+		transform 140ms ease;
 }
 /* P4.48 — Σ glyph in healthy BusHealthLamp chip. Sigma reads as "summed
  * total" and shares the muscle-memory language with AgentsHub header
@@ -202,16 +238,18 @@ button.bus-chip.is-link.bus-chip-warn:focus-visible {
  * fellow count digit; -1px right margin tightens it against the count.
  * Hover lifts opacity to lend the chip extra interactivity affordance. */
 .bus-chip-sigma {
-  font-size: 9px;
-  line-height: 1;
-  color: currentColor;
-  opacity: 0.62;
-  margin-right: -1px;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  transition: opacity 140ms ease;
+	font-size: 9px;
+	line-height: 1;
+	color: currentColor;
+	opacity: 0.62;
+	margin-right: -1px;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+	transition: opacity 140ms ease;
 }
-button.bus-chip.is-link:hover .bus-chip-sigma { opacity: 0.92; }
+button.bus-chip.is-link:hover .bus-chip-sigma {
+	opacity: 0.92;
+}
 
 /* P4.91 (2026-05-17) — bus-chip-ring · live event-ring occupancy badge.
  * BusStatus.ringSize 字段在 /api/health bus.* 自 Phase 1.5b 起即存在,但 4 周来
@@ -223,18 +261,24 @@ button.bus-chip.is-link:hover .bus-chip-sigma { opacity: 0.92; }
  * 用 currentColor 跟随 bus tone (ok 绿 / warn 橙 / down 红 / idle 灰) — 单 token 切色。
  * margin-left: 2px 紧贴 chip-text；letter-spacing 0 与 sigma 一致避免奇怪行间距。 */
 .bus-chip-ring {
-  font-size: 8px;
-  line-height: 1;
-  color: rgba(180, 200, 220, 0.92);
-  opacity: 0.42;
-  margin-left: 2px;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  transition: opacity 140ms ease;
+	font-size: 8px;
+	line-height: 1;
+	color: rgba(180, 200, 220, 0.92);
+	opacity: 0.42;
+	margin-left: 2px;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+	transition: opacity 140ms ease;
 }
-.bus-chip-ok   .bus-chip-ring { color: var(--accent-green); }
-.bus-chip-warn .bus-chip-ring { color: var(--accent-orange); }
-button.bus-chip.is-link:hover .bus-chip-ring { opacity: 0.78; }
+.bus-chip-ok .bus-chip-ring {
+	color: var(--accent-green);
+}
+.bus-chip-warn .bus-chip-ring {
+	color: var(--accent-orange);
+}
+button.bus-chip.is-link:hover .bus-chip-ring {
+	opacity: 0.78;
+}
 
 /* P4.92 (2026-05-17) — bus-chip-listeners · live subscriber count on bus.
  * 复利 P4.91 bus-chip-ring 的同表面同语言：第二条 0-click runtime 字段。
@@ -247,102 +291,137 @@ button.bus-chip.is-link:hover .bus-chip-ring { opacity: 0.78; }
  * 不像 ring 有 `> 0` gate, L 即使 0 也渲染 — `L=0` 是有意义的状态 (bus up
  * 但暂无订阅,玩家想看也得看见)。 */
 .bus-chip-listeners {
-  font-size: 8px;
-  line-height: 1;
-  color: rgba(180, 200, 220, 0.92);
-  opacity: 0.42;
-  margin-left: 1px;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  transition: opacity 140ms ease;
+	font-size: 8px;
+	line-height: 1;
+	color: rgba(180, 200, 220, 0.92);
+	opacity: 0.42;
+	margin-left: 1px;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+	transition: opacity 140ms ease;
 }
-.bus-chip-ok   .bus-chip-listeners { color: var(--accent-green); }
-.bus-chip-warn .bus-chip-listeners { color: var(--accent-orange); }
-button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
-.ss-body { display: flex; flex-direction: column; gap: 1px; }
+.bus-chip-ok .bus-chip-listeners {
+	color: var(--accent-green);
+}
+.bus-chip-warn .bus-chip-listeners {
+	color: var(--accent-orange);
+}
+button.bus-chip.is-link:hover .bus-chip-listeners {
+	opacity: 0.78;
+}
+.ss-body {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
 
 .ws-active-content {
-  /* AgentsPanel / extension plugin placeholder live here; keep a real box so
+	/* AgentsPanel / extension plugin placeholder live here; keep a real box so
      rail-panel motion can run on extension tab switches. */
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
+	flex: 1 1 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
 }
 .ws-active-content.rail-panel {
-  position: relative;
-  will-change: opacity, transform;
-  overflow: hidden;
-  animation: ws-extension-panel-in 360ms var(--motion-ease-out) both;
+	position: relative;
+	will-change: opacity, transform;
+	overflow: hidden;
+	animation: ws-extension-panel-in 360ms var(--motion-ease-out) both;
 }
 
 @keyframes ws-extension-panel-in {
-  from {
-    opacity: 0.72;
-    transform: translate3d(0, -6px, 0);
-    clip-path: inset(0 0 18% 0 round 8px);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    clip-path: inset(0 0 0 0 round 0);
-  }
+	from {
+		opacity: 0.72;
+		transform: translate3d(0, -6px, 0);
+		clip-path: inset(0 0 18% 0 round 8px);
+	}
+	to {
+		opacity: 1;
+		transform: translate3d(0, 0, 0);
+		clip-path: inset(0 0 0 0 round 0);
+	}
 }
 
 .ws-active-content.rail-panel > * {
-  position: relative;
-  z-index: 1;
-  animation: ws-extension-flow-in 520ms var(--motion-ease-out) both;
+	position: relative;
+	z-index: 1;
+	animation: ws-extension-flow-in 520ms var(--motion-ease-out) both;
 }
-.ws-active-content.rail-panel > *:nth-child(1) { animation-delay: 0ms; }
-.ws-active-content.rail-panel > *:nth-child(2) { animation-delay: 45ms; }
-.ws-active-content.rail-panel > *:nth-child(3) { animation-delay: 90ms; }
-.ws-active-content.rail-panel > *:nth-child(4) { animation-delay: 135ms; }
-.ws-active-content.rail-panel > *:nth-child(5) { animation-delay: 180ms; }
-.ws-active-content.rail-panel > *:nth-child(n + 6) { animation-delay: 225ms; }
+.ws-active-content.rail-panel > *:nth-child(1) {
+	animation-delay: 0ms;
+}
+.ws-active-content.rail-panel > *:nth-child(2) {
+	animation-delay: 45ms;
+}
+.ws-active-content.rail-panel > *:nth-child(3) {
+	animation-delay: 90ms;
+}
+.ws-active-content.rail-panel > *:nth-child(4) {
+	animation-delay: 135ms;
+}
+.ws-active-content.rail-panel > *:nth-child(5) {
+	animation-delay: 180ms;
+}
+.ws-active-content.rail-panel > *:nth-child(n + 6) {
+	animation-delay: 225ms;
+}
 
 @keyframes ws-extension-flow-in {
-  from {
-    opacity: 0;
-    filter: blur(5px);
-    transform: translate3d(0, -12px, 0) scale(0.992);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translate3d(0, 0, 0);
-  }
+	from {
+		opacity: 0;
+		filter: blur(5px);
+		transform: translate3d(0, -12px, 0) scale(0.992);
+	}
+	to {
+		opacity: 1;
+		filter: blur(0);
+		transform: translate3d(0, 0, 0);
+	}
 }
 
 /* AgentsPanel — agent 列表 */
 .agents-panel {
-  display: flex; flex-direction: column; gap: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
 }
 
 /* P2.6c — show split between marketplace agents and bus-sourced agents.
  * Header sits above all cards; divider separates bus-only cards when bus
  * lists agents missing from marketplace.json. */
 .ap-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 2px 2px 4px 2px;
-  font-size: 9px;
-  color: var(--text-muted);
-  border-bottom: 1px dashed rgba(255,255,255,0.06);
-  margin-bottom: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 2px 2px 4px 2px;
+	font-size: 9px;
+	color: var(--text-muted);
+	border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+	margin-bottom: 2px;
 }
-.ap-h-label { letter-spacing: 0.6px; font-weight: 600; }
-.ap-h-count { display: inline-flex; gap: 4px; align-items: center; }
+.ap-h-label {
+	letter-spacing: 0.6px;
+	font-weight: 600;
+}
+.ap-h-count {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+}
 .ap-h-pill {
-  font-size: 9px;
-  padding: 1px 5px;
-  border-radius: var(--radius-pill);
-  background: rgba(255,255,255,0.05);
+	font-size: 9px;
+	padding: 1px 5px;
+	border-radius: var(--radius-pill);
+	background: rgba(255, 255, 255, 0.05);
 }
-.ap-h-pill.mkt { color: var(--text-secondary); }
+.ap-h-pill.mkt {
+	color: var(--text-secondary);
+}
 .ap-h-pill.bus {
-  color: var(--color-kind-cli-provider);
-  background: rgba(109,211,255,0.10);
+	color: var(--color-kind-cli-provider);
+	background: rgba(109, 211, 255, 0.1);
 }
 /* ── P4.47 ap-h-pill.total — Σ {totalVisible} prefix capsule. Sister of
  *   AgentsHub P4.45 .ah-pill-total + .ah-pill-vsep. Reads "actual number
@@ -350,85 +429,94 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  *   + bus-only. Amber 1×10px vsep separates "total" from "source split".
  */
 .ap-h-pill.total {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 3px;
-  color: var(--color-status-amber);
-  background: rgba(245,197,88,0.08);
-  border: 1px solid rgba(245,197,88,0.32);
-  padding: 1px 6px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 3px;
+	color: var(--color-status-amber);
+	background: rgba(245, 197, 88, 0.08);
+	border: 1px solid rgba(245, 197, 88, 0.32);
+	padding: 1px 6px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
 }
 .ap-h-sigma {
-  font-size: 9px;
-  color: rgba(245,197,88,0.78);
-  line-height: 1;
+	font-size: 9px;
+	color: rgba(245, 197, 88, 0.78);
+	line-height: 1;
 }
 .ap-h-total-n {
-  font-size: 10px;
-  color: var(--color-status-amber);
-  line-height: 1;
+	font-size: 10px;
+	color: var(--color-status-amber);
+	line-height: 1;
 }
 .ap-h-vsep {
-  display: inline-block;
-  width: 1px;
-  height: 10px;
-  background: rgba(245,197,88,0.32);
-  margin: 0 1px;
+	display: inline-block;
+	width: 1px;
+	height: 10px;
+	background: rgba(245, 197, 88, 0.32);
+	margin: 0 1px;
 }
 
 /* P-session-scoped — slim hint strip below header when the active thread has
    not yet launched any sub-agents.  Avoids panic / blank-state. */
 .ap-session-hint {
-  font-size: 10.5px;
-  color: var(--text-mute);
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
-  padding: 5px 10px;
-  line-height: 1.35;
+	font-size: 10.5px;
+	color: var(--text-mute);
+	background: color-mix(in srgb, var(--primary) 6%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+	padding: 5px 10px;
+	line-height: 1.35;
 }
 
 /* P-session-scoped — view-mode toggle (本 session / 全部) sitting in ap-header
    between the AGENTS label and the count pill.  Two tiny tab buttons sharing
    one pill background for tight visual grouping. */
 .ap-h-mode {
-  display: inline-flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--color-border-default);
-  border-radius: 999px;
-  padding: 1px;
-  margin: 0 6px;
-  gap: 1px;
+	display: inline-flex;
+	align-items: center;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid var(--color-border-default);
+	border-radius: 999px;
+	padding: 1px;
+	margin: 0 6px;
+	gap: 1px;
 }
 .ap-h-mode-tab {
-  background: transparent;
-  border: none;
-  color: var(--text-mute);
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 100ms, background 100ms;
-  font-family: inherit;
-  letter-spacing: 0.2px;
-  line-height: 1;
+	background: transparent;
+	border: none;
+	color: var(--text-mute);
+	font-size: 10px;
+	padding: 2px 7px;
+	border-radius: 999px;
+	cursor: pointer;
+	transition:
+		color 100ms,
+		background 100ms;
+	font-family: inherit;
+	letter-spacing: 0.2px;
+	line-height: 1;
 }
-.ap-h-mode-tab:hover { color: var(--text); }
+.ap-h-mode-tab:hover {
+	color: var(--text);
+}
 .ap-h-mode-tab.is-active {
-  background: color-mix(in srgb, var(--primary) 18%, var(--color-background-elevated));
-  color: var(--primary);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent);
+	background: color-mix(
+		in srgb,
+		var(--primary) 18%,
+		var(--color-background-elevated)
+	);
+	color: var(--primary);
+	font-weight: 600;
+	box-shadow: inset 0 0 0 1px
+		color-mix(in srgb, var(--primary) 40%, transparent);
 }
 .ap-divider {
-  font-size: 9px;
-  color: var(--color-kind-cli-provider);
-  padding: 4px 2px 2px 2px;
-  border-top: 1px dashed rgba(109,211,255,0.18);
-  margin-top: 4px;
-  letter-spacing: 0.4px;
+	font-size: 9px;
+	color: var(--color-kind-cli-provider);
+	padding: 4px 2px 2px 2px;
+	border-top: 1px dashed rgba(109, 211, 255, 0.18);
+	margin-top: 4px;
+	letter-spacing: 0.4px;
 }
 /* ── P4.0 ap-tribes — role-tribe legend strip below the mkt/bus pills. ──
  * One chip per tribe with ≥ 1 agent. Click jumps focus to first agent of
@@ -436,73 +524,147 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * pinned on .ac-role-dot (Sidebar.css P3.8 above and Dashboard.css P3.35).
  */
 .ap-tribes {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
-  padding: 4px 2px 4px 2px;
-  border-bottom: 1px dashed rgba(255,255,255,0.05);
-  margin-bottom: 2px;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 4px 2px 4px 2px;
+	border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+	margin-bottom: 2px;
 }
 .ap-tribes-label {
-  font-size: 8.5px;
-  letter-spacing: 0.6px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding-right: 2px;
+	font-size: 8.5px;
+	letter-spacing: 0.6px;
+	font-weight: 600;
+	color: var(--text-muted);
+	padding-right: 2px;
 }
 .ap-tribe-chip {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 9px;
-  padding: 1px 5px;
-  border-radius: var(--radius-pill);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
-  font-family: inherit;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-size: 9px;
+	padding: 1px 5px;
+	border-radius: var(--radius-pill);
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--text-secondary);
+	cursor: pointer;
+	user-select: none;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease,
+		transform 120ms ease,
+		box-shadow 120ms ease;
+	font-family: inherit;
 }
-.ap-tribe-chip:hover { transform: translateY(-0.5px); }
-.ap-tribe-chip:active { transform: translateY(0.5px); }
-.ap-tribe-chip:focus-visible { outline: none; }
+.ap-tribe-chip:hover {
+	transform: translateY(-0.5px);
+}
+.ap-tribe-chip:active {
+	transform: translateY(0.5px);
+}
+.ap-tribe-chip:focus-visible {
+	outline: none;
+}
 .ap-tribe-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	display: inline-block;
 }
-.ap-tribe-label { font-weight: 600; letter-spacing: 0.3px; }
+.ap-tribe-label {
+	font-weight: 600;
+	letter-spacing: 0.3px;
+}
 .ap-tribe-count {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
 }
 /* Tribe-specific chip tints — dot + hover bg/border/glow + count emphasis. */
-.ap-tribe-chip.r-orchestrator:hover { background: rgba(196,163,255,0.13); border-color: rgba(196,163,255,0.48); box-shadow: none; }
-.ap-tribe-chip.r-orchestrator:focus-visible { box-shadow: 0 0 0 2px rgba(196,163,255,0.55); }
-.ap-tribe-dot.r-orchestrator { background: var(--color-role-orchestrator); box-shadow: none; }
-.ap-tribe-chip.r-pillar:hover { background: rgba(212,255,72,0.13); border-color: rgba(212,255,72,0.48); box-shadow: none; }
-.ap-tribe-chip.r-pillar:focus-visible { box-shadow: 0 0 0 2px rgba(212,255,72,0.55); }
-.ap-tribe-dot.r-pillar { background: var(--primary); box-shadow: none; }
-.ap-tribe-chip.r-design:hover { background: rgba(255,109,181,0.13); border-color: rgba(255,109,181,0.48); box-shadow: none; }
-.ap-tribe-chip.r-design:focus-visible { box-shadow: 0 0 0 2px rgba(255,109,181,0.55); }
-.ap-tribe-dot.r-design { background: var(--color-role-design); box-shadow: none; }
-.ap-tribe-chip.r-narrative:hover { background: rgba(255,200,120,0.13); border-color: rgba(255,200,120,0.48); box-shadow: none; }
-.ap-tribe-chip.r-narrative:focus-visible { box-shadow: 0 0 0 2px rgba(255,200,120,0.55); }
-.ap-tribe-dot.r-narrative { background: var(--color-role-narrative); box-shadow: none; }
-.ap-tribe-chip.r-art:hover { background: rgba(125,211,252,0.13); border-color: rgba(125,211,252,0.48); box-shadow: none; }
-.ap-tribe-chip.r-art:focus-visible { box-shadow: 0 0 0 2px rgba(125,211,252,0.55); }
-.ap-tribe-dot.r-art { background: var(--color-role-art); box-shadow: none; }
-.ap-tribe-chip.r-coding:hover { background: rgba(255,140,66,0.13); border-color: rgba(255,140,66,0.48); box-shadow: none; }
-.ap-tribe-chip.r-coding:focus-visible { box-shadow: 0 0 0 2px rgba(255,140,66,0.55); }
-.ap-tribe-dot.r-coding { background: var(--color-role-coding); box-shadow: none; }
+.ap-tribe-chip.r-orchestrator:hover {
+	background: rgba(196, 163, 255, 0.13);
+	border-color: rgba(196, 163, 255, 0.48);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-orchestrator:focus-visible {
+	box-shadow: 0 0 0 2px rgba(196, 163, 255, 0.55);
+}
+.ap-tribe-dot.r-orchestrator {
+	background: var(--color-role-orchestrator);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-pillar:hover {
+	background: rgba(212, 255, 72, 0.13);
+	border-color: rgba(212, 255, 72, 0.48);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-pillar:focus-visible {
+	box-shadow: 0 0 0 2px rgba(212, 255, 72, 0.55);
+}
+.ap-tribe-dot.r-pillar {
+	background: var(--primary);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-design:hover {
+	background: rgba(255, 109, 181, 0.13);
+	border-color: rgba(255, 109, 181, 0.48);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-design:focus-visible {
+	box-shadow: 0 0 0 2px rgba(255, 109, 181, 0.55);
+}
+.ap-tribe-dot.r-design {
+	background: var(--color-role-design);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-narrative:hover {
+	background: rgba(255, 200, 120, 0.13);
+	border-color: rgba(255, 200, 120, 0.48);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-narrative:focus-visible {
+	box-shadow: 0 0 0 2px rgba(255, 200, 120, 0.55);
+}
+.ap-tribe-dot.r-narrative {
+	background: var(--color-role-narrative);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-art:hover {
+	background: rgba(125, 211, 252, 0.13);
+	border-color: rgba(125, 211, 252, 0.48);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-art:focus-visible {
+	box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.55);
+}
+.ap-tribe-dot.r-art {
+	background: var(--color-role-art);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-coding:hover {
+	background: rgba(255, 140, 66, 0.13);
+	border-color: rgba(255, 140, 66, 0.48);
+	box-shadow: none;
+}
+.ap-tribe-chip.r-coding:focus-visible {
+	box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.55);
+}
+.ap-tribe-dot.r-coding {
+	background: var(--color-role-coding);
+	box-shadow: none;
+}
 .ac-bus-pill {
-  font-size: 8px;
-  padding: 1px 4px;
-  border-radius: var(--radius-pill);
-  background: rgba(109,211,255,0.12);
-  color: var(--color-kind-cli-provider);
-  font-weight: 600;
-  letter-spacing: 0.4px;
+	font-size: 8px;
+	padding: 1px 4px;
+	border-radius: var(--radius-pill);
+	background: rgba(109, 211, 255, 0.12);
+	color: var(--color-kind-cli-provider);
+	font-weight: 600;
+	letter-spacing: 0.4px;
 }
 .ac-bus-pill.bus-only {
-  background: rgba(109,211,255,0.20);
+	background: rgba(109, 211, 255, 0.2);
 }
 /*
  * P3.32 — bus pill is now a deep-link into Bus admin tab + auto-expand row.
@@ -514,50 +676,61 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * now clickable" rather than introducing a new color token.
  */
 .ac-bus-pill.is-link {
-  cursor: pointer;
-  border: 1px solid rgba(109,211,255,0.32);
-  transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease;
-  user-select: none;
+	cursor: pointer;
+	border: 1px solid rgba(109, 211, 255, 0.32);
+	transition:
+		background 120ms ease,
+		box-shadow 120ms ease,
+		border-color 120ms ease,
+		transform 120ms ease;
+	user-select: none;
 }
 .ac-bus-pill.is-link:hover {
-  background: rgba(109,211,255,0.28);
-  border-color: rgba(109,211,255,0.55);
-  box-shadow: 0 0 0 1px rgba(109,211,255,0.18);
-  transform: translateY(-0.5px);
+	background: rgba(109, 211, 255, 0.28);
+	border-color: rgba(109, 211, 255, 0.55);
+	box-shadow: 0 0 0 1px rgba(109, 211, 255, 0.18);
+	transform: translateY(-0.5px);
 }
 .ac-bus-pill.is-link:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(109,211,255,0.55);
+	outline: none;
+	box-shadow: 0 0 0 2px rgba(109, 211, 255, 0.55);
 }
 .ac-bus-pill.is-link:active {
-  transform: translateY(0.5px);
-  background: rgba(109,211,255,0.36);
+	transform: translateY(0.5px);
+	background: rgba(109, 211, 255, 0.36);
 }
-.agent-card.has-bus { border-left: 2px solid rgba(109,211,255,0.32); padding-left: 4px; }
+.agent-card.has-bus {
+	border-left: 2px solid rgba(109, 211, 255, 0.32);
+	padding-left: 4px;
+}
 .agent-card.bus-only {
-  background: rgba(109,211,255,0.04);
-  border-color: rgba(109,211,255,0.18);
+	background: rgba(109, 211, 255, 0.04);
+	border-color: rgba(109, 211, 255, 0.18);
 }
 
 .agent-card {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 5px;
-  padding: 5px 6px;
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 5px;
+	padding: 5px 6px;
 }
 .agent-card.selected {
-  background: rgba(212,255,72,0.06);
-  border-left: 2px solid var(--primary);
-  padding-left: 4px;
+	background: rgba(212, 255, 72, 0.06);
+	border-left: 2px solid var(--primary);
+	padding-left: 4px;
 }
 .agent-card.sub {
-  margin-left: 0;
+	margin-left: 0;
 }
 /* Placeholder agents (manifest status: 'placeholder') aren't wired into the
  * runtime yet — dim them so users can scan past at a glance and focus on
  * the active ones. The "· 占位" suffix in ac-role stays for explicit signal. */
-.agent-card.placeholder { opacity: 0.55; }
-.agent-card.placeholder.selected { opacity: 1; }
+.agent-card.placeholder {
+	opacity: 0.55;
+}
+.agent-card.placeholder.selected {
+	opacity: 1;
+}
 
 /* P3.33 — transient flash highlight applied for ~1.5s when player jumps in
  * from BusAdminPanel "← Sidebar" reverse deep-link. Uses the same sky-blue
@@ -566,46 +739,74 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * keyframe pulses brighter at 50% and decays back, giving the player a
  * peripheral motion cue even if the card was already in view (no scroll). */
 .agent-card.is-flash {
-  animation: ac-flash 1.5s ease-out;
+	animation: ac-flash 1.5s ease-out;
 }
 @keyframes ac-flash {
-  0%   { background: rgba(255,255,255,0.02); box-shadow: none; }
-  20%  { background: rgba(109,211,255,0.18); box-shadow: 0 0 0 1px rgba(109,211,255,0.55); }
-  60%  { background: rgba(109,211,255,0.10); box-shadow: 0 0 0 1px rgba(109,211,255,0.32); }
-  100% { background: rgba(255,255,255,0.02); box-shadow: none; }
+	0% {
+		background: rgba(255, 255, 255, 0.02);
+		box-shadow: none;
+	}
+	20% {
+		background: rgba(109, 211, 255, 0.18);
+		box-shadow: 0 0 0 1px rgba(109, 211, 255, 0.55);
+	}
+	60% {
+		background: rgba(109, 211, 255, 0.1);
+		box-shadow: 0 0 0 1px rgba(109, 211, 255, 0.32);
+	}
+	100% {
+		background: rgba(255, 255, 255, 0.02);
+		box-shadow: none;
+	}
 }
-.agent-card.placeholder.is-flash { opacity: 1; }
+.agent-card.placeholder.is-flash {
+	opacity: 1;
+}
 .ac-row {
-  width: 100%;
-  display: flex; align-items: center; gap: 6px;
-  background: transparent; border: none; cursor: pointer;
-  padding: 0; text-align: left;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	text-align: left;
 }
 /* P3.52 — focus ring matches .ws-icon-btn:focus-visible (P3.51) so the
  * Sidebar's extension tab strip and AGENTS listbox share one visual contract
  * for arrow-key focus. */
 .ac-row:focus-visible {
-  outline: 2px solid rgba(255,255,255,0.55);
-  outline-offset: -2px;
-  border-radius: 4px;
+	outline: 2px solid rgba(255, 255, 255, 0.55);
+	outline-offset: -2px;
+	border-radius: 4px;
 }
 .ac-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  color: var(--prim-color-neutral-950);
-  font-size: 13px;
-  font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	color: var(--prim-color-neutral-950);
+	font-size: 13px;
+	font-weight: 700;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
 }
 .ac-name-block {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column;
-  line-height: 1.2;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	line-height: 1.2;
 }
 .ac-name {
-  font-size: 12px; font-weight: 600; color: var(--text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-primary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 /* P4.50 — main-agent pin glyph rendered only on cards where the manifest
  * sets isMain:true (one orchestrator in marketplace.json today). The ★
@@ -620,25 +821,30 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * so when the player hovers the row the pin pulses subtly, reinforcing
  * "this is the special one" without animation noise on the default state. */
 .ac-main-pin {
-  display: inline-block;
-  color: var(--color-role-orchestrator);
-  opacity: 0.78;
-  font-size: 10px;
-  line-height: 1;
-  margin-right: 4px;
-  vertical-align: 1px;
-  text-shadow: 0 0 0 transparent;
-  transition: opacity 120ms ease, text-shadow 120ms ease;
-  cursor: help;
+	display: inline-block;
+	color: var(--color-role-orchestrator);
+	opacity: 0.78;
+	font-size: 10px;
+	line-height: 1;
+	margin-right: 4px;
+	vertical-align: 1px;
+	text-shadow: 0 0 0 transparent;
+	transition:
+		opacity 120ms ease,
+		text-shadow 120ms ease;
+	cursor: help;
 }
 .agent-card:hover .ac-main-pin,
 .agent-card.selected .ac-main-pin {
-  opacity: 1;
-  text-shadow: 0 0 4px rgba(196, 163, 255, 0.55);
+	opacity: 1;
+	text-shadow: 0 0 4px rgba(196, 163, 255, 0.55);
 }
 .ac-role {
-  font-size: 9px; color: var(--text-muted); font-weight: 400;
-  display: inline-flex; align-items: center;
+	font-size: 9px;
+	color: var(--text-muted);
+	font-weight: 400;
+	display: inline-flex;
+	align-items: center;
 }
 /* P3.8 — role-tribe colored dot in front of role text. Six marketplace+bus
  * role keys today (orchestrator/pillar/design/narrative/art/coding) each get
@@ -653,135 +859,211 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * sits inside .ac-role so it stacks with both without conflict.
  */
 .ac-role-dot {
-  display: inline-block;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  margin-right: 4px;
-  background: rgba(255,255,255,0.20);
-  flex-shrink: 0;
+	display: inline-block;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	margin-right: 4px;
+	background: rgba(255, 255, 255, 0.2);
+	flex-shrink: 0;
 }
-.agent-card[data-role="orchestrator"] .ac-role-dot { background: var(--color-role-orchestrator); }
-.agent-card[data-role="pillar"]       .ac-role-dot { background: var(--primary); }
-.agent-card[data-role="design"]       .ac-role-dot { background: var(--color-role-design); }
-.agent-card[data-role="narrative"]    .ac-role-dot { background: var(--color-role-narrative); }
-.agent-card[data-role="art"]          .ac-role-dot { background: var(--color-role-art); }
-.agent-card[data-role="coding"]       .ac-role-dot { background: var(--color-role-coding); }
+.agent-card[data-role="orchestrator"] .ac-role-dot {
+	background: var(--color-role-orchestrator);
+}
+.agent-card[data-role="pillar"] .ac-role-dot {
+	background: var(--primary);
+}
+.agent-card[data-role="design"] .ac-role-dot {
+	background: var(--color-role-design);
+}
+.agent-card[data-role="narrative"] .ac-role-dot {
+	background: var(--color-role-narrative);
+}
+.agent-card[data-role="art"] .ac-role-dot {
+	background: var(--color-role-art);
+}
+.agent-card[data-role="coding"] .ac-role-dot {
+	background: var(--color-role-coding);
+}
 /* P2.7c — agents_from_bus[].produces[] 在 role 行下方常驻 mini-strip。
  * 用同色系蓝色 (#6dd3ff) 跟 ac-bus-pill 视觉锚定，等宽字体让 *.ts/*.tsx
  * 看起来像 code chip 而不是普通文本；ellipsis 兜底卡片窄到放不下 6 glob。
  */
 .ac-produces {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: rgba(109,211,255,0.78);
-  font-weight: 500;
-  letter-spacing: 0.1px;
-  margin-top: 1px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	font-family: var(--font-mono);
+	font-size: 9px;
+	color: rgba(109, 211, 255, 0.78);
+	font-weight: 500;
+	letter-spacing: 0.1px;
+	margin-top: 1px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .ac-badge {
-  font-size: 9px;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.08);
-  padding: 1px 5px;
-  border-radius: var(--radius-pill);
+	font-size: 9px;
+	color: var(--text-muted);
+	background: rgba(255, 255, 255, 0.08);
+	padding: 1px 5px;
+	border-radius: var(--radius-pill);
 }
 
 .ac-files {
-  margin-top: 4px; padding-left: 26px;
-  display: flex; flex-direction: column; gap: 1px;
+	margin-top: 4px;
+	padding-left: 26px;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
 }
 .ac-file {
-  width: 100%;
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  padding: 2px 6px;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  text-align: left;
-  font-family: inherit;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	color: var(--text-secondary);
+	padding: 2px 6px;
+	cursor: pointer;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	text-align: left;
+	font-family: inherit;
 }
-.ac-file:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
-.ac-file.active { color: var(--text-primary); background: rgba(212,255,72,0.08); }
-.ac-fi { font-size: 10px; }
-.ac-fn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ac-fs { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-.ac-fs.done { background: var(--accent-green); }
-.ac-fs.running { background: var(--accent-orange); animation: pulse 1.5s infinite; }
-.ac-fs.pending { background: var(--accent-cyan); }
-.ac-fs.error { background: var(--accent-error); }
+.ac-file:hover {
+	color: var(--text-primary);
+	background: rgba(255, 255, 255, 0.04);
+}
+.ac-file.active {
+	color: var(--text-primary);
+	background: rgba(212, 255, 72, 0.08);
+}
+.ac-fi {
+	font-size: 10px;
+}
+.ac-fn {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ac-fs {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.ac-fs.done {
+	background: var(--accent-green);
+}
+.ac-fs.running {
+	background: var(--accent-orange);
+	animation: pulse 1.5s infinite;
+}
+.ac-fs.pending {
+	background: var(--accent-cyan);
+}
+.ac-fs.error {
+	background: var(--accent-error);
+}
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(255, 107, 53, 0); }
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4);
+	}
+	50% {
+		box-shadow: 0 0 0 4px rgba(255, 107, 53, 0);
+	}
 }
 
 /* === FilesPanel — VSCode 风文件树 === */
 .files-panel {
-  display: flex; flex-direction: column;
-  gap: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
 }
 .fp-header {
-  padding: 4px 6px 2px 6px;
-  font-size: 10px;
-  color: var(--text-muted);
+	padding: 4px 6px 2px 6px;
+	font-size: 10px;
+	color: var(--text-muted);
 }
 .fp-slug {
-  font-family: var(--mono, var(--font-mono));
-  letter-spacing: 0.3px;
+	font-family: var(--mono, var(--font-mono));
+	letter-spacing: 0.3px;
 }
 .fp-empty {
-  padding: 8px 6px;
-  font-size: 11px;
-  color: var(--text-muted);
+	padding: 8px 6px;
+	font-size: 11px;
+	color: var(--text-muted);
 }
 /* ── fp-types — shared ten-family file taxonomy legend below fp-header.
  * Family identity comes from file-family.ts; visual identity comes from the
  * --fx-family-* token and is shared with chat asset references.
  */
 .fp-types {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
-  padding: 4px 6px 5px 6px;
-  border-bottom: 1px dashed rgba(255,255,255,0.05);
-  margin-bottom: 2px;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 4px 6px 5px 6px;
+	border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+	margin-bottom: 2px;
 }
 .fp-types-label {
-  font-size: 8.5px;
-  letter-spacing: 0.6px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding-right: 2px;
+	font-size: 8.5px;
+	letter-spacing: 0.6px;
+	font-weight: 600;
+	color: var(--text-muted);
+	padding-right: 2px;
 }
 .fp-type-chip {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 9px;
-  padding: 1px 5px;
-  border-radius: var(--radius-pill);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease, color 120ms ease;
-  font-family: inherit;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-size: 9px;
+	padding: 1px 5px;
+	border-radius: var(--radius-pill);
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--text-secondary);
+	cursor: pointer;
+	user-select: none;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease,
+		transform 120ms ease,
+		box-shadow 120ms ease,
+		color 120ms ease;
+	font-family: inherit;
 }
-.fp-type-chip:hover { transform: translateY(-0.5px); color: rgba(255,255,255,0.95); }
-.fp-type-chip:active { transform: translateY(0.5px); }
-.fp-type-chip:focus-visible { outline: none; }
-.fp-type-chip:disabled { opacity: 0.35; cursor: not-allowed; }
+.fp-type-chip:hover {
+	transform: translateY(-0.5px);
+	color: rgba(255, 255, 255, 0.95);
+}
+.fp-type-chip:active {
+	transform: translateY(0.5px);
+}
+.fp-type-chip:focus-visible {
+	outline: none;
+}
+.fp-type-chip:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
 .fp-type-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	display: inline-block;
 }
-.fp-type-label { font-weight: 600; letter-spacing: 0.3px; }
+.fp-type-label {
+	font-weight: 600;
+	letter-spacing: 0.3px;
+}
 .fp-type-count {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
 }
 /* P4.49 — Σ total prefix composite (matches BusHealthLamp / AgentsHub /
  * AgentsPanel / WbGallery / BusAdminPanel sibling surfaces). The total
@@ -791,60 +1073,93 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * 9px 0.72 alpha currentColor, the count at 9.5px tabular-nums for
  * digit alignment when total crosses 10/100/1000 boundaries. */
 .fp-types-total {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  letter-spacing: 0.3px;
-  padding-left: 1px;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	margin-left: auto;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	letter-spacing: 0.3px;
+	padding-left: 1px;
 }
 .fp-types-vsep {
-  width: 1px;
-  height: 9px;
-  background: rgba(245,197,88,0.32);
-  display: inline-block;
-  margin-right: 1px;
+	width: 1px;
+	height: 9px;
+	background: rgba(245, 197, 88, 0.32);
+	display: inline-block;
+	margin-right: 1px;
 }
 .fp-types-sigma {
-  font-size: 9px;
-  opacity: 0.72;
-  color: currentColor;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  margin-right: -1px;
+	font-size: 9px;
+	opacity: 0.72;
+	color: currentColor;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0;
+	margin-right: -1px;
 }
 .fp-types-total-n {
-  font-size: 9.5px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.85);
-  font-variant-numeric: tabular-nums;
+	font-size: 9.5px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.85);
+	font-variant-numeric: tabular-nums;
 }
 /* Family palettes — one token per taxonomy key, shared by dots, rows, and
  * interaction states. */
 .fp-type-chip,
 .fp-row.file {
-  --fp-family-color: var(--fx-family-data);
+	--fp-family-color: var(--fx-family-data);
 }
-.fp-type-chip.fam-code, .fp-row.file.fam-code { --fp-family-color: var(--fx-family-code); }
-.fp-type-chip.fam-config, .fp-row.file.fam-config { --fp-family-color: var(--fx-family-config); }
-.fp-type-chip.fam-doc, .fp-row.file.fam-doc { --fp-family-color: var(--fx-family-doc); }
-.fp-type-chip.fam-scene, .fp-row.file.fam-scene { --fp-family-color: var(--fx-family-scene); }
-.fp-type-chip.fam-pack, .fp-row.file.fam-pack { --fp-family-color: var(--fx-family-pack); }
-.fp-type-chip.fam-meta, .fp-row.file.fam-meta { --fp-family-color: var(--fx-family-meta); }
-.fp-type-chip.fam-image, .fp-row.file.fam-image { --fp-family-color: var(--fx-family-image); }
-.fp-type-chip.fam-audio, .fp-row.file.fam-audio { --fp-family-color: var(--fx-family-audio); }
-.fp-type-chip.fam-model, .fp-row.file.fam-model { --fp-family-color: var(--fx-family-model); }
-.fp-type-chip.fam-data, .fp-row.file.fam-data { --fp-family-color: var(--fx-family-data); }
-.fp-type-dot { background: var(--fp-family-color, var(--fx-family-data)); }
+.fp-type-chip.fam-code,
+.fp-row.file.fam-code {
+	--fp-family-color: var(--fx-family-code);
+}
+.fp-type-chip.fam-config,
+.fp-row.file.fam-config {
+	--fp-family-color: var(--fx-family-config);
+}
+.fp-type-chip.fam-doc,
+.fp-row.file.fam-doc {
+	--fp-family-color: var(--fx-family-doc);
+}
+.fp-type-chip.fam-scene,
+.fp-row.file.fam-scene {
+	--fp-family-color: var(--fx-family-scene);
+}
+.fp-type-chip.fam-pack,
+.fp-row.file.fam-pack {
+	--fp-family-color: var(--fx-family-pack);
+}
+.fp-type-chip.fam-meta,
+.fp-row.file.fam-meta {
+	--fp-family-color: var(--fx-family-meta);
+}
+.fp-type-chip.fam-image,
+.fp-row.file.fam-image {
+	--fp-family-color: var(--fx-family-image);
+}
+.fp-type-chip.fam-audio,
+.fp-row.file.fam-audio {
+	--fp-family-color: var(--fx-family-audio);
+}
+.fp-type-chip.fam-model,
+.fp-row.file.fam-model {
+	--fp-family-color: var(--fx-family-model);
+}
+.fp-type-chip.fam-data,
+.fp-row.file.fam-data {
+	--fp-family-color: var(--fx-family-data);
+}
+.fp-type-dot {
+	background: var(--fp-family-color, var(--fx-family-data));
+}
 .fp-type-chip:hover {
-  background: color-mix(in srgb, var(--fp-family-color) 13%, transparent);
-  border-color: color-mix(in srgb, var(--fp-family-color) 48%, transparent);
-  box-shadow: none;
+	background: color-mix(in srgb, var(--fp-family-color) 13%, transparent);
+	border-color: color-mix(in srgb, var(--fp-family-color) 48%, transparent);
+	box-shadow: none;
 }
 .fp-type-chip:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--fp-family-color) 55%, transparent);
+	box-shadow: 0 0 0 2px
+		color-mix(in srgb, var(--fp-family-color) 55%, transparent);
 }
 
 /* fp-row.file flash ring — used when a fp-types chip click jumps to the
@@ -852,95 +1167,131 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * ring color matches the chip dot, so the eye can connect chip → row
  * even before the scroll-into-view completes.
  */
-.fp-row.file.is-flash { animation: fp-row-flash 1.5s ease-out 1; }
-@keyframes fp-row-flash {
-  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.55); background: rgba(255,255,255,0.10); }
-  35%  { box-shadow: 0 0 0 3px rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); }
-  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0);     background: transparent; }
+.fp-row.file.is-flash {
+	animation: fp-row-flash 1.5s ease-out 1;
 }
 @keyframes fp-row-flash {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--fp-family-color) 65%, transparent);
-    background: color-mix(in srgb, var(--fp-family-color) 16%, transparent);
-  }
-  35% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-family-color) 22%, transparent);
-    background: color-mix(in srgb, var(--fp-family-color) 7%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-    background: transparent;
-  }
+	0% {
+		box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55);
+		background: rgba(255, 255, 255, 0.1);
+	}
+	35% {
+		box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+		background: rgba(255, 255, 255, 0.05);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+		background: transparent;
+	}
+}
+@keyframes fp-row-flash {
+	0% {
+		box-shadow: 0 0 0 0
+			color-mix(in srgb, var(--fp-family-color) 65%, transparent);
+		background: color-mix(in srgb, var(--fp-family-color) 16%, transparent);
+	}
+	35% {
+		box-shadow: 0 0 0 3px
+			color-mix(in srgb, var(--fp-family-color) 22%, transparent);
+		background: color-mix(in srgb, var(--fp-family-color) 7%, transparent);
+	}
+	100% {
+		box-shadow: 0 0 0 0 transparent;
+		background: transparent;
+	}
 }
 .fp-row {
-  width: 100%;
-  display: flex; align-items: center; gap: 4px;
-  padding: 3px 6px 3px 0;
-  border: none; background: transparent; cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 12px;
-  border-radius: 3px;
-  text-align: left;
-  height: 22px;
-  white-space: nowrap;
-  overflow: hidden;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 6px 3px 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	color: var(--text-secondary);
+	font-size: 12px;
+	border-radius: 3px;
+	text-align: left;
+	height: 22px;
+	white-space: nowrap;
+	overflow: hidden;
 }
-.fp-row:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+.fp-row:hover {
+	background: rgba(255, 255, 255, 0.04);
+	color: var(--text-primary);
+}
 .fp-row.active {
-  background: var(--primary-soft);
-  color: var(--text-primary);
+	background: var(--primary-soft);
+	color: var(--text-primary);
 }
-.fp-row.active .fp-file-ico { color: var(--primary); }
+.fp-row.active .fp-file-ico {
+	color: var(--primary);
+}
 
 .fp-chev {
-  width: 12px; height: 12px;
-  flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--text-muted);
+	width: 12px;
+	height: 12px;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
 }
 .fp-folder-ico {
-  flex-shrink: 0;
-  color: var(--accent-cyan);
+	flex-shrink: 0;
+	color: var(--accent-cyan);
 }
-.fp-row.dir:hover .fp-folder-ico { color: var(--secondary); }
+.fp-row.dir:hover .fp-folder-ico {
+	color: var(--secondary);
+}
 .fp-file-ico {
-  flex-shrink: 0;
-  color: var(--color-icon-tertiary);
+	flex-shrink: 0;
+	color: var(--color-icon-tertiary);
 }
 .fp-name {
-  flex: 1;
-  overflow: hidden; text-overflow: ellipsis;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .fp-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-left: auto;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	margin-left: auto;
 }
-.fp-dot.done { background: var(--accent-green); }
-.fp-dot.running { background: var(--accent-orange); animation: pulse 1.5s infinite; }
-.fp-dot.pending { background: var(--accent-cyan); }
+.fp-dot.done {
+	background: var(--accent-green);
+}
+.fp-dot.running {
+	background: var(--accent-orange);
+	animation: pulse 1.5s infinite;
+}
+.fp-dot.pending {
+	background: var(--accent-cyan);
+}
 .fp-dirty {
-  font-size: 11px;
-  color: var(--accent-orange);
-  flex-shrink: 0;
-  margin-left: auto;
+	font-size: 11px;
+	color: var(--accent-orange);
+	flex-shrink: 0;
+	margin-left: auto;
 }
 
 /* Tool placeholder（非 Agents tab 时） */
 .tool-placeholder {
-  padding: 30px 12px;
-  text-align: center;
+	padding: 30px 12px;
+	text-align: center;
 }
 .tp-title {
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
+	color: var(--text-secondary);
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: 4px;
 }
 .tp-sub {
-  color: var(--text-muted);
-  font-size: 11px;
+	color: var(--text-muted);
+	font-size: 11px;
 }
 
 /* P2.6a — richer placeholder for bus-sourced extension tabs.
@@ -948,38 +1299,44 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * description so clicking a * icon actually shows what that plugin is
  * about. Visual delta: previously bone-empty pane → now icon + title + desc. */
 .tool-placeholder.bus-tool {
-  text-align: left;
-  padding: 14px 4px;
+	text-align: left;
+	padding: 14px 4px;
 }
 .bus-tool-hero {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
 }
 .bus-tool-icon {
-  flex-shrink: 0;
-  opacity: 0.8;
+	flex-shrink: 0;
+	opacity: 0.8;
 }
-.bus-tool-headings { display: flex; flex-direction: column; min-width: 0; }
+.bus-tool-headings {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
 .bus-tool-title {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
+	color: var(--text-primary);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
 }
 .bus-tool-pluginid {
-  color: var(--text-muted);
-  font-size: 10px;
-  margin-top: 2px;
-  font-family: var(--font-mono);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	color: var(--text-muted);
+	font-size: 10px;
+	margin-top: 2px;
+	font-family: var(--font-mono);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .bus-tool-desc {
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.5;
-  margin: 6px 0 2px;
+	color: var(--text-secondary);
+	font-size: 11px;
+	line-height: 1.5;
+	margin: 6px 0 2px;
 }
 /* P2.7h — second-line en description rendered under .bus-tool-desc.
    Same modular role as P2.7c/.ac-produces (Sidebar agent produces) and
@@ -987,31 +1344,33 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
    title-tooltip → default-visible mini-strip. Greyer + italic so i18n
    readers see it but it doesn't compete with the zh line. */
 .bus-tool-desc-en {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-style: italic;
-  line-height: 1.45;
-  margin: 0 0 10px;
-  opacity: 0.85;
+	color: var(--text-muted);
+	font-size: 10px;
+	font-style: italic;
+	line-height: 1.45;
+	margin: 0 0 10px;
+	opacity: 0.85;
 }
 .bus-tool-meta {
-  display: flex; flex-wrap: wrap; gap: 4px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
 }
 .bus-tool-tag {
-  font-size: 9px;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.06);
-  padding: 1px 6px;
-  border-radius: var(--radius-pill);
-  letter-spacing: 0.02em;
+	font-size: 9px;
+	color: var(--text-muted);
+	background: rgba(255, 255, 255, 0.06);
+	padding: 1px 6px;
+	border-radius: var(--radius-pill);
+	letter-spacing: 0.02em;
 }
 .bus-tool-tag.experimental {
-  color: var(--accent-orange);
-  background: rgba(255,107,53,0.10);
+	color: var(--accent-orange);
+	background: rgba(255, 107, 53, 0.1);
 }
 .bus-tool-tag.warn {
-  color: var(--accent-orange);
-  background: rgba(255,107,53,0.10);
+	color: var(--accent-orange);
+	background: rgba(255, 107, 53, 0.1);
 }
 
 /* P2.7f — meta grid + manifest path + deep-link button.
@@ -1019,43 +1378,55 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * a small info card with manifest filesystem path the player can copy and a
  * one-click jump into BusAdminPanel detail row. */
 .bus-tool-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 6px;
-  margin: 4px 0 8px;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+	gap: 6px;
+	margin: 4px 0 8px;
 }
 .bus-tool-cell {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 4px;
-  padding: 4px 6px;
-  min-width: 0;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	border-radius: 4px;
+	padding: 4px 6px;
+	min-width: 0;
 }
 .bus-tool-cell-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 2px;
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	margin-bottom: 2px;
 }
 .bus-tool-cell-value {
-  font-size: 11px;
-  color: var(--text-primary);
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	font-size: 11px;
+	color: var(--text-primary);
+	line-height: 1.2;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .bus-tool-cell-value.mono {
-  font-family: var(--font-mono);
+	font-family: var(--font-mono);
 }
 /* Match BusAdminPanel kind colors so the player visually links the two surfaces. */
-.bus-tool-cell-value.k-extension { color: var(--accent-cyan); }
-.bus-tool-cell-value.k-agent { color: var(--accent-blue); }
-.bus-tool-cell-value.k-cli-provider { color: var(--color-text-primary); }
-.bus-tool-cell-value.k-model-binding { color: var(--color-text-primary); }
-.bus-tool-cell-value.k-skill { color: var(--color-text-primary); }
-.bus-tool-cell-value.k-tool { color: var(--color-text-primary); }
+.bus-tool-cell-value.k-extension {
+	color: var(--accent-cyan);
+}
+.bus-tool-cell-value.k-agent {
+	color: var(--accent-blue);
+}
+.bus-tool-cell-value.k-cli-provider {
+	color: var(--color-text-primary);
+}
+.bus-tool-cell-value.k-model-binding {
+	color: var(--color-text-primary);
+}
+.bus-tool-cell-value.k-skill {
+	color: var(--color-text-primary);
+}
+.bus-tool-cell-value.k-tool {
+	color: var(--color-text-primary);
+}
 
 /* P4.98 — provides stat strip in BusPluginPlaceholder. Three colored
  * pills (T tools orange / E events pink / S skills purple) reuse the
@@ -1065,97 +1436,99 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * visible at low opacity so every extension tab gets the same strip
  * geometry — only the highlight changes. */
 .bus-tool-provides {
-  margin: 0 0 8px;
+	margin: 0 0 8px;
 }
 .bus-tool-provides.empty .bus-tool-cell-label {
-  opacity: 0.6;
+	opacity: 0.6;
 }
 .bus-tool-provides-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 3px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 3px;
 }
 .bus-tool-prov {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 3px;
-  padding: 2px 7px;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  line-height: 1.2;
-  border-radius: 3px;
-  border: 1px solid transparent;
-  letter-spacing: 0.02em;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 3px;
+	padding: 2px 7px;
+	font-size: 10px;
+	font-family: var(--font-mono);
+	font-weight: 500;
+	line-height: 1.2;
+	border-radius: 3px;
+	border: 1px solid transparent;
+	letter-spacing: 0.02em;
 }
 .bus-tool-prov b {
-  font-weight: 700;
-  font-size: 11px;
-  margin: 0 1px;
+	font-weight: 700;
+	font-size: 11px;
+	margin: 0 1px;
 }
 .bus-tool-prov.k-tool {
-  color: var(--color-role-coding);
-  background: rgba(255, 140, 66, 0.14);
-  border-color: rgba(255, 140, 66, 0.45);
+	color: var(--color-role-coding);
+	background: rgba(255, 140, 66, 0.14);
+	border-color: rgba(255, 140, 66, 0.45);
 }
 .bus-tool-prov.k-event {
-  color: var(--color-role-design);
-  background: rgba(255, 109, 181, 0.14);
-  border-color: rgba(255, 109, 181, 0.45);
+	color: var(--color-role-design);
+	background: rgba(255, 109, 181, 0.14);
+	border-color: rgba(255, 109, 181, 0.45);
 }
 .bus-tool-prov.k-skill {
-  color: var(--color-text-primary);
-  background: rgba(245, 122, 204, 0.12);
-  border-color: rgba(245, 122, 204, 0.40);
+	color: var(--color-text-primary);
+	background: rgba(245, 122, 204, 0.12);
+	border-color: rgba(245, 122, 204, 0.4);
 }
 .bus-tool-prov.muted {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.025);
-  border-color: rgba(255, 255, 255, 0.06);
-  opacity: 0.55;
+	color: var(--text-muted);
+	background: rgba(255, 255, 255, 0.025);
+	border-color: rgba(255, 255, 255, 0.06);
+	opacity: 0.55;
 }
 
 .bus-tool-manifest {
-  background: rgba(78,205,196,0.06);
-  border-left: 2px solid rgba(78,205,196,0.4);
-  border-radius: 0 4px 4px 0;
-  padding: 4px 8px;
-  margin-bottom: 8px;
+	background: rgba(78, 205, 196, 0.06);
+	border-left: 2px solid rgba(78, 205, 196, 0.4);
+	border-radius: 0 4px 4px 0;
+	padding: 4px 8px;
+	margin-bottom: 8px;
 }
 .bus-tool-manifest-path {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--accent-cyan);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  user-select: text;
-  cursor: text;
+	display: block;
+	font-family: var(--font-mono);
+	font-size: 10px;
+	color: var(--accent-cyan);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	user-select: text;
+	cursor: text;
 }
 
 .bus-tool-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--accent-cyan);
-  background: rgba(78,205,196,0.08);
-  border: 1px solid rgba(78,205,196,0.3);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 120ms, border-color 120ms;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 8px;
+	padding: 4px 10px;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--accent-cyan);
+	background: rgba(78, 205, 196, 0.08);
+	border: 1px solid rgba(78, 205, 196, 0.3);
+	border-radius: 4px;
+	cursor: pointer;
+	transition:
+		background 120ms,
+		border-color 120ms;
 }
 .bus-tool-open:hover {
-  background: rgba(78,205,196,0.15);
-  border-color: rgba(78,205,196,0.55);
+	background: rgba(78, 205, 196, 0.15);
+	border-color: rgba(78, 205, 196, 0.55);
 }
 .bus-tool-open:active {
-  transform: translateY(1px);
+	transform: translateY(1px);
 }
 
 /* P4.99 — family deep-link row. Same cyan palette family as
@@ -1164,59 +1537,64 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
    tells you *who else is in this kind*. Hover lifts the bg and underlines the
    arrow; the count <b> is brighter so the scannable number pops. */
 .bus-tool-family {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-bottom: 8px;
-  padding: 5px 8px;
-  background: rgba(78,205,196,0.04);
-  border: 1px solid rgba(78,205,196,0.18);
-  border-radius: 4px;
-  color: var(--text-muted);
-  font-size: 10px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 120ms, border-color 120ms, color 120ms;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	margin-bottom: 8px;
+	padding: 5px 8px;
+	background: rgba(78, 205, 196, 0.04);
+	border: 1px solid rgba(78, 205, 196, 0.18);
+	border-radius: 4px;
+	color: var(--text-muted);
+	font-size: 10px;
+	text-align: left;
+	cursor: pointer;
+	transition:
+		background 120ms,
+		border-color 120ms,
+		color 120ms;
 }
 .bus-tool-family:hover {
-  background: rgba(78,205,196,0.12);
-  border-color: rgba(78,205,196,0.4);
-  color: var(--text-primary);
+	background: rgba(78, 205, 196, 0.12);
+	border-color: rgba(78, 205, 196, 0.4);
+	color: var(--text-primary);
 }
 .bus-tool-family:active {
-  transform: translateY(1px);
+	transform: translateY(1px);
 }
 .bus-tool-family-icon {
-  font-size: 12px;
-  line-height: 1;
-  opacity: 0.85;
+	font-size: 12px;
+	line-height: 1;
+	opacity: 0.85;
 }
 .bus-tool-family-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  flex-shrink: 0;
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	flex-shrink: 0;
 }
 .bus-tool-family-text {
-  flex: 1;
-  font-family: var(--font-mono);
+	flex: 1;
+	font-family: var(--font-mono);
 }
 .bus-tool-family-text b {
-  color: var(--accent-cyan);
-  font-weight: 600;
-  font-size: 11px;
+	color: var(--accent-cyan);
+	font-weight: 600;
+	font-size: 11px;
 }
 .bus-tool-family-arrow {
-  color: var(--accent-cyan);
-  font-size: 11px;
-  opacity: 0.7;
-  transition: opacity 120ms, transform 120ms;
+	color: var(--accent-cyan);
+	font-size: 11px;
+	opacity: 0.7;
+	transition:
+		opacity 120ms,
+		transform 120ms;
 }
 .bus-tool-family:hover .bus-tool-family-arrow {
-  opacity: 1;
-  transform: translateX(2px);
+	opacity: 1;
+	transform: translateX(2px);
 }
 
 /* P2.7i — bus kinds 6-chip strip pinned at sidebar bottom (sibling of
@@ -1229,64 +1607,64 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * fits all six on two rows. Empty kinds dim down but stay visible — the row
  * works as a "what kinds exist at all" legend too. */
 .ss-footer {
-  margin-top: auto;
-  padding: 8px 12px 10px;
-  border-top: 1px solid var(--color-border-default);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+	margin-top: auto;
+	padding: 8px 12px 10px;
+	border-top: 1px solid var(--color-border-default);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 }
 .ss-footer-label {
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 600;
+	font-size: 9px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	font-weight: 600;
 }
 /* P3.50 — keyboard hint glyph inside the footer label. Mono'd + tinted so the
  * `←→` reads as a key-cap legend distinct from the surrounding caption. */
 .ss-footer-kbd {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0;
-  padding: 0 3px;
-  margin: 0 1px;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: var(--text);
+	font-family: var(--font-mono);
+	font-size: 9.5px;
+	letter-spacing: 0;
+	padding: 0 3px;
+	margin: 0 1px;
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	color: var(--text);
 }
 .ss-kinds-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
 }
 .ss-kind-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 5px 1px 5px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.10);
-  line-height: 1;
-  font-size: 9px;
-  font-weight: 600;
-  /* P3.37 — chips render as <button>; reset native UA chrome so the kind
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 5px 1px 5px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	line-height: 1;
+	font-size: 9px;
+	font-weight: 600;
+	/* P3.37 — chips render as <button>; reset native UA chrome so the kind
    * palette below still owns color/border, and only the click affordance
    * (cursor, transform, focus ring) is layered in via .is-link. */
-  font-family: inherit;
-  appearance: none;
-  cursor: default;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    transform 120ms ease,
-    box-shadow 120ms ease;
+	font-family: inherit;
+	appearance: none;
+	cursor: default;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease,
+		transform 120ms ease,
+		box-shadow 120ms ease;
 }
 .ss-kind-chip.is-empty {
-  opacity: 0.45;
-  cursor: not-allowed;
+	opacity: 0.45;
+	cursor: not-allowed;
 }
 /* P3.37 — non-empty kinds get a clickable affordance that mirrors the
  * sky-blue family deep-link buttons (P3.32 .ac-bus-pill.is-link / P3.33
@@ -1296,43 +1674,93 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * draws a 2px white ring so keyboard users see the target distinctly from
  * mouse hover. */
 .ss-kind-chip.is-link {
-  cursor: pointer;
+	cursor: pointer;
 }
 .ss-kind-chip.is-link:hover {
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.08);
+	transform: translateY(-1px);
+	background: rgba(255, 255, 255, 0.08);
 }
 .ss-kind-chip.is-link:focus-visible {
-  outline: 2px solid rgba(255,255,255,0.55);
-  outline-offset: 1px;
+	outline: 2px solid rgba(255, 255, 255, 0.55);
+	outline-offset: 1px;
 }
 .ss-kind-chip.is-link:active {
-  transform: translateY(0);
+	transform: translateY(0);
 }
-.ss-kind-chip-name { letter-spacing: 0.04em; }
+.ss-kind-chip-name {
+	letter-spacing: 0.04em;
+}
 .ss-kind-chip-n {
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
-  font-size: 9px;
+	font-variant-numeric: tabular-nums;
+	font-family: var(--font-mono);
+	font-size: 9px;
 }
 /* Six kind variants — match BusAdminPanel.css .ba-chip.k-* palette so chips
  * read the same across Sidebar footer + Bus admin filter row + row k-tag. */
-.ss-kind-chip.k-extension     { background: rgba(212, 255,  72, 0.10); border-color: rgba(212, 255,  72, 0.32); color: var(--primary); }
-.ss-kind-chip.k-agent         { background: rgba(168,  85, 247, 0.12); border-color: rgba(168,  85, 247, 0.35); color: var(--color-role-orchestrator); }
-.ss-kind-chip.k-cli-provider  { background: rgba(108, 196, 255, 0.10); border-color: rgba(108, 196, 255, 0.34); color: var(--color-kind-cli-provider); }
-.ss-kind-chip.k-model-binding { background: rgba(126, 231, 196, 0.10); border-color: rgba(126, 231, 196, 0.32); color: var(--accent-mint); }
-.ss-kind-chip.k-skill         { background: rgba(255, 200, 120, 0.10); border-color: rgba(255, 200, 120, 0.34); color: var(--color-role-narrative); }
-.ss-kind-chip.k-tool          { background: rgba(255, 140,  66, 0.10); border-color: rgba(255, 140,  66, 0.34); color: var(--color-role-coding); }
+.ss-kind-chip.k-extension {
+	background: rgba(212, 255, 72, 0.1);
+	border-color: rgba(212, 255, 72, 0.32);
+	color: var(--primary);
+}
+.ss-kind-chip.k-agent {
+	background: rgba(168, 85, 247, 0.12);
+	border-color: rgba(168, 85, 247, 0.35);
+	color: var(--color-role-orchestrator);
+}
+.ss-kind-chip.k-cli-provider {
+	background: rgba(108, 196, 255, 0.1);
+	border-color: rgba(108, 196, 255, 0.34);
+	color: var(--color-kind-cli-provider);
+}
+.ss-kind-chip.k-model-binding {
+	background: rgba(126, 231, 196, 0.1);
+	border-color: rgba(126, 231, 196, 0.32);
+	color: var(--accent-mint);
+}
+.ss-kind-chip.k-skill {
+	background: rgba(255, 200, 120, 0.1);
+	border-color: rgba(255, 200, 120, 0.34);
+	color: var(--color-role-narrative);
+}
+.ss-kind-chip.k-tool {
+	background: rgba(255, 140, 66, 0.1);
+	border-color: rgba(255, 140, 66, 0.34);
+	color: var(--color-role-coding);
+}
 /* P3.37 — per-kind hover/focus tints. Background brightens to ~24%, border
  * thickens to ~55% of the kind's accent so hover reads as "this chip is
  * activating" rather than a generic gray. Outer glow with same hue +12%
  * alpha for tactile click affordance. */
-.ss-kind-chip.k-extension.is-link:hover     { background: rgba(212, 255,  72, 0.22); border-color: rgba(212, 255,  72, 0.55); box-shadow: none; }
-.ss-kind-chip.k-agent.is-link:hover         { background: rgba(168,  85, 247, 0.24); border-color: rgba(168,  85, 247, 0.58); box-shadow: none; }
-.ss-kind-chip.k-cli-provider.is-link:hover  { background: rgba(108, 196, 255, 0.22); border-color: rgba(108, 196, 255, 0.56); box-shadow: none; }
-.ss-kind-chip.k-model-binding.is-link:hover { background: rgba(126, 231, 196, 0.22); border-color: rgba(126, 231, 196, 0.55); box-shadow: none; }
-.ss-kind-chip.k-skill.is-link:hover         { background: rgba(255, 200, 120, 0.22); border-color: rgba(255, 200, 120, 0.56); box-shadow: none; }
-.ss-kind-chip.k-tool.is-link:hover          { background: rgba(255, 140,  66, 0.22); border-color: rgba(255, 140,  66, 0.56); box-shadow: none; }
+.ss-kind-chip.k-extension.is-link:hover {
+	background: rgba(212, 255, 72, 0.22);
+	border-color: rgba(212, 255, 72, 0.55);
+	box-shadow: none;
+}
+.ss-kind-chip.k-agent.is-link:hover {
+	background: rgba(168, 85, 247, 0.24);
+	border-color: rgba(168, 85, 247, 0.58);
+	box-shadow: none;
+}
+.ss-kind-chip.k-cli-provider.is-link:hover {
+	background: rgba(108, 196, 255, 0.22);
+	border-color: rgba(108, 196, 255, 0.56);
+	box-shadow: none;
+}
+.ss-kind-chip.k-model-binding.is-link:hover {
+	background: rgba(126, 231, 196, 0.22);
+	border-color: rgba(126, 231, 196, 0.55);
+	box-shadow: none;
+}
+.ss-kind-chip.k-skill.is-link:hover {
+	background: rgba(255, 200, 120, 0.22);
+	border-color: rgba(255, 200, 120, 0.56);
+	box-shadow: none;
+}
+.ss-kind-chip.k-tool.is-link:hover {
+	background: rgba(255, 140, 66, 0.22);
+	border-color: rgba(255, 140, 66, 0.56);
+	box-shadow: none;
+}
 
 /* P3.38 — reverse deep-link flash. Sidebar BUS KINDS chip pulses for ~1.5s when
  * BusAdminPanel.toggleKind fires on the matching kind. Each kind reuses its own
@@ -1346,22 +1774,60 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
  * style (no leftover transform). 1.5s matches the cleanup timer in Sidebar.tsx.
  */
 @keyframes ss-kind-chip-flash {
-  0%   { transform: scale(1.0); }
-  18%  { transform: scale(1.18); }
-  45%  { transform: scale(1.04); }
-  100% { transform: scale(1.0); }
+	0% {
+		transform: scale(1);
+	}
+	18% {
+		transform: scale(1.18);
+	}
+	45% {
+		transform: scale(1.04);
+	}
+	100% {
+		transform: scale(1);
+	}
 }
 .ss-kind-chip.is-flashing {
-  animation: ss-kind-chip-flash 1.5s ease-out;
-  position: relative;
-  z-index: 2;
+	animation: ss-kind-chip-flash 1.5s ease-out;
+	position: relative;
+	z-index: 2;
 }
-.ss-kind-chip.is-flashing.k-extension     { background: rgba(212, 255,  72, 0.32); border-color: rgba(212, 255,  72, 0.75); box-shadow: none; color: var(--primary); }
-.ss-kind-chip.is-flashing.k-agent         { background: rgba(168,  85, 247, 0.34); border-color: rgba(168,  85, 247, 0.78); box-shadow: none; color: var(--primary); }
-.ss-kind-chip.is-flashing.k-cli-provider  { background: rgba(108, 196, 255, 0.32); border-color: rgba(108, 196, 255, 0.76); box-shadow: none; color: var(--primary); }
-.ss-kind-chip.is-flashing.k-model-binding { background: rgba(126, 231, 196, 0.32); border-color: rgba(126, 231, 196, 0.75); box-shadow: none; color: var(--primary); }
-.ss-kind-chip.is-flashing.k-skill         { background: rgba(255, 200, 120, 0.32); border-color: rgba(255, 200, 120, 0.76); box-shadow: none; color: var(--primary); }
-.ss-kind-chip.is-flashing.k-tool          { background: rgba(255, 140,  66, 0.32); border-color: rgba(255, 140,  66, 0.76); box-shadow: none; color: var(--primary); }
+.ss-kind-chip.is-flashing.k-extension {
+	background: rgba(212, 255, 72, 0.32);
+	border-color: rgba(212, 255, 72, 0.75);
+	box-shadow: none;
+	color: var(--primary);
+}
+.ss-kind-chip.is-flashing.k-agent {
+	background: rgba(168, 85, 247, 0.34);
+	border-color: rgba(168, 85, 247, 0.78);
+	box-shadow: none;
+	color: var(--primary);
+}
+.ss-kind-chip.is-flashing.k-cli-provider {
+	background: rgba(108, 196, 255, 0.32);
+	border-color: rgba(108, 196, 255, 0.76);
+	box-shadow: none;
+	color: var(--primary);
+}
+.ss-kind-chip.is-flashing.k-model-binding {
+	background: rgba(126, 231, 196, 0.32);
+	border-color: rgba(126, 231, 196, 0.75);
+	box-shadow: none;
+	color: var(--primary);
+}
+.ss-kind-chip.is-flashing.k-skill {
+	background: rgba(255, 200, 120, 0.32);
+	border-color: rgba(255, 200, 120, 0.76);
+	box-shadow: none;
+	color: var(--primary);
+}
+.ss-kind-chip.is-flashing.k-tool {
+	background: rgba(255, 140, 66, 0.32);
+	border-color: rgba(255, 140, 66, 0.76);
+	box-shadow: none;
+	color: var(--primary);
+}
 
 /* ── P4.54 — FilesPanel folder file-count badge ──
    Each .fp-row.dir gains a small dim count chip after the folder name
@@ -1373,21 +1839,24 @@ button.bus-chip.is-link:hover .bus-chip-listeners { opacity: 0.78; }
    right edge of the row, replacing the slot used by .fp-dot/.fp-dirty
    which only appear on files). */
 .fp-dir-count {
-  flex-shrink: 0;
-  margin-left: auto;
-  padding: 0 5px;
-  font-size: 9px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 13px;
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 7px;
-  opacity: 0.55;
-  transition: opacity 140ms ease, background 140ms ease, color 140ms ease;
+	flex-shrink: 0;
+	margin-left: auto;
+	padding: 0 5px;
+	font-size: 9px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 13px;
+	color: var(--text-muted);
+	background: rgba(255, 255, 255, 0.06);
+	border-radius: 7px;
+	opacity: 0.55;
+	transition:
+		opacity 140ms ease,
+		background 140ms ease,
+		color 140ms ease;
 }
 .fp-row.dir:hover .fp-dir-count {
-  opacity: 0.85;
-  background: rgba(255, 255, 255, 0.10);
-  color: var(--text-primary);
+	opacity: 0.85;
+	background: rgba(255, 255, 255, 0.1);
+	color: var(--text-primary);
 }

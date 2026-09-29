@@ -11,29 +11,32 @@
 //
 // Module-scoped adapter: App Shell owns the generic state while only the
 // DockShell region supplies concrete Dockview group/panel identities.
-import { createEdgePinStore } from '@forgeax/app-shell/window';
+
+import type { TabPinnedStateSource } from "@forgeax/app-shell/react";
+import { createEdgePinStore } from "@forgeax/app-shell/window";
 
 /** DOM contract between the two halves: DockTab stamps it on the toggle,
  *  edgeDrawer's capture-phase click handler `closest()`s for it. (The CSS in
  *  DockShell.css / GlobalStatusBar.css spells it literally, as CSS must.) */
-export const EDGE_PIN_CLASS = 'fx-edge-pin';
+export const EDGE_PIN_CLASS = "fx-edge-pin";
 
 const edgePins = createEdgePinStore();
 
-export function subscribeEdgePins(onChange: () => void): () => void {
-  return edgePins.onChange(onChange);
-}
+export const edgePinStateSource: TabPinnedStateSource = {
+	pinnedIn: edgePins.pinnedIn,
+	subscribe: edgePins.onChange,
+};
 
 export function pinnedPanelIdIn(groupId: string): string | undefined {
-  return edgePins.pinnedIn(groupId);
+	return edgePins.pinnedIn(groupId);
 }
 
 /** `panelId === undefined` unpins the group. No-ops (and stays silent) when the
  *  state already matches, so callers can fire it from reconcilers. */
 export function setEdgePin(groupId: string, panelId: string | undefined): void {
-  edgePins.setPinned(groupId, panelId);
+	edgePins.setPinned(groupId, panelId);
 }
 
 export function clearEdgePins(): void {
-  edgePins.clear();
+	edgePins.clear();
 }

@@ -1,25 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { publishTopic as publish } from "@forgeax/app-shell/application";
 import {
-  ChevronRight,
-  ChevronDown,
-  Folder,
-  FolderOpen,
-  FileCode2,
-  FileJson,
-  FileText,
-  FileImage,
-  FileAudio,
-  FileArchive,
-  FileCog,
-  Box,
-  Table2,
-  File as FileIcon,
-} from 'lucide-react';
-import { useShellStore } from '../../store';
-import { publish } from '../../lib/bus';
-import { useBusSnapshot } from '../../lib/use-bus-snapshot';
-import { useTranslation } from '@/i18n';
-import { FAMILY_ORDER, familyOf, type FileFamily } from '../../lib/file-family';
+	createIntervalTaskLifecycle,
+	createRestartableTimeoutTaskLifecycle,
+} from "@forgeax/app-shell/react";
+import {
+	Box,
+	ChevronDown,
+	ChevronRight,
+	FileArchive,
+	FileAudio,
+	FileCode2,
+	FileCog,
+	File as FileIcon,
+	FileImage,
+	FileJson,
+	FileText,
+	Folder,
+	FolderOpen,
+	Table2,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "@/i18n";
+import { FAMILY_ORDER, type FileFamily, familyOf } from "../../lib/file-family";
+import { useBusSnapshot } from "../../lib/use-bus-snapshot";
+import { useShellStore } from "../../store";
 
 // P4.1 — FilesPanel fp-types ext-distribution mini-strip.
 // Sibling to P4.0 AgentsPanel ap-tribes: a one-row legend above the tree
@@ -45,64 +49,76 @@ import { FAMILY_ORDER, familyOf, type FileFamily } from '../../lib/file-family';
 // distribution semantically, same pattern AgentsHub/AgentsPanel use.
 
 interface Node {
-  type: 'dir' | 'file';
-  name: string;
-  path: string;
-  children?: Node[];
+	type: "dir" | "file";
+	name: string;
+	path: string;
+	children?: Node[];
 }
 
 function fileIconFor(name: string) {
-  switch (familyOf(name)) {
-    case 'code': return FileCode2;
-    case 'config': return FileJson;
-    case 'doc': return FileText;
-    case 'scene': return FileCode2;
-    case 'pack': return FileArchive;
-    case 'meta': return FileCog;
-    case 'image': return FileImage;
-    case 'audio': return FileAudio;
-    case 'model': return Box;
-    case 'data': return Table2;
-    default: return FileIcon;
-  }
+	switch (familyOf(name)) {
+		case "code":
+			return FileCode2;
+		case "config":
+			return FileJson;
+		case "doc":
+			return FileText;
+		case "scene":
+			return FileCode2;
+		case "pack":
+			return FileArchive;
+		case "meta":
+			return FileCog;
+		case "image":
+			return FileImage;
+		case "audio":
+			return FileAudio;
+		case "model":
+			return Box;
+		case "data":
+			return Table2;
+		default:
+			return FileIcon;
+	}
 }
 
 interface FamilyAggregate {
-  key: FileFamily;
-  label: string;
-  count: number;
-  firstPath: string | null;
+	key: FileFamily;
+	label: string;
+	count: number;
+	firstPath: string | null;
 }
 
 function aggregateFamilies(tree: Node | null): FamilyAggregate[] {
-  const tally: Record<FileFamily, { count: number; firstPath: string | null }> = {
-    code: { count: 0, firstPath: null },
-    config: { count: 0, firstPath: null },
-    doc: { count: 0, firstPath: null },
-    scene: { count: 0, firstPath: null },
-    pack: { count: 0, firstPath: null },
-    meta: { count: 0, firstPath: null },
-    image: { count: 0, firstPath: null },
-    audio: { count: 0, firstPath: null },
-    model: { count: 0, firstPath: null },
-    data: { count: 0, firstPath: null },
-  };
-  const walk = (n: Node) => {
-    if (n.type === 'file') {
-      const fam = familyOf(n.name);
-      tally[fam].count += 1;
-      if (tally[fam].firstPath === null) tally[fam].firstPath = n.path;
-      return;
-    }
-    for (const c of n.children ?? []) walk(c);
-  };
-  if (tree) walk(tree);
-  return FAMILY_ORDER.map((m) => ({
-    key: m.key,
-    label: m.label,
-    count: tally[m.key].count,
-    firstPath: tally[m.key].firstPath,
-  }));
+	const tally: Record<FileFamily, { count: number; firstPath: string | null }> =
+		{
+			code: { count: 0, firstPath: null },
+			config: { count: 0, firstPath: null },
+			doc: { count: 0, firstPath: null },
+			scene: { count: 0, firstPath: null },
+			pack: { count: 0, firstPath: null },
+			meta: { count: 0, firstPath: null },
+			image: { count: 0, firstPath: null },
+			audio: { count: 0, firstPath: null },
+			model: { count: 0, firstPath: null },
+			data: { count: 0, firstPath: null },
+		};
+	const walk = (n: Node) => {
+		if (n.type === "file") {
+			const fam = familyOf(n.name);
+			tally[fam].count += 1;
+			if (tally[fam].firstPath === null) tally[fam].firstPath = n.path;
+			return;
+		}
+		for (const c of n.children ?? []) walk(c);
+	};
+	if (tree) walk(tree);
+	return FAMILY_ORDER.map((m) => ({
+		key: m.key,
+		label: m.label,
+		count: tally[m.key].count,
+		firstPath: tally[m.key].firstPath,
+	}));
 }
 
 // P4.54 — recursive file count under a directory node. Used by TreeRow.dir
@@ -113,290 +129,358 @@ function aggregateFamilies(tree: Node | null): FamilyAggregate[] {
 // wholesale on each 5s poll, so identity equality is enough.
 const dirFileCountCache = new WeakMap<Node, number>();
 function countFilesIn(node: Node): number {
-  if (node.type === 'file') return 1;
-  const cached = dirFileCountCache.get(node);
-  if (cached !== undefined) return cached;
-  let n = 0;
-  for (const c of node.children ?? []) n += countFilesIn(c);
-  dirFileCountCache.set(node, n);
-  return n;
+	if (node.type === "file") return 1;
+	const cached = dirFileCountCache.get(node);
+	if (cached !== undefined) return cached;
+	let n = 0;
+	for (const c of node.children ?? []) n += countFilesIn(c);
+	dirFileCountCache.set(node, n);
+	return n;
 }
 
 // Collect every ancestor dir path so we can auto-expand on jump.
 function ancestorsOf(path: string, rootPath: string): string[] {
-  const out: string[] = [];
-  if (!path.startsWith(rootPath)) return out;
-  const tail = path.slice(rootPath.length).replace(/^\//, '');
-  if (!tail) return out;
-  const parts = tail.split('/').slice(0, -1);
-  let acc = rootPath;
-  out.push(acc);
-  for (const p of parts) {
-    acc = `${acc}/${p}`;
-    out.push(acc);
-  }
-  return out;
+	const out: string[] = [];
+	if (!path.startsWith(rootPath)) return out;
+	const tail = path.slice(rootPath.length).replace(/^\//, "");
+	if (!tail) return out;
+	const parts = tail.split("/").slice(0, -1);
+	let acc = rootPath;
+	out.push(acc);
+	for (const p of parts) {
+		acc = `${acc}/${p}`;
+		out.push(acc);
+	}
+	return out;
 }
 
 export function FilesPanel() {
-  const openFile = (path: string) => { publish('resource-editor:open-file', { path } as never); };
-  const activeFilePath = (useBusSnapshot('resource-editor:files') as { activeFilePath?: string | null } | undefined)?.activeFilePath ?? null;
-  const activeSlug = useShellStore((s) => s.activeGameSlug);
-  const [tree, setTree] = useState<Node | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+	const openFile = (path: string) => {
+		publish("resource-editor:open-file", { path } as never);
+	};
+	const activeFilePath =
+		(
+			useBusSnapshot("resource-editor:files") as
+				| { activeFilePath?: string | null }
+				| undefined
+		)?.activeFilePath ?? null;
+	const activeSlug = useShellStore((s) => s.activeGameSlug);
+	const [tree, setTree] = useState<Node | null>(null);
+	const [expanded, setExpanded] = useState<Set<string>>(new Set());
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-  // Re-run when the authoritative active game projection changes. An earlier
-  // version closed over the initial slug, so switching
-  // project left the tree stuck on the old slug until full reload.
-  //
-  // expanded init is keyed by `isFirstLoad`: only the first successful
-  // tree fetch for a given slug seeds the default expansion. Subsequent
-  // 5s polls keep the user's manual expansion intact — earlier this same
-  // block called setExpanded() unconditionally, which silently re-collapsed
-  // every folder the user clicked into within 1-2s of opening it.
-  useEffect(() => {
-    let cancelled = false;
-    let isFirstLoad = true;
-    setLoading(true);
-    setError(null);
-    setTree(null);
-    const load = async () => {
-      try {
-        const slug = activeSlug ?? undefined;
-        if (!slug) {
-          setError('no active game');
-          setLoading(false);
-          return;
-        }
-        const tr = await fetch(`/api/files/tree?root=.forgeax/games/${encodeURIComponent(slug)}`).then((r) => r.json()) as { tree?: Node; error?: string };
-        if (cancelled) return;
-        if (tr.error || !tr.tree) {
-          setError(tr.error ?? 'no tree');
-        } else {
-          setTree(tr.tree);
-          if (isFirstLoad) {
-            setExpanded(new Set([tr.tree.path, `${tr.tree.path}/src`, `${tr.tree.path}/design`]));
-            isFirstLoad = false;
-          }
-        }
-        setLoading(false);
-      } catch (e) {
-        if (!cancelled) {
-          setError((e as Error).message);
-          setLoading(false);
-        }
-      }
-    };
-    load();
-    const t = setInterval(load, 5000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [activeSlug]);
+	// Re-run when the authoritative active game projection changes. An earlier
+	// version closed over the initial slug, so switching
+	// project left the tree stuck on the old slug until full reload.
+	//
+	// expanded init is keyed by `isFirstLoad`: only the first successful
+	// tree fetch for a given slug seeds the default expansion. Subsequent
+	// 5s polls keep the user's manual expansion intact — earlier this same
+	// block called setExpanded() unconditionally, which silently re-collapsed
+	// every folder the user clicked into within 1-2s of opening it.
+	useEffect(() => {
+		let cancelled = false;
+		let isFirstLoad = true;
+		setLoading(true);
+		setError(null);
+		setTree(null);
+		const load = async () => {
+			try {
+				const slug = activeSlug ?? undefined;
+				if (!slug) {
+					setError("no active game");
+					setLoading(false);
+					return;
+				}
+				const tr = (await fetch(
+					`/api/files/tree?root=.forgeax/games/${encodeURIComponent(slug)}`,
+				).then((r) => r.json())) as { tree?: Node; error?: string };
+				if (cancelled) return;
+				if (tr.error || !tr.tree) {
+					setError(tr.error ?? "no tree");
+				} else {
+					setTree(tr.tree);
+					if (isFirstLoad) {
+						setExpanded(
+							new Set([
+								tr.tree.path,
+								`${tr.tree.path}/src`,
+								`${tr.tree.path}/design`,
+							]),
+						);
+						isFirstLoad = false;
+					}
+				}
+				setLoading(false);
+			} catch (e) {
+				if (!cancelled) {
+					setError((e as Error).message);
+					setLoading(false);
+				}
+			}
+		};
+		load();
+		const poll = createIntervalTaskLifecycle({
+			task: () => {
+				void load();
+			},
+			intervalMs: 5_000,
+		});
+		poll.start();
+		return () => {
+			cancelled = true;
+			poll.dispose();
+		};
+	}, [activeSlug]);
 
-  return <FilesPanelView
-    loading={loading}
-    error={error}
-    tree={tree}
-    activeSlug={activeSlug}
-    expanded={expanded}
-    setExpanded={setExpanded}
-    previewPath={activeFilePath}
-    openFile={openFile}
-  />;
+	return (
+		<FilesPanelView
+			loading={loading}
+			error={error}
+			tree={tree}
+			activeSlug={activeSlug}
+			expanded={expanded}
+			setExpanded={setExpanded}
+			previewPath={activeFilePath}
+			openFile={openFile}
+		/>
+	);
 }
 
 interface ViewProps {
-  loading: boolean;
-  error: string | null;
-  tree: Node | null;
-  activeSlug: string | null;
-  expanded: Set<string>;
-  setExpanded: (s: Set<string>) => void;
-  previewPath: string | null;
-  openFile: (path: string) => Promise<void> | void;
+	loading: boolean;
+	error: string | null;
+	tree: Node | null;
+	activeSlug: string | null;
+	expanded: Set<string>;
+	setExpanded: (s: Set<string>) => void;
+	previewPath: string | null;
+	openFile: (path: string) => Promise<void> | void;
 }
 
-function FilesPanelView({ loading, error, tree, activeSlug, expanded, setExpanded, previewPath, openFile }: ViewProps) {
-  const { t } = useTranslation();
-  const [flashPath, setFlashPath] = useState<string | null>(null);
-  const [pendingScrollPath, setPendingScrollPath] = useState<string | null>(null);
-  const flashTimerRef = useRef<number | null>(null);
-  const families = useMemo(() => aggregateFamilies(tree), [tree]);
-  const total = useMemo(() => families.reduce((s, f) => s + f.count, 0), [families]);
+function FilesPanelView({
+	loading,
+	error,
+	tree,
+	activeSlug,
+	expanded,
+	setExpanded,
+	previewPath,
+	openFile,
+}: ViewProps) {
+	const { t } = useTranslation();
+	const [flashPath, setFlashPath] = useState<string | null>(null);
+	const [pendingScrollPath, setPendingScrollPath] = useState<string | null>(
+		null,
+	);
+	const flashTaskRef = useRef<ReturnType<
+		typeof createRestartableTimeoutTaskLifecycle
+	> | null>(null);
+	const flashTargetRef = useRef<string | null>(null);
+	const families = useMemo(() => aggregateFamilies(tree), [tree]);
+	const total = useMemo(
+		() => families.reduce((s, f) => s + f.count, 0),
+		[families],
+	);
 
-  useEffect(() => () => {
-    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
-  }, []);
+	useEffect(() => {
+		const task = createRestartableTimeoutTaskLifecycle({
+			delayMs: 1500,
+			task: () => {
+				const path = flashTargetRef.current;
+				setFlashPath((cur) => (cur === path ? null : cur));
+			},
+		});
+		flashTaskRef.current = task;
+		return () => {
+			task.dispose();
+			flashTaskRef.current = null;
+		};
+	}, []);
 
-  // Two-phase: click sets pendingScrollPath + expands ancestors → React
-  // re-renders the new rows → this effect (re-run when expanded changes)
-  // finds the row and runs scroll/focus/flash. Avoids the rAF-before-
-  // commit race the naive inline approach hits.
-  useEffect(() => {
-    if (!pendingScrollPath) return;
-    const el = document.querySelector<HTMLElement>(`[data-fp-path="${CSS.escape(pendingScrollPath)}"]`);
-    if (!el) return; // not yet expanded — will re-fire on next expanded update
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    el.focus({ preventScroll: true });
-    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
-    setFlashPath(pendingScrollPath);
-    const path = pendingScrollPath;
-    setPendingScrollPath(null);
-    flashTimerRef.current = window.setTimeout(() => {
-      setFlashPath((cur) => (cur === path ? null : cur));
-      flashTimerRef.current = null;
-    }, 1500);
-  }, [pendingScrollPath, expanded]);
+	// Two-phase: click sets pendingScrollPath + expands ancestors → React
+	// re-renders the new rows → this effect (re-run when expanded changes)
+	// finds the row and runs scroll/focus/flash. Avoids the rAF-before-
+	// commit race the naive inline approach hits.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: expanding ancestors commits the target row before this retry can find and focus it.
+	useEffect(() => {
+		if (!pendingScrollPath) return;
+		const el = document.querySelector<HTMLElement>(
+			`[data-fp-path="${CSS.escape(pendingScrollPath)}"]`,
+		);
+		if (!el) return; // not yet expanded — will re-fire on next expanded update
+		el.scrollIntoView({ block: "center", behavior: "smooth" });
+		el.focus({ preventScroll: true });
+		setFlashPath(pendingScrollPath);
+		flashTargetRef.current = pendingScrollPath;
+		setPendingScrollPath(null);
+		flashTaskRef.current?.schedule();
+	}, [pendingScrollPath, expanded]);
 
-  const onTypeClick = (fam: FamilyAggregate) => {
-    if (!fam.firstPath || !tree) return;
-    const next = new Set(expanded);
-    for (const a of ancestorsOf(fam.firstPath, tree.path)) next.add(a);
-    setExpanded(next);
-    setPendingScrollPath(fam.firstPath);
-  };
+	const onTypeClick = (fam: FamilyAggregate) => {
+		if (!fam.firstPath || !tree) return;
+		const next = new Set(expanded);
+		for (const a of ancestorsOf(fam.firstPath, tree.path)) next.add(a);
+		setExpanded(next);
+		setPendingScrollPath(fam.firstPath);
+	};
 
-  if (loading) {
-    return (
-      <div className="files-panel">
-        <div className="fp-header">
-          <span className="fp-slug">.forgeax/games / {activeSlug ?? '…'}</span>
-        </div>
-        <div className="fp-empty">{t('common.loading')}</div>
-      </div>
-    );
-  }
-  if (error || !tree) {
-    return (
-      <div className="files-panel">
-        <div className="fp-header">
-          <span className="fp-slug">.forgeax/games / {activeSlug ?? '—'}</span>
-        </div>
-        <div className="fp-empty">{error ?? 'empty'}</div>
-      </div>
-    );
-  }
+	if (loading) {
+		return (
+			<div className="files-panel">
+				<div className="fp-header">
+					<span className="fp-slug">.forgeax/games / {activeSlug ?? "…"}</span>
+				</div>
+				<div className="fp-empty">{t("common.loading")}</div>
+			</div>
+		);
+	}
+	if (error || !tree) {
+		return (
+			<div className="files-panel">
+				<div className="fp-header">
+					<span className="fp-slug">.forgeax/games / {activeSlug ?? "—"}</span>
+				</div>
+				<div className="fp-empty">{error ?? "empty"}</div>
+			</div>
+		);
+	}
 
-  return (
-    <div className="files-panel rail-panel">
-      <div className="fp-header">
-        <span className="fp-slug">.forgeax/games / {activeSlug}</span>
-      </div>
-      <div className="fp-types" role="toolbar" aria-label="file type distribution">
-        <span className="fp-types-label" aria-hidden="true">FILES</span>
-        {families.filter((f) => f.count > 0).map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            className={`fp-type-chip fam-${f.key}`}
-            onClick={() => onTypeClick(f)}
-            disabled={!f.firstPath}
-            title={`${f.label} · ${t('filesPanel.fileCount', { count: f.count })}${f.firstPath ? ` · ${t('filesPanel.jumpToFile', { name: f.firstPath.split('/').pop() ?? '' })}` : ''}`}
-            aria-label={`${f.label} ${f.count} files — jump to first`}
-          >
-            <span className={`fp-type-dot fam-${f.key}`} aria-hidden="true" />
-            <span className="fp-type-label">{f.label}</span>
-            <span className="fp-type-count">{f.count}</span>
-          </button>
-        ))}
-        {total > 0 && (
-          <span
-            className="fp-types-total"
-            title={`Σ ${t('filesPanel.fileCount', { count: total })} · ${t('filesPanel.splitByFamily')}`}
-            aria-label={`${total} files total across all families`}
-          >
-            <span className="fp-types-vsep" aria-hidden="true" />
-            <span className="fp-types-sigma" aria-hidden="true">Σ</span>
-            <span className="fp-types-total-n">{total}</span>
-          </span>
-        )}
-      </div>
-      <div className="file-tree reveal-stagger">
-        <TreeRow
-          node={tree}
-          depth={0}
-          expanded={expanded}
-          setExpanded={setExpanded}
-          activeFile={previewPath}
-          flashPath={flashPath}
-          onOpen={(p) => void openFile(p)}
-        />
-      </div>
-    </div>
-  );
+	return (
+		<div className="files-panel rail-panel">
+			<div className="fp-header">
+				<span className="fp-slug">.forgeax/games / {activeSlug}</span>
+			</div>
+			<div
+				className="fp-types"
+				role="toolbar"
+				aria-label="file type distribution"
+			>
+				<span className="fp-types-label" aria-hidden="true">
+					FILES
+				</span>
+				{families
+					.filter((f) => f.count > 0)
+					.map((f) => (
+						<button
+							key={f.key}
+							type="button"
+							className={`fp-type-chip fam-${f.key}`}
+							onClick={() => onTypeClick(f)}
+							disabled={!f.firstPath}
+							title={`${f.label} · ${t("filesPanel.fileCount", { count: f.count })}${f.firstPath ? ` · ${t("filesPanel.jumpToFile", { name: f.firstPath.split("/").pop() ?? "" })}` : ""}`}
+							aria-label={`${f.label} ${f.count} files — jump to first`}
+						>
+							<span className={`fp-type-dot fam-${f.key}`} aria-hidden="true" />
+							<span className="fp-type-label">{f.label}</span>
+							<span className="fp-type-count">{f.count}</span>
+						</button>
+					))}
+				{total > 0 && (
+					<span
+						className="fp-types-total"
+						title={`Σ ${t("filesPanel.fileCount", { count: total })} · ${t("filesPanel.splitByFamily")}`}
+					>
+						<span className="fp-types-vsep" aria-hidden="true" />
+						<span className="fp-types-sigma" aria-hidden="true">
+							Σ
+						</span>
+						<span className="fp-types-total-n">{total}</span>
+					</span>
+				)}
+			</div>
+			<div className="file-tree reveal-stagger">
+				<TreeRow
+					node={tree}
+					depth={0}
+					expanded={expanded}
+					setExpanded={setExpanded}
+					activeFile={previewPath}
+					flashPath={flashPath}
+					onOpen={(p) => void openFile(p)}
+				/>
+			</div>
+		</div>
+	);
 }
 
 interface RowProps {
-  node: Node;
-  depth: number;
-  expanded: Set<string>;
-  setExpanded: (s: Set<string>) => void;
-  activeFile: string | null;
-  flashPath: string | null;
-  onOpen: (path: string) => void;
+	node: Node;
+	depth: number;
+	expanded: Set<string>;
+	setExpanded: (s: Set<string>) => void;
+	activeFile: string | null;
+	flashPath: string | null;
+	onOpen: (path: string) => void;
 }
 
-function TreeRow({ node, depth, expanded, setExpanded, activeFile, flashPath, onOpen }: RowProps) {
-  const { t } = useTranslation();
-  if (node.type === 'dir') {
-    const isOpen = expanded.has(node.path);
-    const FolderGlyph = isOpen ? FolderOpen : Folder;
-    const toggle = () => {
-      const next = new Set(expanded);
-      isOpen ? next.delete(node.path) : next.add(node.path);
-      setExpanded(next);
-    };
-    const fileCount = countFilesIn(node);
-    return (
-      <>
-        <button
-          className="fp-row dir"
-          style={{ paddingLeft: 6 + depth * 12 }}
-          onClick={toggle}
-          title={`${node.name} · ${t('filesPanel.fileCount', { count: fileCount })} · ${isOpen ? t('filesPanel.clickToCollapse') : t('filesPanel.clickToExpand')}`}
-        >
-          <span className="fp-chev">{isOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}</span>
-          <FolderGlyph size={13} className="fp-folder-ico" />
-          <span className="fp-name">{node.name}</span>
-          {fileCount > 0 && (
-            <span
-              className="fp-dir-count"
-              aria-label={`${fileCount} files in folder`}
-            >
-              {fileCount}
-            </span>
-          )}
-        </button>
-        {isOpen && (node.children ?? []).map((c) => (
-          <TreeRow
-            key={c.path}
-            node={c}
-            depth={depth + 1}
-            expanded={expanded}
-            setExpanded={setExpanded}
-            activeFile={activeFile}
-            flashPath={flashPath}
-            onOpen={onOpen}
-          />
-        ))}
-      </>
-    );
-  }
-  const Icon = fileIconFor(node.name);
-  const isActive = activeFile === node.path;
-  const isFlash = flashPath === node.path;
-  const fam = familyOf(node.name);
-  return (
-    <button
-      className={`fp-row file fam-${fam} ${isActive ? 'active' : ''} ${isFlash ? 'is-flash' : ''}`}
-      style={{ paddingLeft: 6 + depth * 12 + 14 }}
-      onClick={() => onOpen(node.path)}
-      title={node.path}
-      data-fp-path={node.path}
-    >
-      <Icon size={13} className="fp-file-ico" />
-      <span className="fp-name">{node.name}</span>
-    </button>
-  );
+function TreeRow({
+	node,
+	depth,
+	expanded,
+	setExpanded,
+	activeFile,
+	flashPath,
+	onOpen,
+}: RowProps) {
+	const { t } = useTranslation();
+	if (node.type === "dir") {
+		const isOpen = expanded.has(node.path);
+		const FolderGlyph = isOpen ? FolderOpen : Folder;
+		const toggle = () => {
+			const next = new Set(expanded);
+			isOpen ? next.delete(node.path) : next.add(node.path);
+			setExpanded(next);
+		};
+		const fileCount = countFilesIn(node);
+		return (
+			<>
+				<button
+					type="button"
+					className="fp-row dir"
+					style={{ paddingLeft: 6 + depth * 12 }}
+					onClick={toggle}
+					title={`${node.name} · ${t("filesPanel.fileCount", { count: fileCount })} · ${isOpen ? t("filesPanel.clickToCollapse") : t("filesPanel.clickToExpand")}`}
+				>
+					<span className="fp-chev">
+						{isOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+					</span>
+					<FolderGlyph size={13} className="fp-folder-ico" />
+					<span className="fp-name">{node.name}</span>
+					{fileCount > 0 && <span className="fp-dir-count">{fileCount}</span>}
+				</button>
+				{isOpen &&
+					(node.children ?? []).map((c) => (
+						<TreeRow
+							key={c.path}
+							node={c}
+							depth={depth + 1}
+							expanded={expanded}
+							setExpanded={setExpanded}
+							activeFile={activeFile}
+							flashPath={flashPath}
+							onOpen={onOpen}
+						/>
+					))}
+			</>
+		);
+	}
+	const Icon = fileIconFor(node.name);
+	const isActive = activeFile === node.path;
+	const isFlash = flashPath === node.path;
+	const fam = familyOf(node.name);
+	return (
+		<button
+			type="button"
+			className={`fp-row file fam-${fam} ${isActive ? "active" : ""} ${isFlash ? "is-flash" : ""}`}
+			style={{ paddingLeft: 6 + depth * 12 + 14 }}
+			onClick={() => onOpen(node.path)}
+			title={node.path}
+			data-fp-path={node.path}
+		>
+			<Icon size={13} className="fp-file-ico" />
+			<span className="fp-name">{node.name}</span>
+		</button>
+	);
 }

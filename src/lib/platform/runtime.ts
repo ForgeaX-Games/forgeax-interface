@@ -11,42 +11,43 @@
  * 分支,所以那个 chunk 永远不会被 fetch,纯 web bundle 无额外成本。
  */
 
-export type PlatformRuntime = 'tauri' | 'web';
+export type PlatformRuntime = "tauri" | "web";
 
 export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+	return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
 export function platformRuntime(): PlatformRuntime {
-  return isTauri() ? 'tauri' : 'web';
+	return isTauri() ? "tauri" : "web";
 }
 
 // --- Lazy Tauri API loaders ------------------------------------------------
 // Cached module handles so repeated calls don't re-import. Each loader returns
 // null in the browser so callers can branch without try/catch noise.
 
-type WebviewWindowMod = typeof import('@tauri-apps/api/webviewWindow');
-type EventMod = typeof import('@tauri-apps/api/event');
-type WindowMod = typeof import('@tauri-apps/api/window');
+type WebviewWindowMod = typeof import("@tauri-apps/api/webviewWindow");
+type EventMod = typeof import("@tauri-apps/api/event");
+type WindowMod = typeof import("@tauri-apps/api/window");
 
 let _webviewWindow: WebviewWindowMod | null = null;
 let _event: EventMod | null = null;
 let _window: WindowMod | null = null;
 
 export async function loadWebviewWindowApi(): Promise<WebviewWindowMod | null> {
-  if (!isTauri()) return null;
-  if (!_webviewWindow) _webviewWindow = await import('@tauri-apps/api/webviewWindow');
-  return _webviewWindow;
+	if (!isTauri()) return null;
+	if (!_webviewWindow)
+		_webviewWindow = await import("@tauri-apps/api/webviewWindow");
+	return _webviewWindow;
 }
 
 export async function loadEventApi(): Promise<EventMod | null> {
-  if (!isTauri()) return null;
-  if (!_event) _event = await import('@tauri-apps/api/event');
-  return _event;
+	if (!isTauri()) return null;
+	if (!_event) _event = await import("@tauri-apps/api/event");
+	return _event;
 }
 
 export async function loadWindowApi(): Promise<WindowMod | null> {
-  if (!isTauri()) return null;
-  if (!_window) _window = await import('@tauri-apps/api/window');
-  return _window;
+	if (!isTauri()) return null;
+	if (!_window) _window = await import("@tauri-apps/api/window");
+	return _window;
 }

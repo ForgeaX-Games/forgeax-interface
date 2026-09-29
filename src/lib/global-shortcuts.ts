@@ -1,3 +1,14 @@
+import type {
+	ApplicationShortcut,
+	ApplicationShortcutRegistry,
+} from "@forgeax/app-shell/application";
+import { installApplicationKeyboardRouter } from "@forgeax/app-shell/application";
+import { useEffect } from "react";
+import { t } from "@/i18n";
+import type { ContextualKeybindingsApi } from "../core/contextual-keybindings";
+import { useShellStore } from "../store";
+import { toggleCommandPalette } from "./command-palette-store";
+
 /**
  * Global keyboard shortcuts · Blender-inspired, IME-safe.
  *
@@ -10,7 +21,7 @@
  *   Ctrl+/        focus chat composer
  *   Ctrl+Shift+H  open Settings → Changelog (was Ctrl+H before 2026-08-04 —
  *                 UE-parity editor hide claimed Ctrl+H for "show all hidden")
- *   Esc           stop viewport Play; otherwise close current overlay
+ *   Esc           close current overlay (higher-priority owners may claim it)
  *                 (Settings → Dashboard → Fullscreen)
  *
  * IME 安全:
@@ -22,581 +33,349 @@
  * 注册:在 App 顶层调用 `useGlobalShortcuts()` 一次。
  */
 
-import { useEffect } from 'react';
-import { t } from '@/i18n';
-import { useShellStore } from '../store';
-import { toggleCommandPalette } from './command-palette-store';
-import type { ContextualKeybindingsApi } from '../core/contextual-keybindings';
+export {
+	type ApplicationKeydownHandler as GlobalKeydownHandler,
+	dispatchApplicationKeydownHandlers as dispatchGlobalKeydownHandlers,
+	isApplicationKeyComposing as isComposing,
+	registerApplicationKeydownHandler as registerGlobalKeydownHandler,
+} from "@forgeax/app-shell/application";
 
-export interface ShortcutDef {
-  /** 显示给用户的字符串,e.g. "Ctrl+Shift+F"。Mac 上 UI 会自动替换 Ctrl → ⌘/⌃。 */
-  combo: string;
-  /** 触发条件:keydown event → boolean。 */
-  match: (e: KeyboardEvent) => boolean;
-  /** 一行描述,显示在 Settings 表里。 */
-  label: string;
-  /** 分组(Layout / Mode / Overlay / Focus / general / edit)。 */
-  group: 'layout' | 'mode' | 'overlay' | 'focus' | 'general' | 'edit';
-  /** 触发动作。返回 true 表示 preventDefault。 */
-  run: (e?: KeyboardEvent) => boolean | void;
-  /** Esc 这种允许在 input 里触发(其他必须 target 不是 editable 才触发)。 */
-  allowInInput?: boolean;
-}
+export type ShortcutDef = ApplicationShortcut;
 
 // Helper: is the event happening inside a text-editing surface?
 // Guards against non-Element targets (e.g. window / document from synthetic
 // dispatch) where .tagName / .closest aren't defined.
 // Exported for unit tests (T4-9 typing-target-guard coverage).
 export function isTypingTarget(e: KeyboardEvent): boolean {
-  const t = e.target;
-  if (typeof document !== 'undefined' && document.querySelector('.im-editor[data-listening="1"]')) return true;
-  if (!t || !(t instanceof Element)) return false;
-  const tag = (t as HTMLElement).tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if ((t as HTMLElement).isContentEditable) return true;
-  // RichInput composer / Input Map panel
-  if (t.closest('.im-editor, .kc-composer-rich, [data-kc-composer], [contenteditable="true"]')) return true;
-  return false;
+	const t = e.target;
+	if (
+		typeof document !== "undefined" &&
+		document.querySelector('.im-editor[data-listening="1"]')
+	)
+		return true;
+	if (!t || !(t instanceof Element)) return false;
+	const tag = (t as HTMLElement).tagName;
+	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+	if ((t as HTMLElement).isContentEditable) return true;
+	// RichInput composer / Input Map panel
+	if (
+		t.closest(
+			'.im-editor, .kc-composer-rich, [data-kc-composer], [contenteditable="true"]',
+		)
+	)
+		return true;
+	return false;
 }
 
 /** Preview canvases own their edit-domain keyboard input locally. */
 export function isKeyboardOwnedSurface(e: KeyboardEvent): boolean {
-  const t = e.target;
-  return t instanceof Element && t.closest('[data-fx-keyboard-surface]') !== null;
+	const t = e.target;
+	return (
+		t instanceof Element && t.closest("[data-fx-keyboard-surface]") !== null
+	);
 }
 
-export function shouldSkipGlobalShortcut(e: KeyboardEvent, shortcut: Pick<ShortcutDef, 'group'>): boolean {
-  return shortcut.group === 'edit' && isKeyboardOwnedSurface(e);
-}
-
-// IME-composing check — Chinese input methods send a stream of keydowns
-// while composing; key === "Process" or keyCode === 229 signals "the user
-// is in IME, don't intercept anything."
-// Exported for unit tests (T4-9 IME-guard coverage).
-export function isComposing(e: KeyboardEvent): boolean {
-  if (e.isComposing) return true;
-  if (e.keyCode === 229) return true;
-  if (e.key === 'Process') return true;
-  return false;
+export function shouldSkipGlobalShortcut(
+	e: KeyboardEvent,
+	shortcut: Pick<ShortcutDef, "group">,
+): boolean {
+	return shortcut.group === "edit" && isKeyboardOwnedSurface(e);
 }
 
 /** IME / synthetic events may omit `key`; never call `.toLowerCase()` blindly. */
 function safeKeyLower(e: KeyboardEvent): string {
-  return typeof e.key === 'string' ? e.key.toLowerCase() : '';
+	return typeof e.key === "string" ? e.key.toLowerCase() : "";
 }
 
 // Ctrl-or-Cmd helper.
 function mod(e: KeyboardEvent): boolean {
-  return e.ctrlKey || e.metaKey;
+	return e.ctrlKey || e.metaKey;
 }
 
 // Is the scene editor the surface the user is currently looking at?
 //
-// The remaining legacy `edit` group (Ctrl+D / viewport W-E-R-F …) is injected
-// globally at boot and still dispatches against module-level editor selection /
-// viewport state. This coarse surface gate lets those keys escape whenever the editor is
-// not the foreground surface. Two facts, both interface-local (no editor
-// import, no focus/DOM resolver — that larger redesign is ADR-0029 scope; this
-// is its Phase 0 short-term mitigation):
-//   1. an overlay (Dashboard / Settings) is covering the shell, or
-//   2. the editor Page anchor is not currently visible.
-// Read live at event time (cached snapshot — cheap) so switching tab / opening
-// an overlay takes effect immediately.
+// Contributions classified as edit use the product shell's existing surface
+// identity and visibility policy. Read at event time so page/overlay changes
+// take effect without rebuilding the host or listener.
 export function isEditorSurfaceActive(): boolean {
-  if (useShellStore.getState().activeOverlay) return false;
-  const anchor = typeof document === 'undefined'
-    ? null
-    : document.querySelector<HTMLElement>('[data-surface-anchor="edit"]');
-  return Boolean(anchor && anchor.getClientRects().length > 0);
+	if (useShellStore.getState().activeOverlay) return false;
+	const anchor =
+		typeof document === "undefined"
+			? null
+			: document.querySelector<HTMLElement>('[data-surface-anchor="edit"]');
+	return Boolean(anchor && anchor.getClientRects().length > 0);
 }
 
-// ── Editor keyboard-router deps (keyboard-router convergence, M4 T4-1..T4-3) ──
-// The interface package is editor-agnostic (lint:agnostic forbids importing
-// @forgeax/editor), so the remaining edit-domain shortcuts (Ctrl+D / H /
-// Ctrl+H / Shift+H / G / Shift+G / viewport input) are injected by the host editor via
-// registerKeyboardRouterDeps. Each dep is a thin callback the editor wires to
-// its own gateway / selection / viewport-quadrant — the router stays a pure
-// dispatcher and never touches editor state directly (G-1 / AC-A1: still ONE
-// global keydown listener — the one in useGlobalShortcuts below).
-export interface RouterSelectedAsset {
-  guid: string;
-  kind: string;
-  name: string;
-  packPath: string;
-  payload: Record<string, unknown>;
+// Build the Settings list in product order, not event-routing priority order.
+// Exact duplicate descriptions share a row, but remain separate runtime owners.
+export function buildShortcuts(
+	contributions?: ApplicationShortcutRegistry,
+): ShortcutDef[] {
+	const store = useShellStore.getState;
+	const shortcuts: ShortcutDef[] = [
+		// ── Layout (collapse / fullscreen) ──
+		{
+			combo: "Ctrl+Shift+F",
+			group: "layout",
+			label: t("shortcuts.gameFullscreen"),
+			match: (e) => mod(e) && e.shiftKey && e.code === "KeyF",
+			run: () => {
+				store().toggleFullscreen();
+				return true;
+			},
+		},
+		{
+			combo: "Ctrl+Shift+Enter",
+			group: "layout",
+			label: t("shortcuts.browserFullscreen"),
+			match: (e) =>
+				mod(e) && e.shiftKey && (e.code === "Enter" || e.key === "Enter"),
+			run: () => {
+				// Browser-native fullscreen toggle. Independent of store.fullscreen
+				// — user can have either, both, or neither. Esc exits the native FS
+				// automatically; fullscreenchange listener below keeps state in sync
+				// if needed (we don't currently mirror native FS into the store,
+				// because the two modes are intentionally orthogonal).
+				try {
+					if (!document.fullscreenElement) {
+						void document.documentElement.requestFullscreen?.().catch(() => {
+							/* blocked */
+						});
+					} else {
+						void document.exitFullscreen?.().catch(() => {
+							/* */
+						});
+					}
+				} catch {
+					/* old browsers without FS API */
+				}
+				return true;
+			},
+		},
+		{
+			combo: "Ctrl+Shift+B",
+			group: "layout",
+			label: t("shortcuts.toggleSidebar"),
+			match: (e) => mod(e) && e.shiftKey && e.code === "KeyB",
+			run: () => {
+				store().toggleSidebar();
+				return true;
+			},
+		},
+		{
+			combo: "Ctrl+Shift+C",
+			group: "layout",
+			label: t("shortcuts.toggleChatPanel"),
+			match: (e) => mod(e) && e.shiftKey && e.code === "KeyC",
+			run: () => {
+				store().toggleChatpanel();
+				return true;
+			},
+		},
+		{
+			// 3-state chat toggle: closed → open at default (ChatDock); open but dragged
+			// into the centre grid → move it home; open at default → close. ChatDock owns
+			// the actual work (it holds chat's dockview api + panelLocations) — we just
+			// fire the intent so a single handler converges every route. preventDefault
+			// always so F1 never opens the browser help page.
+			combo: "F1",
+			group: "layout",
+			label: t("shortcuts.revealChat"),
+			match: (e) =>
+				!mod(e) &&
+				!e.shiftKey &&
+				!e.altKey &&
+				(e.key === "F1" || e.code === "F1"),
+			run: () => {
+				window.dispatchEvent(new CustomEvent("forgeax:chat-toggle"));
+				return true;
+			},
+		},
+
+		// ── Overlay (Dashboard / Settings) ──
+		{
+			combo: "Ctrl+Shift+D",
+			group: "overlay",
+			label: t("shortcuts.toggleDashboard"),
+			match: (e) => mod(e) && e.shiftKey && e.code === "KeyD",
+			run: () => {
+				const s = store();
+				s.activeOverlay === "dashboard"
+					? s.closeOverlay()
+					: s.openOverlay("dashboard");
+				return true;
+			},
+		},
+		{
+			combo: "Ctrl+,",
+			group: "overlay",
+			label: t("shortcuts.toggleSettings"),
+			match: (e) =>
+				mod(e) && !e.shiftKey && (e.key === "," || e.code === "Comma"),
+			run: () => {
+				const s = store();
+				s.activeOverlay === "settings"
+					? s.closeOverlay()
+					: s.openOverlay("settings");
+				return true;
+			},
+		},
+		{
+			combo: "Ctrl+Shift+H",
+			group: "overlay",
+			label: t("shortcuts.openChangelog"),
+			match: (e) => mod(e) && e.shiftKey && e.code === "KeyH",
+			run: () => {
+				store().openOverlay("settings", "changelog");
+				return true;
+			},
+		},
+		{
+			combo: "Esc",
+			group: "overlay",
+			label: t("shortcuts.closeOverlay"),
+			allowInInput: true,
+			match: (e) => e.key === "Escape" && !mod(e) && !e.shiftKey && !e.altKey,
+			run: () => {
+				const s = store();
+				// UI overlays own Escape first. Plain Escape is not a lifecycle
+				// command: Play may use it for pause/menu. Stop remains on the toolbar.
+				if (s.activeOverlay) {
+					s.closeOverlay();
+					return true;
+				}
+				// Browser fullscreen exits automatically on Esc — but be defensive
+				// in case some browser swallows the event before reaching the native
+				// handler; explicit exit is a no-op when no element is fullscreen.
+				if (document.fullscreenElement) {
+					void document.exitFullscreen?.().catch(() => {
+						/* */
+					});
+					return true;
+				}
+				if (s.fullscreen) {
+					s.setFullscreen(false);
+					return true;
+				}
+				return false;
+			},
+		},
+
+		{
+			combo: "Ctrl+Shift+0",
+			group: "overlay",
+			label: t("shortcuts.openExtensions"),
+			match: (e) =>
+				mod(e) &&
+				e.shiftKey &&
+				(e.code === "Digit0" || e.key === "0" || e.key === ")"),
+			run: () => {
+				store().openOverlay("settings", "plugins");
+				return true;
+			},
+		},
+
+		// ── Focus ──
+		{
+			combo: "Ctrl+/",
+			group: "focus",
+			label: t("shortcuts.focusComposer"),
+			allowInInput: true,
+			match: (e) =>
+				mod(e) && !e.shiftKey && (e.key === "/" || e.code === "Slash"),
+			run: () => {
+				// Auto-uncollapse first if hidden.
+				const s = store();
+				if (s.chatpanelCollapsed) s.toggleChatpanel();
+				// Focus the composer's editable element. Selector covers RichInput
+				// (preferred new path) and the legacy textarea fallback.
+				const el =
+					document.querySelector<HTMLElement>(
+						'.kc-composer-rich [contenteditable="true"]',
+					) ||
+					document.querySelector<HTMLElement>(".kc-composer textarea") ||
+					document.querySelector<HTMLElement>("[data-kc-composer]");
+				if (el) {
+					el.focus();
+					// Move caret to end if it's a contenteditable
+					if (el.isContentEditable) {
+						const sel = window.getSelection();
+						const range = document.createRange();
+						range.selectNodeContents(el);
+						range.collapse(false);
+						sel?.removeAllRanges();
+						sel?.addRange(range);
+					}
+				}
+				return true;
+			},
+		},
+	];
+	shortcuts.push({
+		priority: -20,
+		combo: "Ctrl+K",
+		group: "general",
+		label: t("shortcuts.toggleCommandPalette"),
+		match: (e) =>
+			mod(e) &&
+			!e.altKey &&
+			!e.shiftKey &&
+			(e.code === "KeyK" || safeKeyLower(e) === "k"),
+		run: () => {
+			toggleCommandPalette();
+			return true;
+		},
+	});
+	const shell = shortcuts.map((shortcut) => ({ priority: 10, ...shortcut }));
+	const rowKey = ({ combo, group, label }: ShortcutDef): string =>
+		JSON.stringify([combo, group, label]);
+	const seen = new Set(shell.map(rowKey));
+	const contributedRows: ShortcutDef[] = [];
+	for (const shortcut of contributions?.snapshot() ?? []) {
+		const key = rowKey(shortcut);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		contributedRows.push(shortcut);
+	}
+	return [...shell.slice(0, -1), ...contributedRows, ...shell.slice(-1)];
 }
 
-export interface KeyboardRouterDeps {
-  /** Dispatch an editor op through the one gateway door. */
-  dispatch: (op: { kind: string; [k: string]: unknown }, origin?: string) => void;
-  /** Current entity-selection handles (for Ctrl+D / H routing). */
-  getEntitySelection: () => number[];
-  /** Current asset-selection list (for Ctrl+D routing). */
-  getAssetSelection: () => RouterSelectedAsset[];
-  /** Derive of "who was selected last" — retained for not-yet-migrated Ctrl+D. */
-  getLastSelectionDomain: () => 'entity' | 'asset' | 'folder' | null;
-  /** True under ▶ Play. */
-  isPlayMode: () => boolean;
-  /** Current viewport display axis (for G / Shift+G Game View toggle, AC-Cb4). */
-  getDisplay: () => 'scene' | 'game';
-  /** Current input owner. */
-  getInputTarget: () => 'editor' | 'game';
-  /** Legacy command-registry support; no longer bound to global Delete. */
-  deleteEntities: (ids: number[]) => void;
-  /** Entity: duplicate the given handles. */
-  duplicateEntities: (ids: number[]) => void;
-  /** Entity: hide the given handles (H — UE parity; one transaction, one undo). */
-  hideEntities: (ids: number[]) => void;
-  /** Entity: show every hidden entity (Ctrl+H — UE parity). */
-  showAllHidden: () => void;
-  /** Entity: hide everything not selected (Shift+H — isolate selection). */
-  hideUnselected: () => void;
-  /** Legacy command-registry support; no longer bound to global Mod+A. */
-  selectAllEntities: () => void;
-  /** Asset: duplicate the given asset (guid, packPath). */
-  duplicateAsset: (guid: string, packPath: string) => void;
-  /** Editor history actions, injected so the interface stays editor-agnostic. */
-  undo: () => void;
-  redo: () => void;
-  save: () => void;
-  /** Recreate the active Play/runtime surface after a terminal viewport failure. */
-  restartPreview?: () => void;
-  /** Viewport W/E/R/F handling, including fly-mode/input ownership policy. */
-  handleViewportKeyDown: (event: KeyboardEvent) => void;
-}
-
-let routerDeps: KeyboardRouterDeps | null = null;
-
-/**
- * Register a short-lived keydown owner for an interaction that is not a
- * discoverable editor command (for example, Escape while a dock drag is
- * armed). The owner still runs through the single global keyboard listener;
- * feature modules must not install competing window-level listeners.
- */
-export type GlobalKeydownHandler = (event: KeyboardEvent) => boolean;
-
-const transientKeydownHandlers = new Set<GlobalKeydownHandler>();
-
-export function registerGlobalKeydownHandler(handler: GlobalKeydownHandler): () => void {
-  transientKeydownHandlers.add(handler);
-  return () => transientKeydownHandlers.delete(handler);
-}
-
-export function dispatchGlobalKeydownHandlers(event: KeyboardEvent): boolean {
-  for (const handler of [...transientKeydownHandlers]) {
-    if (handler(event)) return true;
-  }
-  return false;
-}
-
-/** Inject the editor-side callbacks the router needs. Called once at host boot
- *  (forgeax-editor standalone/main.tsx) BEFORE the App mounts (useGlobalShortcuts
- *  reads this at effect time, which is after mount, so registration first is safe). */
-export function registerKeyboardRouterDeps(deps: KeyboardRouterDeps | null): void {
-  routerDeps = deps;
-}
-/** Read the currently injected router deps. Returns null until the host has
- *  called registerKeyboardRouterDeps() at boot. Command-bus wrappers
- *  (editor-commands extension) resolve deps lazily via this getter so they
- *  stay editor-agnostic and boot-order-safe. */
-export function getKeyboardRouterDeps(): KeyboardRouterDeps | null {
-  return routerDeps;
-}
-
-// Build the edit-domain shortcut list from injected deps. Pure dispatcher: every
-// branch routes through a dep callback (which the editor maps onto gateway ops),
-// so this file stays editor-agnostic. Three-layer guards (IME / typing-target /
-// play-mode) are enforced by the host's onKey wrapper (isComposing / isTypingTarget)
-// plus the per-op play-mode checks below.
-function editShortcuts(deps: KeyboardRouterDeps): ShortcutDef[] {
-  const routeCtrlD = (): boolean => {
-    const domain = deps.getLastSelectionDomain() ?? 'entity';
-    if (domain === 'asset') {
-      for (const a of deps.getAssetSelection()) deps.duplicateAsset(a.guid, a.packPath);
-      return true;
-    }
-    const ids = deps.getEntitySelection();
-    if (ids.length > 0) { deps.duplicateEntities(ids); return true; }
-    return false;
-  };
-  // UE-parity editor hide (docs 2026-08-04-editor-hide-ue-parity-plan M2):
-  // H hides the selection, Ctrl+H shows every hidden entity, Shift+H hides
-  // the unselected (isolate). Entity-domain only; under Play the game keeps
-  // its keys (same guard as entity Delete).
-  const routeH = (): boolean => {
-    if (deps.isPlayMode()) return false;
-    const ids = deps.getEntitySelection();
-    if (ids.length === 0) return false;
-    deps.hideEntities(ids);
-    return true;
-  };
-  const routeShiftH = (): boolean => {
-    if (deps.isPlayMode()) return false;
-    if (deps.getEntitySelection().length === 0) return false;
-    deps.hideUnselected();
-    return true;
-  };
-  const routeCtrlH = (): boolean => {
-    if (deps.isPlayMode()) return false;
-    deps.showAllHidden();
-    return true;
-  };
-  // Viewport Game View toggle. Plain G is editor-only while not playing so a
-  // running game retains its gameplay binding; Shift+G remains the explicit
-  // Play shortcut and is also available in Edit Viewport.
-  const routeShiftG = (): boolean => {
-    deps.dispatch({ kind: 'setDisplay', display: deps.getDisplay() === 'game' ? 'scene' : 'game' }, 'human');
-    return true;
-  };
-  const routeEditorOwnedPlayKey = (e?: KeyboardEvent): boolean => {
-    if (!e) return true;
-    deps.handleViewportKeyDown(e);
-    return true;
-  };
-  const routeViewportInput = (e?: KeyboardEvent): boolean => {
-    if (!e) return false;
-    if (deps.getInputTarget() === 'game') return false;
-    deps.handleViewportKeyDown(e);
-    return true;
-  };
-
-  return [
-    {
-      combo: 'Ctrl+D',
-      group: 'edit',
-      label: t('shortcuts.duplicateSelection'),
-      match: (e) => mod(e) && !e.shiftKey && !e.altKey
-        && (e.code === 'KeyD' || safeKeyLower(e) === 'd'),
-      run: routeCtrlD,
-    },
-    {
-      combo: 'H',
-      group: 'edit',
-      label: t('shortcuts.hideSelected'),
-      match: (e) => !mod(e) && !e.shiftKey && !e.altKey && e.code === 'KeyH',
-      run: routeH,
-    },
-    {
-      combo: 'Shift+H',
-      group: 'edit',
-      label: t('shortcuts.hideUnselected'),
-      match: (e) => !mod(e) && e.shiftKey && !e.altKey && e.code === 'KeyH',
-      run: routeShiftH,
-    },
-    {
-      combo: 'Ctrl+H',
-      group: 'edit',
-      label: t('shortcuts.showAllHidden'),
-      match: (e) => mod(e) && !e.shiftKey && !e.altKey && e.code === 'KeyH',
-      run: routeCtrlH,
-    },
-    {
-      combo: 'Shift+G',
-      group: 'edit',
-      label: t('shortcuts.toggleViewportGameView'),
-      match: (e) => !mod(e) && e.shiftKey && !e.altKey
-        && (e.key === 'g' || e.key === 'G'),
-      run: routeShiftG,
-    },
-    {
-      combo: 'G',
-      group: 'edit',
-      label: t('shortcuts.toggleViewportGameView'),
-      match: (e) => !mod(e) && !e.shiftKey && !e.altKey
-        && !deps.isPlayMode() && deps.getInputTarget() !== 'game'
-        && (e.key === 'g' || e.key === 'G'),
-      run: routeShiftG,
-    },
-    {
-      combo: 'Ctrl+Z',
-      group: 'edit',
-      label: t('shortcuts.undo'),
-      allowInInput: true,
-      match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyZ' || safeKeyLower(e) === 'z'),
-      run: () => { deps.undo(); return true; },
-    },
-    {
-      combo: 'Ctrl+Shift+Z',
-      group: 'edit',
-      label: t('shortcuts.redo'),
-      allowInInput: true,
-      match: (e) => mod(e) && !e.altKey && e.shiftKey && (e.code === 'KeyZ' || safeKeyLower(e) === 'z'),
-      run: () => { deps.redo(); return true; },
-    },
-    {
-      combo: 'Ctrl+Y',
-      group: 'edit',
-      label: t('shortcuts.redo'),
-      allowInInput: true,
-      match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyY' || safeKeyLower(e) === 'y'),
-      run: () => { deps.redo(); return true; },
-    },
-    {
-      combo: 'Ctrl+S',
-      group: 'edit',
-      label: t('shortcuts.save'),
-      // Must fire while typing in Input Map / MI fields (⌘/Ctrl+S is a document
-      // command, not a text-editing key). Without this, focus inside `.im-editor`
-      // makes isTypingTarget true and silently drops save.
-      allowInInput: true,
-      match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyS' || safeKeyLower(e) === 's'),
-      run: () => { deps.save(); return true; },
-    },
-    {
-      combo: 'Viewport camera and fly input',
-      group: 'edit',
-      label: t('shortcuts.viewportNavigation'),
-      match: (e) => {
-        if (deps.getInputTarget() === 'game') return false;
-        const key = safeKeyLower(e);
-        if (!key) return false;
-        // UE-style view presets (Alt+G/H/J/K) route to the viewport handler,
-        // which owns the camera. All other Alt combos stay excluded here.
-        if (e.altKey) {
-          return !mod(e) && !e.shiftKey && ['g', 'h', 'j', 'k'].includes(key);
-        }
-        const plainCameraKey = !mod(e)
-          && (['w', 'e', 'r', 'f', 'a', 's', 'd', 'q', 'v', 'z', 'c', 'escape', 'shift'].includes(key)
-            || /^[1-9]$/.test(key));
-        const bookmarkKey = mod(e) && !e.shiftKey && /^[1-9]$/.test(key);
-        return plainCameraKey || bookmarkKey;
-      },
-      run: routeViewportInput,
-    },
-    {
-      combo: 'Play editor input shield',
-      group: 'edit',
-      label: t('shortcuts.shieldGameInput'),
-      match: () => deps.isPlayMode() && deps.getInputTarget() !== 'game',
-      run: routeEditorOwnedPlayKey,
-    },
-  ];
-}
-
-// Build the shortcut registry. Each match() / run() is plain JS so we can
-// drive them from a Settings table later (or a Command Palette).
-export function buildShortcuts(): ShortcutDef[] {
-  const store = useShellStore.getState;
-  const shortcuts: ShortcutDef[] = [
-    // ── Layout (collapse / fullscreen) ──
-    {
-      combo: 'Ctrl+Shift+F',
-      group: 'layout',
-      label: t('shortcuts.gameFullscreen'),
-      match: (e) => mod(e) && e.shiftKey && e.code === 'KeyF',
-      run: () => { store().toggleFullscreen(); return true; },
-    },
-    {
-      combo: 'Ctrl+Shift+Enter',
-      group: 'layout',
-      label: t('shortcuts.browserFullscreen'),
-      match: (e) => mod(e) && e.shiftKey && (e.code === 'Enter' || e.key === 'Enter'),
-      run: () => {
-        // Browser-native fullscreen toggle. Independent of store.fullscreen
-        // — user can have either, both, or neither. Esc exits the native FS
-        // automatically; fullscreenchange listener below keeps state in sync
-        // if needed (we don't currently mirror native FS into the store,
-        // because the two modes are intentionally orthogonal).
-        try {
-          if (!document.fullscreenElement) {
-            void document.documentElement.requestFullscreen?.().catch(() => { /* blocked */ });
-          } else {
-            void document.exitFullscreen?.().catch(() => { /* */ });
-          }
-        } catch { /* old browsers without FS API */ }
-        return true;
-      },
-    },
-    {
-      combo: 'Ctrl+Shift+B',
-      group: 'layout',
-      label: t('shortcuts.toggleSidebar'),
-      match: (e) => mod(e) && e.shiftKey && e.code === 'KeyB',
-      run: () => { store().toggleSidebar(); return true; },
-    },
-    {
-      combo: 'Ctrl+Shift+C',
-      group: 'layout',
-      label: t('shortcuts.toggleChatPanel'),
-      match: (e) => mod(e) && e.shiftKey && e.code === 'KeyC',
-      run: () => { store().toggleChatpanel(); return true; },
-    },
-    {
-      // 3-state chat toggle: closed → open at default (ChatDock); open but dragged
-      // into the centre grid → move it home; open at default → close. ChatDock owns
-      // the actual work (it holds chat's dockview api + panelLocations) — we just
-      // fire the intent so a single handler converges every route. preventDefault
-      // always so F1 never opens the browser help page.
-      combo: 'F1',
-      group: 'layout',
-      label: t('shortcuts.revealChat'),
-      match: (e) => !mod(e) && !e.shiftKey && !e.altKey && (e.key === 'F1' || e.code === 'F1'),
-      run: () => { window.dispatchEvent(new CustomEvent('forgeax:chat-toggle')); return true; },
-    },
-
-    // ── Overlay (Dashboard / Settings) ──
-    {
-      combo: 'Ctrl+Shift+D',
-      group: 'overlay',
-      label: t('shortcuts.toggleDashboard'),
-      match: (e) => mod(e) && e.shiftKey && e.code === 'KeyD',
-      run: () => { const s = store(); s.activeOverlay === 'dashboard' ? s.closeOverlay() : s.openOverlay('dashboard'); return true; },
-    },
-    {
-      combo: 'Ctrl+,',
-      group: 'overlay',
-      label: t('shortcuts.toggleSettings'),
-      match: (e) => mod(e) && !e.shiftKey && (e.key === ',' || e.code === 'Comma'),
-      run: () => { const s = store(); s.activeOverlay === 'settings' ? s.closeOverlay() : s.openOverlay('settings'); return true; },
-    },
-    {
-      combo: 'Ctrl+Shift+H',
-      group: 'overlay',
-      label: t('shortcuts.openChangelog'),
-      match: (e) => mod(e) && e.shiftKey && e.code === 'KeyH',
-      run: () => { store().openOverlay('settings', 'changelog'); return true; },
-    },
-    {
-      combo: 'Esc',
-      group: 'overlay',
-      label: t('shortcuts.closeOverlay'),
-      allowInInput: true,
-      match: (e) => e.key === 'Escape' && !mod(e) && !e.shiftKey && !e.altKey,
-      run: () => {
-        const s = store();
-        // UI overlays own Escape first. Plain Escape is not a lifecycle
-        // command: Play may use it for pause/menu. Stop remains on the toolbar.
-        if (s.activeOverlay) { s.closeOverlay(); return true; }
-        if (routerDeps?.isPlayMode()) return false;
-        // Browser fullscreen exits automatically on Esc — but be defensive
-        // in case some browser swallows the event before reaching the native
-        // handler; explicit exit is a no-op when no element is fullscreen.
-        if (document.fullscreenElement) {
-          void document.exitFullscreen?.().catch(() => { /* */ });
-          return true;
-        }
-        if (s.fullscreen)     { s.setFullscreen(false); return true; }
-        return false;
-      },
-    },
-
-    {
-      combo: 'Ctrl+Shift+0',
-      group: 'overlay',
-      label: t('shortcuts.openExtensions'),
-      match: (e) => mod(e) && e.shiftKey && (e.code === 'Digit0' || e.key === '0' || e.key === ')'),
-      run: () => { store().openOverlay('settings', 'plugins'); return true; },
-    },
-
-    // ── Focus ──
-    {
-      combo: 'Ctrl+/',
-      group: 'focus',
-      label: t('shortcuts.focusComposer'),
-      allowInInput: true,
-      match: (e) => mod(e) && !e.shiftKey && (e.key === '/' || e.code === 'Slash'),
-      run: () => {
-        // Auto-uncollapse first if hidden.
-        const s = store();
-        if (s.chatpanelCollapsed) s.toggleChatpanel();
-        // Focus the composer's editable element. Selector covers RichInput
-        // (preferred new path) and the legacy textarea fallback.
-        const el =
-          document.querySelector<HTMLElement>('.kc-composer-rich [contenteditable="true"]') ||
-          document.querySelector<HTMLElement>('.kc-composer textarea') ||
-          document.querySelector<HTMLElement>('[data-kc-composer]');
-        if (el) {
-          el.focus();
-          // Move caret to end if it's a contenteditable
-          if (el.isContentEditable) {
-            const sel = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(el);
-            range.collapse(false);
-            sel?.removeAllRanges();
-            sel?.addRange(range);
-          }
-        }
-        return true;
-      },
-    },
-  ];
-  // Inject the host editor's remaining edit-domain shortcuts when deps were
-  // registered at boot. Focus-owned F2/Delete/Mod+A live in host.keybindings.
-  if (routerDeps) shortcuts.push(...editShortcuts(routerDeps));
-  shortcuts.push({
-    combo: 'Ctrl+K',
-    group: 'general',
-    label: t('shortcuts.toggleCommandPalette'),
-    match: (e) => mod(e) && !e.altKey && !e.shiftKey && (e.code === 'KeyK' || safeKeyLower(e) === 'k'),
-    run: () => { toggleCommandPalette(); return true; },
-  });
-  return shortcuts;
-}
-
-/**
- * Mount once at App root. Returns nothing — purely an effect.
- *
- * `passive: false` so we can preventDefault — required for Ctrl+, (Chrome
- * historically had no native binding but treat it as user gesture) and
- * Ctrl+Shift+1/2/3 (which Chrome maps to tab switching only WITHOUT Shift,
- * so we're safe, but we preventDefault anyway).
- */
-export function useGlobalShortcuts(keybindings?: ContextualKeybindingsApi): void {
-  useEffect(() => {
-    const shortcuts = buildShortcuts();
-    const onKey = (e: KeyboardEvent) => {
-      // 0. IME composing — bail. Never intercept Chinese pinyin chord.
-      if (isComposing(e)) return;
-      // 1. Short-lived interaction owners (drag cancel, etc.) get priority
-      // inside the same global listener and can consume the event before
-      // discoverable editor commands see it.
-      if (dispatchGlobalKeydownHandlers(e)) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      // 2. The contextual resolver gets first refusal inside the ONE capture
-      // listener. A handled or disabled-but-claimed binding must not fall into
-      // legacy application shortcuts; passthrough/unclaimed continues below.
-      const contextual = keybindings?.handle(e);
-      if (contextual?.status === 'handled' || contextual?.status === 'claimed-disabled') return;
-      // 3. Find first matching legacy shortcut.
-      for (const s of shortcuts) {
-        // A focused preview owns camera/fly keys locally. Keep non-edit global
-        // shortcuts available, but never route preview input to the main editor.
-        if (shouldSkipGlobalShortcut(e, s)) continue;
-        // 3a. Typing target → skip before match() (match may call safeKeyLower).
-        if (isTypingTarget(e) && !s.allowInInput) continue;
-        // 3b. Surface gate — edit-group keys only act while the scene editor is
-        // the foreground surface; otherwise let them escape (fall through to the
-        // focused component / browser default). See isEditorSurfaceActive.
-        if (s.group === 'edit' && !isEditorSurfaceActive()) continue;
-        if (!s.match(e)) continue;
-        const shouldPreventDefault = s.run(e) !== false;
-        if (shouldPreventDefault) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        return;
-      }
-    };
-    window.addEventListener('keydown', onKey, true); // capture-phase: beat ChatPanel handlers
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [keybindings]);
+/** Compatibility callers retain their definitions and product policies. */
+export function useGlobalShortcuts(
+	keybindings: ContextualKeybindingsApi,
+	contributions: ApplicationShortcutRegistry,
+	productShortcuts?: readonly ShortcutDef[],
+): void {
+	useEffect(
+		() =>
+			installApplicationKeyboardRouter({
+				keybindings,
+				contributions,
+				shortcuts: productShortcuts ?? buildShortcuts(),
+				isTypingTarget,
+				shouldSkipShortcut: (event, shortcut) =>
+					shouldSkipGlobalShortcut(event, shortcut) ||
+					(shortcut.group === "edit" && !isEditorSurfaceActive()),
+			}),
+		[keybindings, contributions, productShortcuts],
+	);
 }
 
 // macOS pretty-printing for shortcut combos shown in Settings.
 // Returns the canonical UI string. When platform is omitted, auto-detects macOS.
-export function prettyCombo(combo: string, platform?: 'mac' | 'windows'): string {
-  const isMac = platform === 'mac'
-    || (platform === undefined
-      && typeof navigator !== 'undefined'
-      && /mac/i.test(navigator.platform));
-  if (!isMac) return combo;
-  return combo
-    .replace(/Ctrl/g, '⌘')
-    .replace(/Shift/g, '⇧')
-    .replace(/Alt/g, '⌥')
-    .replace(/\+/g, '');
+export function prettyCombo(
+	combo: string,
+	platform?: "mac" | "windows",
+): string {
+	const isMac =
+		platform === "mac" ||
+		(platform === undefined &&
+			typeof navigator !== "undefined" &&
+			/mac/i.test(navigator.platform));
+	if (!isMac) return combo;
+	return combo
+		.replace(/Ctrl/g, "⌘")
+		.replace(/Shift/g, "⇧")
+		.replace(/Alt/g, "⌥")
+		.replace(/\+/g, "");
 }

@@ -16,31 +16,34 @@
  *  保持一致，集中维护一份。 */
 
 export interface CliProviderInfo {
-  id: string;
-  displayName: string;
-  health: { ok: boolean; detail?: string; pending?: boolean };
-  capabilities: Record<string, boolean>;
+	id: string;
+	displayName: string;
+	health: { ok: boolean; detail?: string; pending?: boolean };
+	capabilities: Record<string, boolean>;
 }
 
 const PROVIDER_DISPLAY: Record<string, string> = {
-  // The native kernel arrives from /api/cli/health as `forgeax-core` (the
-  // product-shell-injected kernel id). There is NO bare `forgeax` provider —
-  // the pre-R3 `forgeax` CliProvider was dropped (see cli-providers registry
-  // comment), so a `forgeax` mapping here would just point at a ghost id.
-  "forgeax-core": "ForgeaX Kernel",
-  "claude-code": "the reference agent CLI",
-  "codex": "OpenAI Codex",
-  "cursor-agent": "Cursor Agent",
-  "codebuddy": "a peer agent CLI",
-  "kimi-code": "Kimi Code",
-  "deepseek-harness": "DeepSeek Harness",
+	// The native kernel arrives from /api/cli/health as `forgeax-core` (the
+	// product-shell-injected kernel id). There is NO bare `forgeax` provider —
+	// the pre-R3 `forgeax` CliProvider was dropped (see cli-providers registry
+	// comment), so a `forgeax` mapping here would just point at a ghost id.
+	"forgeax-core": "ForgeaX Kernel",
+	"claude-code": "the reference agent CLI",
+	codex: "OpenAI Codex",
+	"cursor-agent": "Cursor Agent",
+	codebuddy: "a peer agent CLI",
+	"kimi-code": "Kimi Code",
+	"deepseek-harness": "DeepSeek Harness",
 };
 
 /** Initial display catalog only: detection remains authoritative for availability. */
 export function pendingCliProviders(): CliProviderInfo[] {
-  return Object.entries(PROVIDER_DISPLAY).map(([id, displayName]) => ({
-    id, displayName, health: { ok: false, pending: true }, capabilities: {},
-  }));
+	return Object.entries(PROVIDER_DISPLAY).map(([id, displayName]) => ({
+		id,
+		displayName,
+		health: { ok: false, pending: true },
+		capabilities: {},
+	}));
 }
 
 // `/api/cli/health` still carries legacy provider-adapter fields such as
@@ -49,47 +52,49 @@ export function pendingCliProviders(): CliProviderInfo[] {
 // misleading. Keep the UI projection to capabilities whose meaning is shared
 // by the current kernel contract; unknown/legacy fields remain server-internal.
 const DISPLAYABLE_KERNEL_CAPABILITIES = new Set([
-  'streaming',
-  'thinking',
-  'toolCalls',
-  'midTurnInject',
-  'forkExtract',
+	"streaming",
+	"thinking",
+	"toolCalls",
+	"midTurnInject",
+	"forkExtract",
 ]);
 
 export function displayableKernelCapabilities(
-  capabilities: Record<string, boolean> | undefined,
+	capabilities: Record<string, boolean> | undefined,
 ): Record<string, boolean> {
-  return Object.fromEntries(
-    Object.entries(capabilities ?? {}).filter(([key]) => DISPLAYABLE_KERNEL_CAPABILITIES.has(key)),
-  );
+	return Object.fromEntries(
+		Object.entries(capabilities ?? {}).filter(([key]) =>
+			DISPLAYABLE_KERNEL_CAPABILITIES.has(key),
+		),
+	);
 }
 
 interface RawCliHealth {
-  ok?: boolean;
-  providers?: Array<{
-    id: string;
-    ok?: boolean;
-    detail?: string;
-    capabilities?: Record<string, boolean>;
-  }>;
+	ok?: boolean;
+	providers?: Array<{
+		id: string;
+		ok?: boolean;
+		detail?: string;
+		capabilities?: Record<string, boolean>;
+	}>;
 }
 
 /** Single source of truth for the /api/cli/health → CliProviderInfo[] mapping.
  *  `force` is currently ignored upstream (R3 桥每次都打到 provider.health) but
  *  保留参数兼容旧 dashApi.providers(true) caller。 */
 export async function fetchCliProviders(
-  force = false,
-  signal?: AbortSignal,
+	force = false,
+	signal?: AbortSignal,
 ): Promise<{ providers: CliProviderInfo[]; cachedAt: number }> {
-  void force; // R3: upstream `/api/cli/health` always lives-checks.
-  const r = await fetch("/api/cli/health", { signal });
-  if (!r.ok) throw new Error(`/api/cli/health ${r.status}`);
-  const j = (await r.json()) as RawCliHealth;
-  const providers: CliProviderInfo[] = (j.providers ?? []).map((p) => ({
-    id: p.id,
-    displayName: PROVIDER_DISPLAY[p.id] ?? p.id,
-    health: { ok: !!p.ok, detail: p.detail },
-    capabilities: displayableKernelCapabilities(p.capabilities),
-  }));
-  return { providers, cachedAt: Date.now() };
+	void force; // R3: upstream `/api/cli/health` always lives-checks.
+	const r = await fetch("/api/cli/health", { signal });
+	if (!r.ok) throw new Error(`/api/cli/health ${r.status}`);
+	const j = (await r.json()) as RawCliHealth;
+	const providers: CliProviderInfo[] = (j.providers ?? []).map((p) => ({
+		id: p.id,
+		displayName: PROVIDER_DISPLAY[p.id] ?? p.id,
+		health: { ok: !!p.ok, detail: p.detail },
+		capabilities: displayableKernelCapabilities(p.capabilities),
+	}));
+	return { providers, cachedAt: Date.now() };
 }

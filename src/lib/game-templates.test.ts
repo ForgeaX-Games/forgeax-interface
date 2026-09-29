@@ -1,28 +1,30 @@
-import { afterEach, describe, expect, test } from 'bun:test';
-import { listGameTemplates } from './game-templates';
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import { listGameTemplates } from "./game-templates";
 
-const realFetch = globalThis.fetch;
+let originalFetch: typeof fetch;
 
-afterEach(() => {
-  globalThis.fetch = realFetch;
+beforeEach(() => {
+	originalFetch = globalThis.fetch;
 });
 
-describe('listGameTemplates', () => {
-  test('reads the project API template catalog', async () => {
-    let requestedUrl = '';
-    globalThis.fetch = (async (input) => {
-      requestedUrl = String(input);
-      return new Response(JSON.stringify({
-        templates: [
-          { slug: 'game-default', name: 'Default' },
-          { slug: '', name: 'Invalid' },
-        ],
-      }), { status: 200 });
-    }) as typeof fetch;
+afterEach(() => {
+	globalThis.fetch = originalFetch;
+});
 
-    await expect(listGameTemplates()).resolves.toEqual([
-      { slug: 'game-default', name: 'Default' },
-    ]);
-    expect(requestedUrl).toBe('/api/projects/templates');
-  });
+test("loads templates from the Projects API", async () => {
+	let requested: string | undefined;
+	globalThis.fetch = (async (input) => {
+		requested = String(input);
+		return Response.json({
+			templates: [
+				{ slug: "game-default", name: "Default" },
+				{ slug: "", name: "Invalid" },
+			],
+		});
+	}) as typeof fetch;
+
+	await expect(listGameTemplates()).resolves.toEqual([
+		{ slug: "game-default", name: "Default" },
+	]);
+	expect(requested).toBe("/api/projects/templates");
 });

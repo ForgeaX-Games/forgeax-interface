@@ -14,202 +14,239 @@
  *   - surface.subscribe — observe surface.expose for AgentsPanel
  *   - setTheme    — pushed when light/dark or locale changes
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactElement } from 'react';
-import { getLocale, useTranslation } from '@/i18n';
-import type { ExtensionInfo } from '../../lib/extension-api';
-import { useShellStore } from '../../store';
-import { openExtensionPage } from '../../core/page-navigation';
-import { getSessionClient } from '../../store-parts/session-client';
-import { ExtensionIframeHost } from '../ExtensionHost/ExtensionIframeHost';
-import { usePanelRenderers } from '../DockShell/panelRenderers';
+
+import type { ReactElement } from "react";
+import { useCallback, useMemo } from "react";
+import { getLocale, useTranslation } from "@/i18n";
+import { openExtensionPage } from "../../core/page-navigation";
+import type { ExtensionInfo } from "../../lib/extension-api";
+import { useShellStore } from "../../store";
+import { getSessionClient } from "../../store-parts/session-client";
+import { usePanelRenderers } from "../DockShell/panelRenderers";
+import { ExtensionIframeHost } from "../ExtensionHost/ExtensionIframeHost";
 
 /** Split-surface extension Page pane. The extension's
  *  index.html reads `?pane=` and tags `<body data-pane=...>`; CSS hides the
  *  irrelevant regions so left/center can be embedded as sibling iframes that
  *  sync via same-origin BroadcastChannel. */
-export type ExtensionIframePane = 'left' | 'center';
+export type ExtensionIframePane = "left" | "center";
 
 interface Props {
-  plugin: ExtensionInfo;
-  pane?: ExtensionIframePane;
-  /** Keep-alive visibility. When false the iframe stays mounted & alive but is
-   *  CSS-hidden (no reload), and we push `visibility.changed{visible:false}` so
-   *  heavy plugins can pause their render loop. Defaults to true (standalone /
-   *  non-keep-alive callers keep the old always-visible behavior). */
-  active?: boolean;
-  /** Explicit cold-reload counter. The iframe URL embeds this as `fxv`; the URL
-   *  is otherwise STABLE for a given plugin id + version + slug, so keep-alive
-   *  actually works (switching panels / games no longer reloads the iframe and
-   *  drops its WebGPU ctx / WS / scroll). Bump this only when you intend a
-   *  deliberate hard reload (e.g. a recovery "重载" button). Defaults to 0. */
-  reloadNonce?: number;
+	plugin: ExtensionInfo;
+	pane?: ExtensionIframePane;
+	/** Keep-alive visibility. When false the iframe stays mounted & alive but is
+	 *  CSS-hidden (no reload), and we push `visibility.changed{visible:false}` so
+	 *  heavy plugins can pause their render loop. Defaults to true (standalone /
+	 *  non-keep-alive callers keep the old always-visible behavior). */
+	active?: boolean;
+	/** Explicit cold-reload counter. The iframe URL embeds this as `fxv`; the URL
+	 *  is otherwise STABLE for a given plugin id + version + slug, so keep-alive
+	 *  actually works (switching panels / games no longer reloads the iframe and
+	 *  drops its WebGPU ctx / WS / scroll). Bump this only when you intend a
+	 *  deliberate hard reload (e.g. a recovery "重载" button). Defaults to 0. */
+	reloadNonce?: number;
 }
 
 export function buildIframeSrc(
-  plugin: ExtensionInfo,
-  pane?: ExtensionIframePane,
-  slug?: string | null,
+	plugin: ExtensionInfo,
+	pane?: ExtensionIframePane,
+	slug?: string | null,
 ): string | null {
-  const sa = plugin.entry?.standalone;
-  if (!plugin.frontendUrl && !sa && !plugin.entry?.frontend) return null;
-  // Explicit host-validated dev URLs win. Existing embedded/proxy/port modes
-  // remain for installed extensions and never infer a Toolkit registration.
-  // Four address modes:
-  //   1. embeddedAlso=true — plugin ships a built dist served by the host at
-  //      /extensions/<id>/. Prefer this when set: the studio doesn't launch the
-  //      plugin's own dev server, and declared `port` may collide with other
-  //      services (e.g. extension-character's 15173 collides with the engine).
-  //   2. anydev/cloud proxy mode — keep the browser on Studio's HTTPS origin and
-  //      let Vite proxy to the plugin's plain-HTTP dev server inside the container.
-  //   3. plugin declares `port` — use http://<host>:<port>/<readyProbe?>
-  //   4. plugin only declares `start` — fall back to /extensions/<id>/.
-  const shortId = plugin.id.replace(/^@[^/]+\//, '');
-  const encodedShortId = encodeURIComponent(shortId);
-  const embeddedSrc = `/extensions/${encodedShortId}/`;
-  let base: string;
-  if (plugin.frontendUrl) base = plugin.frontendUrl;
-  else if (plugin.entry?.frontend || sa?.embeddedAlso === true) base = embeddedSrc;
-  else if (import.meta.env.VITE_FORGEAX_STANDALONE_PROXY === '1') {
-    const probe = sa?.readyProbe ?? '/';
-    const path = probe.startsWith('/') ? probe : `/${probe}`;
-    base = `/__fx-plugin/${encodedShortId}${path}`;
-  } else if (typeof sa?.port === 'number') {
-    const probe = sa.readyProbe ?? '/';
-    const path = probe.startsWith('/') ? probe : `/${probe}`;
-    // Match the parent page's protocol. When the Studio UI is served over HTTPS
-    // (FORGEAX_INTERFACE_HTTPS=1, e.g. remote-IP access) an `http://` iframe is
-    // blocked as mixed content. The plugin dev server must then also serve HTTPS
-    // (run.ts passes the studio .tls cert to its vite). Falls back to http://
-    // transparently when the parent is http.
-    base = `${window.location.protocol}//${window.location.hostname}:${sa.port}${path}`;
-  } else base = embeddedSrc;
-  // 多游戏：把当前 game slug 喂进 iframe URL，让 extension-scene 等"per-game data"
-  // 类型的插件能在自己空间里读出。其它插件忽略此参数即可。
-  const params: string[] = [];
-  if (pane) params.push(`pane=${encodeURIComponent(pane)}`);
-  if (slug) params.push(`slug=${encodeURIComponent(slug)}`);
-  params.push(`locale=${encodeURIComponent(getLocale())}`);
-  if (params.length === 0) return base;
-  return base + (base.includes('?') ? '&' : '?') + params.join('&');
+	const sa = plugin.entry?.standalone;
+	if (!plugin.frontendUrl && !sa && !plugin.entry?.frontend) return null;
+	// Explicit host-validated dev URLs win. Existing embedded/proxy/port modes
+	// remain for installed extensions and never infer a Toolkit registration.
+	// Four address modes:
+	//   1. embeddedAlso=true — plugin ships a built dist served by the host at
+	//      /extensions/<id>/. Prefer this when set: the studio doesn't launch the
+	//      plugin's own dev server, and declared `port` may collide with other
+	//      services (e.g. extension-character's 15173 collides with the engine).
+	//   2. anydev/cloud proxy mode — keep the browser on Studio's HTTPS origin and
+	//      let Vite proxy to the plugin's plain-HTTP dev server inside the container.
+	//   3. plugin declares `port` — use http://<host>:<port>/<readyProbe?>
+	//   4. plugin only declares `start` — fall back to /extensions/<id>/.
+	const shortId = plugin.id.replace(/^@[^/]+\//, "");
+	const encodedShortId = encodeURIComponent(shortId);
+	const embeddedSrc = `/extensions/${encodedShortId}/`;
+	let base: string;
+	if (plugin.frontendUrl) {
+		base = plugin.frontendUrl;
+	} else if (sa?.embeddedAlso === true) {
+		// Only `embeddedAlso: true` opts into host-served dist. A bare
+		// `entry.frontend` path must NOT skip standalone port/proxy — reel and
+		// similar plugins ship both `./dist/index.html` and a Vite port, and the
+		// dist HTML uses absolute `/assets/...` URLs that 404 under /extensions/.
+		base = embeddedSrc;
+	} else if (import.meta.env.VITE_FORGEAX_STANDALONE_PROXY === "1" && sa) {
+		const probe = sa.readyProbe ?? "/";
+		const path = probe.startsWith("/") ? probe : `/${probe}`;
+		base = `/__fx-plugin/${encodedShortId}${path}`;
+	} else if (typeof sa?.port === "number") {
+		const probe = sa.readyProbe ?? "/";
+		const path = probe.startsWith("/") ? probe : `/${probe}`;
+		// Match the parent page's protocol. When the Studio UI is served over HTTPS
+		// (FORGEAX_INTERFACE_HTTPS=1, e.g. remote-IP access) an `http://` iframe is
+		// blocked as mixed content. The plugin dev server must then also serve HTTPS
+		// (run.ts passes the studio .tls cert to its vite). Falls back to http://
+		// transparently when the parent is http.
+		base = `${window.location.protocol}//${window.location.hostname}:${sa.port}${path}`;
+	} else {
+		// No live standalone port/proxy: serve built frontend from the host, or
+		// fall back when the plugin only declared `start` without a port.
+		base = embeddedSrc;
+	}
+	// 多游戏：把当前 game slug 喂进 iframe URL，让 extension-scene 等"per-game data"
+	// 类型的插件能在自己空间里读出。其它插件忽略此参数即可。
+	const params: string[] = [];
+	if (pane) params.push(`pane=${encodeURIComponent(pane)}`);
+	if (slug) params.push(`slug=${encodeURIComponent(slug)}`);
+	params.push(`locale=${encodeURIComponent(getLocale())}`);
+	if (params.length === 0) return base;
+	return base + (base.includes("?") ? "&" : "?") + params.join("&");
 }
 
 /** localStorage key the host writes the cross-page handoff payload to.
  *  Same-origin so the target plugin iframe (e.g. extension-anim) can read it on boot
  *  + via the 'storage' event. Mirrored constant lives in extension-anim's bridge. */
-const ANIM_HANDOFF_KEY = 'forgeax:anim-handoff';
+const ANIM_HANDOFF_KEY = "forgeax:anim-handoff";
 
 /** Resolve the target plugin's page tab id + flip the store so MainArea
  *  takes over with the target plugin. Writes the handoff payload (charId/role/
  *  slug) to localStorage first so the target iframe can pick it up. */
-function doNavigate(targetPluginId: string, payload?: Record<string, unknown>): void {
-  try {
-    if (payload && Object.keys(payload).length > 0) {
-      window.localStorage.setItem(
-        ANIM_HANDOFF_KEY,
-        JSON.stringify({ ...payload, targetPluginId, ts: Date.now() }),
-      );
-    }
-  } catch {
-    /* localStorage unavailable (private mode) — target falls back to selector */
-  }
-  void openExtensionPage(targetPluginId);
+function doNavigate(
+	targetPluginId: string,
+	payload?: Record<string, unknown>,
+): void {
+	try {
+		if (payload && Object.keys(payload).length > 0) {
+			window.localStorage.setItem(
+				ANIM_HANDOFF_KEY,
+				JSON.stringify({ ...payload, targetPluginId, ts: Date.now() }),
+			);
+		}
+	} catch {
+		/* localStorage unavailable (private mode) — target falls back to selector */
+	}
+	void openExtensionPage(targetPluginId);
 }
 
-export function StandaloneExtensionIframe({ plugin, pane, active = true, reloadNonce = 0 }: Props): ReactElement {
-  const { t } = useTranslation();
-  const { editor } = usePanelRenderers();
-  // STABLE cache key. Was `${version}-${Date.now()}` which defeated keep-alive:
-  // any iframe remount (re-parent / reconcile) recomputed Date.now() → new URL →
-  // a full cold reload that tore down the WebGPU ctx + WS + scroll on every
-  // panel/game switch. Now keyed only on identity (id + version) + an explicit
-  // reloadNonce, so the URL stays identical across switches and the browser
-  // reuses the live iframe. A deliberate reload bumps reloadNonce.
-  const iframeCacheKey = useMemo(
-    () => `${plugin.version ?? 'dev'}-${reloadNonce}`,
-    [plugin.id, plugin.version, reloadNonce],
-  );
-  const effectiveSlug = useShellStore((s) => s.activeGameSlug);
-  const slugReady = useShellStore((s) => s.activeGameResolved);
+export function StandaloneExtensionIframe({
+	plugin,
+	pane,
+	active = true,
+	reloadNonce = 0,
+}: Props): ReactElement {
+	const { t } = useTranslation();
+	const { editor } = usePanelRenderers();
+	// STABLE cache key. Was `${version}-${Date.now()}` which defeated keep-alive:
+	// any iframe remount (re-parent / reconcile) recomputed Date.now() → new URL →
+	// a full cold reload that tore down the WebGPU ctx + WS + scroll on every
+	// panel/game switch. Now keyed only on identity (id + version) + an explicit
+	// reloadNonce, so the URL stays identical across switches and the browser
+	// reuses the live iframe. A deliberate reload bumps reloadNonce.
+	const iframeCacheKey = useMemo(
+		() => `${plugin.version ?? "dev"}-${reloadNonce}`,
+		[plugin.version, reloadNonce],
+	);
+	const effectiveSlug = useShellStore((s) => s.activeGameSlug);
+	const slugReady = useShellStore((s) => s.activeGameResolved);
 
-  const rawSrc = slugReady ? buildIframeSrc(plugin, pane, effectiveSlug) : null;
-  const src = rawSrc ? rawSrc + (rawSrc.includes('?') ? '&' : '?') + `fxv=${encodeURIComponent(iframeCacheKey)}` : null;
+	const rawSrc = slugReady ? buildIframeSrc(plugin, pane, effectiveSlug) : null;
+	const src = rawSrc
+		? rawSrc +
+			(rawSrc.includes("?") ? "&" : "?") +
+			`fxv=${encodeURIComponent(iframeCacheKey)}`
+		: null;
 
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    console.info('[forgeax:dev-extension] iframe selection', {
-      extensionId: plugin.id,
-      runtimeMode: plugin.runtimeMode,
-      frontendUrl: plugin.frontendUrl,
-      allowedOrigin: plugin.allowedOrigin,
-      src,
-    });
-  }, [plugin.id, plugin.runtimeMode, plugin.frontendUrl, plugin.allowedOrigin, src]);
+	const handleNavigate = useCallback(
+		(targetPluginId: string, payload?: Record<string, unknown>) => {
+			doNavigate(targetPluginId, payload);
+		},
+		[],
+	);
 
-  const handleNavigate = useCallback((targetPluginId: string, payload?: Record<string, unknown>) => {
-    doNavigate(targetPluginId, payload);
-  }, []);
+	const handleChatPost = useCallback(
+		(e: { text: string; attachments?: unknown[] }) => {
+			if (!e.text?.trim()) return;
+			if (e.attachments && e.attachments.length > 0 && import.meta.env.DEV) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					"[plugin chat.post] attachments dropped (not yet supported):",
+					plugin.id,
+					e.attachments,
+				);
+			}
+			const st = useShellStore.getState();
+			const sid = st.activeSid;
+			if (!sid) return;
+			const to = st.tabs.find((tb) => tb.sid === sid)?.agentId ?? undefined;
+			void getSessionClient()
+				.emitForgeaXMessage(sid, e.text, to ? { to } : {})
+				.catch((err) => {
+					if (import.meta.env.DEV) {
+						// eslint-disable-next-line no-console
+						console.warn("[plugin chat.post] emit failed:", plugin.id, err);
+					}
+				});
+		},
+		[plugin.id],
+	);
 
-  const handleChatPost = useCallback((e: { text: string; attachments?: unknown[] }) => {
-    if (!e.text || !e.text.trim()) return;
-    if (e.attachments && e.attachments.length > 0 && import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.warn('[plugin chat.post] attachments dropped (not yet supported):', plugin.id, e.attachments);
-    }
-    const st = useShellStore.getState();
-    const sid = st.activeSid;
-    if (!sid) return;
-    const to = st.tabs.find((tb) => tb.sid === sid)?.agentId ?? undefined;
-    void getSessionClient().emitForgeaXMessage(sid, e.text, to ? { to } : {}).catch((err) => {
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.warn('[plugin chat.post] emit failed:', plugin.id, err);
-      }
-    });
-  }, [plugin.id]);
+	const handleToolCall = useCallback(
+		async (call: { toolId: string; args?: unknown }) => {
+			try {
+				const r = await fetch("/api/tools/call", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						toolId: call.toolId,
+						args: call.args ?? {},
+						caller: {
+							kind: "extension",
+							extensionId: plugin.id,
+							instanceId: `standalone:${plugin.id}`,
+						},
+					}),
+				});
+				const body = (await r.json()) as {
+					ok: boolean;
+					result?: unknown;
+					error?: string;
+				};
+				return body.ok
+					? { ok: true as const, result: body.result }
+					: { ok: false as const, error: body.error ?? "tool call failed" };
+			} catch (e) {
+				return { ok: false as const, error: (e as Error).message };
+			}
+		},
+		[plugin.id],
+	);
 
-  const handleToolCall = useCallback(async (call: { toolId: string; args?: unknown }) => {
-    try {
-      const r = await fetch('/api/tools/call', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          toolId: call.toolId,
-          args: call.args ?? {},
-          caller: { kind: 'extension', extensionId: plugin.id, instanceId: `standalone:${plugin.id}` },
-        }),
-      });
-      const body = (await r.json()) as { ok: boolean; result?: unknown; error?: string };
-      return body.ok
-        ? { ok: true as const, result: body.result }
-        : { ok: false as const, error: body.error ?? 'tool call failed' };
-    } catch (e) {
-      return { ok: false as const, error: (e as Error).message };
-    }
-  }, [plugin.id]);
+	if (!src) {
+		return (
+			<div style={{ padding: 20, color: "#888" }}>
+				{t("standaloneExtension.noEntryPrefix")} <code>{plugin.id}</code>{" "}
+				{t("standaloneExtension.noEntryMiddle")} <code>entry.standalone</code>{" "}
+				{t("standaloneExtension.noEntrySuffix")}
+			</div>
+		);
+	}
 
-  if (!src) {
-    return (
-      <div style={{ padding: 20, color: '#888' }}>
-        {t('standaloneExtension.noEntryPrefix')} <code>{plugin.id}</code>{' '}
-        {t('standaloneExtension.noEntryMiddle')} <code>entry.standalone</code>{' '}
-        {t('standaloneExtension.noEntrySuffix')}
-      </div>
-    );
-  }
-
-  return (
-    <ExtensionIframeHost
-      extensionId={plugin.id}
-      src={src}
-      pane={pane}
-      active={active}
-      onNavigate={handleNavigate}
-      onChatPost={handleChatPost}
-      onEditorAssetImport={editor?.importAssetSource}
-      onToolCall={handleToolCall}
-      allowedOrigin={plugin.allowedOrigin}
-      loadErrorText={(error) => t('standaloneExtension.iframeLoadFailed', { error })}
-    />
-  );
+	return (
+		<ExtensionIframeHost
+			extensionId={plugin.id}
+			src={src}
+			pane={pane}
+			active={active}
+			onNavigate={handleNavigate}
+			onChatPost={handleChatPost}
+			onEditorAssetImport={editor?.importAssetSource}
+			onToolCall={handleToolCall}
+			allowedOrigin={plugin.allowedOrigin}
+			loadErrorText={(error) =>
+				t("standaloneExtension.iframeLoadFailed", { error })
+			}
+		/>
+	);
 }

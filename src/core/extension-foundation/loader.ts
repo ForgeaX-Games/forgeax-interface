@@ -1,7 +1,8 @@
 // Thin re-export shell — implementation lives in
 // @forgeax/extension-platform (ADR 0026).
+
+export type { ExtensionLoaderOptions } from "@forgeax/extension-platform/extensions";
 export {
-  ExtensionLoader,
-  createExtensionLoader,
-} from '@forgeax/extension-platform/extensions';
-export type { ExtensionLoaderOptions } from '@forgeax/extension-platform/extensions';
+	createExtensionLoader,
+	ExtensionLoader,
+} from "@forgeax/extension-platform/extensions";

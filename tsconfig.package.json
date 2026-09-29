@@ -1,0 +1,4 @@
+{
+	"extends": "./tsconfig.lint.json",
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-utils"]
+}

@@ -1,4 +1,12 @@
-import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
+import { Bot, Brain, Sparkles, Wrench } from "lucide-react";
+import { getLocale, useTranslation } from "@/i18n";
+import type { StatusItemContribution } from "../../../core/panels";
+import { emitDeepLink } from "../../../lib/deep-link-bus";
+import type { ExtensionStatusKind } from "../../../lib/resilient-polling";
+import { useSharedExtensionCounts } from "../../../lib/shell-live-data";
+import { useShellStore } from "../../../store";
+import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
+import { type ChipState, StatusChip } from "../StatusChip";
 /**
  * Bus-kind pulse chips — the live MB / SKILL / TOOL / AGENT extension-registry
  * counters (originally PreviewMode's pt-right toolbar, moved to the global
@@ -11,149 +19,200 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
  * color changes between kinds (teal/gold/orange/violet).
  */
 
-import { Brain, Sparkles, Wrench, Bot } from 'lucide-react';
-import { getLocale, useTranslation } from '@/i18n';
-import { useShellStore } from '../../../store';
-import { emitDeepLink } from '../../../lib/deep-link-bus';
-import { useSharedExtensionCounts } from '../../../lib/shell-live-data';
-import type { ExtensionStatusKind } from '../../../lib/resilient-polling';
-import type { StatusItemContribution } from '../../../core/panels';
-import { StatusChip, type ChipState } from '../StatusChip';
-
 /** ADR-0030 §2.2 — the live MB/SKILL/TOOL/AGENT pulse chips as `custom`
  *  status-item contributions. Each chip owns its own polling (the in-process
  *  escape hatch); chrome-statusbar folds these into the footer's strip channel. */
 export const pulseStatusItems: readonly StatusItemContribution[] = [
-  { kind: 'status-item', id: 'bus.extensions', location: 'statusbar.right', priority: 40,
-    item: { type: 'custom', render: () => <ExtensionCounts /> } },
+	{
+		kind: "status-item",
+		id: "bus.extensions",
+		location: "statusbar.right",
+		priority: 40,
+		item: { type: "custom", render: () => <ExtensionCounts /> },
+	},
 ];
 
 function ExtensionCounts() {
-  const zh = getLocale() === 'zh';
-  return <Popover><PopoverTrigger asChild>
-    <button type="button" className="sb-chip">{zh ? '扩展信息' : 'Extension info'}</button>
-  </PopoverTrigger><PopoverContent side="top" align="end" collisionPadding={8}>
-    <p style={{ fontSize: 12, margin: '4px 8px' }}>{zh ? '已安装扩展统计，非当前会话的技能或模型。' : 'Installed extensions, not the current session skills or model.'}</p>
-    <ModelBindingPulseFeed /><SkillPulseFeed /><ToolPulseFeed /><AgentPulseFeed />
-  </PopoverContent></Popover>;
+	const zh = getLocale() === "zh";
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<button type="button" className="sb-chip">
+					{zh ? "扩展信息" : "Extension info"}
+				</button>
+			</PopoverTrigger>
+			<PopoverContent side="top" align="end" collisionPadding={8}>
+				<p style={{ fontSize: 12, margin: "4px 8px" }}>
+					{zh
+						? "已安装扩展统计，非当前会话的技能或模型。"
+						: "Installed extensions, not the current session skills or model."}
+				</p>
+				<ModelBindingPulseFeed />
+				<SkillPulseFeed />
+				<ToolPulseFeed />
+				<AgentPulseFeed />
+			</PopoverContent>
+		</Popover>
+	);
 }
 
-function usePulseKind(kind: ExtensionStatusKind): { state: ChipState; count: number; ids: string[] } {
-  const snapshot = useSharedExtensionCounts();
-  if (snapshot.state === 'loading') return { state: 'loading', count: 0, ids: [] };
-  if (snapshot.state === 'down') return { state: 'down', count: 0, ids: [] };
-  const row = snapshot.value[kind];
-  return { state: row.count > 0 ? 'ok' : 'empty', count: row.count, ids: row.ids };
+function usePulseKind(kind: ExtensionStatusKind): {
+	state: ChipState;
+	count: number;
+	ids: string[];
+} {
+	const snapshot = useSharedExtensionCounts();
+	if (snapshot.state === "loading")
+		return { state: "loading", count: 0, ids: [] };
+	if (snapshot.state === "down") return { state: "down", count: 0, ids: [] };
+	const row = snapshot.value[kind];
+	return {
+		state: row.count > 0 ? "ok" : "empty",
+		count: row.count,
+		ids: row.ids,
+	};
 }
 
 // ─── MB · model-binding kind count ────────────────────────────────────────
 
 function ModelBindingPulseFeed() {
-  const { t } = useTranslation();
-  const openOverlay = useShellStore((s) => s.openOverlay);
-  const { state, count, ids } = usePulseKind('model-binding');
+	const { t } = useTranslation();
+	const openOverlay = useShellStore((s) => s.openOverlay);
+	const { state, count, ids } = usePulseKind("model-binding");
 
-  const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
-  const title =
-    state === 'ok' || state === 'empty'
-      ? count > 0
-        ? t('pulse.mb.title.some', { count: String(count) }) + '\n' + ids.map((id) => `· ${id}`).join('\n')
-        : t('pulse.mb.title.none')
-      : state === 'down' ? t('pulse.mb.title.down') : t('pulse.mb.title.loading');
+	const value =
+		state === "loading" ? "—" : state === "down" ? "!" : count.toString();
+	const title =
+		state === "ok" || state === "empty"
+			? count > 0
+				? t("pulse.mb.title.some", { count: String(count) }) +
+					"\n" +
+					ids.map((id) => `· ${id}`).join("\n")
+				: t("pulse.mb.title.none")
+			: state === "down"
+				? t("pulse.mb.title.down")
+				: t("pulse.mb.title.loading");
 
-  return (
-    <StatusChip
-      tone="teal"
-      state={state}
-      icon={Brain}
-      label="MB"
-      value={value}
-      title={title}
-      onClick={() => { openOverlay('settings', 'plugins'); emitDeepLink('bus:filter-kind', 'model-binding'); }}
-    />
-  );
+	return (
+		<StatusChip
+			tone="teal"
+			state={state}
+			icon={Brain}
+			label="MB"
+			value={value}
+			title={title}
+			onClick={() => {
+				openOverlay("settings", "plugins");
+				emitDeepLink("bus:filter-kind", "model-binding");
+			}}
+		/>
+	);
 }
 
 // ─── SKILL ────────────────────────────────────────────────────────────────
 
 function SkillPulseFeed() {
-  const { t } = useTranslation();
-  const openOverlay = useShellStore((s) => s.openOverlay);
-  const { state, count, ids } = usePulseKind('skill');
+	const { t } = useTranslation();
+	const openOverlay = useShellStore((s) => s.openOverlay);
+	const { state, count, ids } = usePulseKind("skill");
 
-  const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
-  const title =
-    state === 'ok' || state === 'empty'
-      ? count > 0
-        ? t('pulse.skill.title.some', { count: String(count) }) + '\n' + ids.map((id) => `· ${id}`).join('\n')
-        : t('pulse.skill.title.none')
-      : state === 'down' ? t('pulse.skill.title.down') : t('pulse.skill.title.loading');
+	const value =
+		state === "loading" ? "—" : state === "down" ? "!" : count.toString();
+	const title =
+		state === "ok" || state === "empty"
+			? count > 0
+				? t("pulse.skill.title.some", { count: String(count) }) +
+					"\n" +
+					ids.map((id) => `· ${id}`).join("\n")
+				: t("pulse.skill.title.none")
+			: state === "down"
+				? t("pulse.skill.title.down")
+				: t("pulse.skill.title.loading");
 
-  return (
-    <StatusChip
-      tone="gold"
-      state={state}
-      icon={Sparkles}
-      label="SKILL"
-      value={value}
-      title={title}
-      onClick={() => { openOverlay('settings', 'plugins'); emitDeepLink('bus:filter-kind', 'skill'); }}
-    />
-  );
+	return (
+		<StatusChip
+			tone="gold"
+			state={state}
+			icon={Sparkles}
+			label="SKILL"
+			value={value}
+			title={title}
+			onClick={() => {
+				openOverlay("settings", "plugins");
+				emitDeepLink("bus:filter-kind", "skill");
+			}}
+		/>
+	);
 }
 
 // ─── TOOL ─────────────────────────────────────────────────────────────────
 
 function ToolPulseFeed() {
-  const { t } = useTranslation();
-  const openOverlay = useShellStore((s) => s.openOverlay);
-  const { state, count, ids } = usePulseKind('tool');
+	const { t } = useTranslation();
+	const openOverlay = useShellStore((s) => s.openOverlay);
+	const { state, count, ids } = usePulseKind("tool");
 
-  const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
-  const title =
-    state === 'ok' || state === 'empty'
-      ? count > 0
-        ? t('pulse.tool.title.some', { count: String(count) }) + '\n' + ids.map((id) => `· ${id}`).join('\n')
-        : t('pulse.tool.title.none')
-      : state === 'down' ? t('pulse.tool.title.down') : t('pulse.tool.title.loading');
+	const value =
+		state === "loading" ? "—" : state === "down" ? "!" : count.toString();
+	const title =
+		state === "ok" || state === "empty"
+			? count > 0
+				? t("pulse.tool.title.some", { count: String(count) }) +
+					"\n" +
+					ids.map((id) => `· ${id}`).join("\n")
+				: t("pulse.tool.title.none")
+			: state === "down"
+				? t("pulse.tool.title.down")
+				: t("pulse.tool.title.loading");
 
-  return (
-    <StatusChip
-      tone="orange"
-      state={state}
-      icon={Wrench}
-      label="TOOL"
-      value={value}
-      title={title}
-      onClick={() => { openOverlay('settings', 'plugins'); emitDeepLink('bus:filter-kind', 'tool'); }}
-    />
-  );
+	return (
+		<StatusChip
+			tone="orange"
+			state={state}
+			icon={Wrench}
+			label="TOOL"
+			value={value}
+			title={title}
+			onClick={() => {
+				openOverlay("settings", "plugins");
+				emitDeepLink("bus:filter-kind", "tool");
+			}}
+		/>
+	);
 }
 
 // ─── AGENT ────────────────────────────────────────────────────────────────
 
 function AgentPulseFeed() {
-  const { t } = useTranslation();
-  const openOverlay = useShellStore((s) => s.openOverlay);
-  const { state, count, ids } = usePulseKind('agent');
+	const { t } = useTranslation();
+	const openOverlay = useShellStore((s) => s.openOverlay);
+	const { state, count, ids } = usePulseKind("agent");
 
-  const value = state === 'loading' ? '—' : state === 'down' ? '!' : count.toString();
-  const title =
-    state === 'ok' || state === 'empty'
-      ? count > 0
-        ? t('pulse.agent.title.some', { count: String(count) }) + '\n' + ids.map((id) => `· ${id}`).join('\n')
-        : t('pulse.agent.title.none')
-      : state === 'down' ? t('pulse.agent.title.down') : t('pulse.agent.title.loading');
+	const value =
+		state === "loading" ? "—" : state === "down" ? "!" : count.toString();
+	const title =
+		state === "ok" || state === "empty"
+			? count > 0
+				? t("pulse.agent.title.some", { count: String(count) }) +
+					"\n" +
+					ids.map((id) => `· ${id}`).join("\n")
+				: t("pulse.agent.title.none")
+			: state === "down"
+				? t("pulse.agent.title.down")
+				: t("pulse.agent.title.loading");
 
-  return (
-    <StatusChip
-      tone="violet"
-      state={state}
-      icon={Bot}
-      label="AGENT"
-      value={value}
-      title={title}
-      onClick={() => { openOverlay('settings', 'plugins'); emitDeepLink('bus:filter-kind', 'agent'); }}
-    />
-  );
+	return (
+		<StatusChip
+			tone="violet"
+			state={state}
+			icon={Bot}
+			label="AGENT"
+			value={value}
+			title={title}
+			onClick={() => {
+				openOverlay("settings", "plugins");
+				emitDeepLink("bus:filter-kind", "agent");
+			}}
+		/>
+	);
 }

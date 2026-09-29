@@ -20,80 +20,75 @@
  *    └ dot (toned, optional flash keyframe)
  */
 
-import type { LucideIcon } from 'lucide-react';
-import type { ReactElement } from 'react';
-import './StatusChip.css';
+import type { LucideIcon } from "lucide-react";
+import type { ReactElement } from "react";
+import "./StatusChip.css";
 
 export type ChipTone =
-  | 'lime'   // BUS — events flowing
-  | 'teal'   // MB
-  | 'amber'  // PROV
-  | 'gold'   // SKILL
-  | 'orange' // TOOL
-  | 'violet' // AGENT
-  | 'red'    // error / down
-  | 'mute';  // loading / dim
+	| "lime" // BUS — events flowing
+	| "teal" // MB
+	| "amber" // PROV
+	| "gold" // SKILL
+	| "orange" // TOOL
+	| "violet" // AGENT
+	| "red" // error / down
+	| "mute"; // loading / dim
 
-export type ChipState = 'ok' | 'down' | 'loading' | 'empty' | 'warn';
+export type ChipState = "ok" | "down" | "loading" | "empty" | "warn";
 
 export interface StatusChipProps {
-  tone: ChipTone;
-  state?: ChipState;
-  icon?: LucideIcon | null;
-  label: string;
-  value: string;
-  title?: string;
-  onClick?: () => void;
-  /** Bus pulse uses this — bumps a key to retrigger the dot's flash keyframe. */
-  flashKey?: number;
-  /** Optional aria override; defaults to `${label} ${value}`. */
-  ariaLabel?: string;
+	tone: ChipTone;
+	state?: ChipState;
+	icon?: LucideIcon | null;
+	label: string;
+	value: string;
+	title?: string;
+	onClick?: () => void;
+	/** Bus pulse uses this — bumps a key to retrigger the dot's flash keyframe. */
+	flashKey?: number;
+	/** Optional aria override; defaults to `${label} ${value}`. */
+	ariaLabel?: string;
 }
 
 export function StatusChip({
-  tone,
-  state = 'ok',
-  icon: Icon,
-  label,
-  value,
-  title,
-  onClick,
-  flashKey = 0,
-  ariaLabel,
+	label,
+	value,
+	title,
+	onClick,
+	ariaLabel,
 }: StatusChipProps): ReactElement {
-  const className = [
-    'sb-chip',
-    onClick ? 'is-link' : '',
-  ].filter(Boolean).join(' ');
+	const className = ["sb-chip", onClick ? "is-link" : ""]
+		.filter(Boolean)
+		.join(" ");
 
-  const inner = (
-    <>
-      <span className="sb-chip-label">{label}</span>
-      <span className="sb-chip-value">{value}</span>
-    </>
-  );
+	const inner = (
+		<>
+			<span className="sb-chip-label">{label}</span>
+			<span className="sb-chip-value">{value}</span>
+		</>
+	);
 
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        className={className}
-        title={title}
-        onClick={onClick}
-        aria-label={ariaLabel ?? `${label} ${value}`}
-      >
-        {inner}
-      </button>
-    );
-  }
-  return (
-    <div
-      className={className}
-      title={title}
-      role="status"
-      aria-label={ariaLabel ?? `${label} ${value}`}
-    >
-      {inner}
-    </div>
-  );
+	if (onClick) {
+		return (
+			<button
+				type="button"
+				className={className}
+				title={title}
+				onClick={onClick}
+				aria-label={ariaLabel ?? `${label} ${value}`}
+			>
+				{inner}
+			</button>
+		);
+	}
+	return (
+		<div
+			className={className}
+			title={title}
+			role="status"
+			aria-label={ariaLabel ?? `${label} ${value}`}
+		>
+			{inner}
+		</div>
+	);
 }

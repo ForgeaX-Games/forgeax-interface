@@ -12,13 +12,16 @@
  */
 
 interface BrandBootApi {
-  progress(p: { pct: number; label?: string }): void;
-  done(): void;
+	progress(p: { pct: number; label?: string }): void;
+	done(): void;
 }
 
 function bootApi(): BrandBootApi | null {
-  if (typeof window === 'undefined') return null;
-  return (window as unknown as { __forgeaxBoot?: BrandBootApi }).__forgeaxBoot ?? null;
+	if (typeof window === "undefined") return null;
+	return (
+		(window as unknown as { __forgeaxBoot?: BrandBootApi }).__forgeaxBoot ??
+		null
+	);
 }
 
 /**
@@ -26,7 +29,7 @@ function bootApi(): BrandBootApi | null {
  * executing, React is about to mount".
  */
 export function bootStageEntry(): void {
-  bootApi()?.progress({ pct: 60, label: 'mounting shell' });
+	bootApi()?.progress({ pct: 60, label: "mounting shell" });
 }
 
 /**
@@ -34,20 +37,23 @@ export function bootStageEntry(): void {
  * client-side effects are firing". One rAF later we declare done().
  */
 export function bootStageAppMounted(): void {
-  const api = bootApi();
-  if (!api) return;
-  api.progress({ pct: 92, label: 'wiring panels' });
-  // Wait for the first composited paint so the splash fade lines up with
-  // the real studio appearing underneath — otherwise the player sees a
-  // brief blank flash.
-  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-    api.done();
-    return;
-  }
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      api.progress({ pct: 100, label: 'ready' });
-      api.done();
-    });
-  });
+	const api = bootApi();
+	if (!api) return;
+	api.progress({ pct: 92, label: "wiring panels" });
+	// Wait for the first composited paint so the splash fade lines up with
+	// the real studio appearing underneath — otherwise the player sees a
+	// brief blank flash.
+	if (
+		typeof window === "undefined" ||
+		typeof window.requestAnimationFrame !== "function"
+	) {
+		api.done();
+		return;
+	}
+	window.requestAnimationFrame(() => {
+		window.requestAnimationFrame(() => {
+			api.progress({ pct: 100, label: "ready" });
+			api.done();
+		});
+	});
 }

@@ -10,63 +10,80 @@
 // re-render on session changes must keep subscribing to useShellStore. The
 // per-callsite migration (and eventual slice deletion) lands in T24.
 
-import type { AppExtension } from '../app-shell/types';
-import type { SessionClient } from '../../store-parts/session-client';
-import type { ChatTab, CloseSessionResult, RefreshSessionsResult } from '../../store';
-import { useShellStore } from '../../store';
-import { getSessionClient, hasSessionClient } from '../../store-parts/session-client';
+import type {
+	ChatTab,
+	CloseSessionResult,
+	RefreshSessionsResult,
+} from "../../store";
+import { useShellStore } from "../../store";
+import type { SessionClient } from "../../store-parts/session-client";
+import {
+	getSessionClient,
+	hasSessionClient,
+} from "../../store-parts/session-client";
+import type { AppExtension } from "../app-shell/types";
 
 export interface SessionCapability {
-  /** Low-level session client (REST + WS). Same instance
-   *  `getSessionClient()` returns everywhere else. */
-  readonly client: SessionClient;
-  /** Snapshot of `useShellStore.getState().tabs`. */
-  readonly tabs: readonly ChatTab[];
-  /** Snapshot of `useShellStore.getState().activeSid`. */
-  readonly activeSid: string | null;
-  /** Snapshot of the server-authoritative active game projection. */
-  readonly activeGameSlug: string | null;
+	/** Low-level session client (REST + WS). Same instance
+	 *  `getSessionClient()` returns everywhere else. */
+	readonly client: SessionClient;
+	/** Snapshot of `useShellStore.getState().tabs`. */
+	readonly tabs: readonly ChatTab[];
+	/** Snapshot of `useShellStore.getState().activeSid`. */
+	readonly activeSid: string | null;
+	/** Snapshot of the server-authoritative active game projection. */
+	readonly activeGameSlug: string | null;
 
-  switchToSession(sid: string): Promise<void>;
-  /** Wraps `useShellStore.getState().createNewSession`. Returns `null` on
-   *  failure to mirror the store's contract. */
-  createSession(opts?: {
-    displayName?: string;
-    scope?: string;
-    providerOverride?: string | null;
-  }): Promise<{ sid: string } | null>;
-  closeSession(sid: string): Promise<CloseSessionResult>;
-  renameTab(sid: string, displayName: string): void;
-  refreshSessions(): Promise<RefreshSessionsResult>;
-  setActiveGame(slug: string): Promise<void>;
+	switchToSession(sid: string): Promise<void>;
+	/** Wraps `useShellStore.getState().createNewSession`. Returns `null` on
+	 *  failure to mirror the store's contract. */
+	createSession(opts?: {
+		displayName?: string;
+		scope?: string;
+		providerOverride?: string | null;
+	}): Promise<{ sid: string } | null>;
+	closeSession(sid: string): Promise<CloseSessionResult>;
+	renameTab(sid: string, displayName: string): void;
+	refreshSessions(): Promise<RefreshSessionsResult>;
+	setActiveGame(slug: string): Promise<void>;
 }
 
 export const sessionClientExtension: AppExtension = {
-  id: 'session-client',
-  version: '1.0.0',
-  provides: ['session'],
-  setup(ctx) {
-    // Graceful degradation: interface-alone / standalone-editor hosts have no
-    // forgeax-server, so the composition root never configures a client. Skip
-    // providing host.session (consumers already narrow with `if (host.session)`)
-    // instead of throwing the shell boot into console.error.
-    if (!hasSessionClient()) {
-      ctx.log.info('[session-client] no client configured — host.session skipped (studio-only capability)');
-      return;
-    }
-    const client = getSessionClient();
-    const cap: SessionCapability = {
-      client,
-      get tabs()       { return useShellStore.getState().tabs; },
-      get activeSid()  { return useShellStore.getState().activeSid; },
-      get activeGameSlug() { return useShellStore.getState().activeGameSlug; },
-      switchToSession: (sid)     => useShellStore.getState().switchToSession(sid),
-      createSession:   (opts)    => useShellStore.getState().createNewSession(opts),
-      closeSession:    (sid)     => useShellStore.getState().closeSession(sid),
-      renameTab:       (sid, n)  => useShellStore.getState().renameTab(sid, n),
-      refreshSessions: ()        => useShellStore.getState().refreshSessions(),
-      setActiveGame:   async (slug) => { await useShellStore.getState().setActiveGame(slug); },
-    };
-    ctx.host.extend('session', cap);
-  },
+	id: "session-client",
+	version: "1.0.0",
+	provides: ["session"],
+	setup(ctx) {
+		// Graceful degradation: interface-alone / standalone-editor hosts have no
+		// forgeax-server, so the composition root never configures a client. Skip
+		// providing host.session (consumers already narrow with `if (host.session)`)
+		// instead of throwing the shell boot into console.error.
+		if (!hasSessionClient()) {
+			ctx.log.info(
+				"[session-client] no client configured — host.session skipped (studio-only capability)",
+			);
+			return;
+		}
+		const client = getSessionClient();
+		const cap: SessionCapability = {
+			client,
+			get tabs() {
+				return useShellStore.getState().tabs;
+			},
+			get activeSid() {
+				return useShellStore.getState().activeSid;
+			},
+			get activeGameSlug() {
+				return useShellStore.getState().activeGameSlug;
+			},
+			switchToSession: (sid) => useShellStore.getState().switchToSession(sid),
+			createSession: (opts) => useShellStore.getState().createNewSession(opts),
+			closeSession: (sid) => useShellStore.getState().closeSession(sid),
+			renameTab: (sid, n) => useShellStore.getState().renameTab(sid, n),
+			refreshSessions: () => useShellStore.getState().refreshSessions(),
+			setActiveGame: async (slug) => {
+				await useShellStore.getState().setActiveGame(slug);
+			},
+		};
+		ctx.host.extend("session", cap);
+	},
 };

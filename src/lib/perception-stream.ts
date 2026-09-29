@@ -15,37 +15,44 @@
  *  These events have no chat representation — session-stream's dispatch skips
  *  `perception:*` (so they're never rendered as system messages). */
 
-import { getSessionClient, type SessionEvent } from '../store-parts/session-client';
+import {
+	getSessionClient,
+	type SessionEvent,
+} from "../store-parts/session-client";
 
 /** Shape carried on the `forgeax:perception-query` CustomEvent detail. */
 export interface PerceptionQueryDetail {
-  sid: string;
-  reqId: string;
-  kind: 'world' | 'frame';
-  query?: unknown;
+	sid: string;
+	reqId: string;
+	kind: "world" | "frame";
+	query?: unknown;
 }
 
-export const PERCEPTION_QUERY_EVENT = 'forgeax:perception-query';
+export const PERCEPTION_QUERY_EVENT = "forgeax:perception-query";
 
 function dispatchPerception(evt: SessionEvent): void {
-  if (evt.event.type !== 'perception:query') return;
-  const p = evt.event.payload as { reqId?: string; kind?: string; query?: unknown };
-  if (typeof p.reqId !== 'string') return;
-  const detail: PerceptionQueryDetail = {
-    sid: evt.sid,
-    reqId: p.reqId,
-    kind: p.kind === 'frame' ? 'frame' : 'world',
-    query: p.query,
-  };
-  try {
-    window.dispatchEvent(new CustomEvent(PERCEPTION_QUERY_EVENT, { detail }));
-  } catch {
-    /* SSR / no window — ignore */
-  }
+	if (evt.event.type !== "perception:query") return;
+	const p = evt.event.payload as {
+		reqId?: string;
+		kind?: string;
+		query?: unknown;
+	};
+	if (typeof p.reqId !== "string") return;
+	const detail: PerceptionQueryDetail = {
+		sid: evt.sid,
+		reqId: p.reqId,
+		kind: p.kind === "frame" ? "frame" : "world",
+		query: p.query,
+	};
+	try {
+		window.dispatchEvent(new CustomEvent(PERCEPTION_QUERY_EVENT, { detail }));
+	} catch {
+		/* SSR / no window — ignore */
+	}
 }
 
 /** Wired in main.tsx alongside the other stream subscriptions. Idempotent —
  *  same handler key, HMR-safe. */
 export function subscribePerceptionStream(): void {
-  getSessionClient().onSessionEvent('perception', dispatchPerception);
+	getSessionClient().onSessionEvent("perception", dispatchPerception);
 }

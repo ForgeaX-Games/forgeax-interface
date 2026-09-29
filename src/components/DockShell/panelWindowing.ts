@@ -1,37 +1,39 @@
 import {
-  canOpenPanelWindow,
-  createPanelWindowingController,
-  shouldShowDetachedPlaceholder,
-  type DetachedWindowCapability,
-  type OpenPanelWindowOptions,
-  type SurfaceDescriptor,
-} from '@forgeax/app-shell/window';
+	canOpenPanelWindow,
+	createPanelWindowingController,
+	type DetachedWindowCapability,
+	type OpenPanelWindowOptions,
+	type SurfaceDescriptor,
+	shouldShowDetachedPlaceholder,
+} from "@forgeax/app-shell/window";
 
+export type { OpenPanelWindowOptions } from "@forgeax/app-shell/window";
 export { canOpenPanelWindow, shouldShowDetachedPlaceholder };
-export type { OpenPanelWindowOptions } from '@forgeax/app-shell/window';
 
 const panelWindowing = createPanelWindowingController();
 
 export interface PanelWindowingSources {
-  basePanelIds: ReadonlySet<string>;
-  baseWindowing: Readonly<Record<string, DetachedWindowCapability>>;
-  pageWindowing: Readonly<Record<string, DetachedWindowCapability>>;
-  injectedWindowing?: DetachedWindowCapability;
+	basePanelIds: ReadonlySet<string>;
+	baseWindowing: Readonly<Record<string, DetachedWindowCapability>>;
+	pageWindowing: Readonly<Record<string, DetachedWindowCapability>>;
+	injectedWindowing?: DetachedWindowCapability;
 }
 
 /** Dockview prefixes editor placements with ep:, while injected descriptors use bare ids. */
 export function injectedPanelDescriptorId(panelId: string): string {
-  return panelId.startsWith('ep:') ? panelId.slice(3) : panelId;
+	return panelId.startsWith("ep:") ? panelId.slice(3) : panelId;
 }
 
 /** Whether the Page runtime survives the later BASE/editor component spreads. */
 export function pageRuntimeOwnsPanel(
-  panelId: string,
-  basePanelIds: ReadonlySet<string>,
-  editorPanelIds: readonly string[],
+	panelId: string,
+	basePanelIds: ReadonlySet<string>,
+	editorPanelIds: readonly string[],
 ): boolean {
-  if (basePanelIds.has(panelId)) return false;
-  return !(panelId.startsWith('ep:') && editorPanelIds.includes(panelId.slice(3)));
+	if (basePanelIds.has(panelId)) return false;
+	return !(
+		panelId.startsWith("ep:") && editorPanelIds.includes(panelId.slice(3))
+	);
 }
 
 /**
@@ -41,12 +43,12 @@ export function pageRuntimeOwnsPanel(
  * Page → injected.
  */
 export function resolvePanelWindowing(
-  panelId: string,
-  sources: PanelWindowingSources,
+	panelId: string,
+	sources: PanelWindowingSources,
 ): DetachedWindowCapability | undefined {
-  if (panelId.startsWith('ep:')) return sources.injectedWindowing;
-  if (sources.basePanelIds.has(panelId)) return sources.baseWindowing[panelId];
-  return sources.pageWindowing[panelId] ?? sources.injectedWindowing;
+	if (panelId.startsWith("ep:")) return sources.injectedWindowing;
+	if (sources.basePanelIds.has(panelId)) return sources.baseWindowing[panelId];
+	return sources.pageWindowing[panelId] ?? sources.injectedWindowing;
 }
 
 /**
@@ -55,11 +57,11 @@ export function resolvePanelWindowing(
  * an ordinary dock tab only when the target explicitly requests that behavior.
  */
 export async function openPanelWindow(
-  panelId: string,
-  capability: DetachedWindowCapability | undefined,
-  options: OpenPanelWindowOptions,
+	panelId: string,
+	capability: DetachedWindowCapability | undefined,
+	options: OpenPanelWindowOptions,
 ): Promise<boolean> {
-  return panelWindowing.openPanelWindow(panelId, capability, options);
+	return panelWindowing.openPanelWindow(panelId, capability, options);
 }
 
 /**
@@ -67,6 +69,8 @@ export async function openPanelWindow(
  * not a consume: every DockRegion receives the same close notification and the
  * region that owns the placement must be allowed to handle it.
  */
-export function detachedDockPanelForSurface(surface: SurfaceDescriptor): string | undefined {
-  return panelWindowing.panelForClosedSurface(surface);
+export function detachedDockPanelForSurface(
+	surface: SurfaceDescriptor,
+): string | undefined {
+	return panelWindowing.panelForClosedSurface(surface);
 }

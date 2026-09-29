@@ -16,6 +16,6 @@
 // `dts: true` plus root `tsc -b`), delete this file along with the editor-
 // side equivalents.
 
-declare module '@forgeax/engine-runtime';
-declare module '@forgeax/engine-ecs';
-declare module '@forgeax/engine-gltf';
+declare module "@forgeax/engine-runtime";
+declare module "@forgeax/engine-ecs";
+declare module "@forgeax/engine-gltf";

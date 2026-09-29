@@ -17,63 +17,65 @@
  * is shared by both regions.
  */
 
-import { AlertOctagon, RotateCcw, X } from 'lucide-react';
-import { useHealthStore, type HealthSource } from './healthStore';
+import { AlertOctagon, RotateCcw, X } from "lucide-react";
+import { type HealthSource, useHealthStore } from "./healthStore";
 
 /** Reason → human title. Falls back to a generic line. */
 function titleFor(code: string | undefined, source: HealthSource): string {
-  switch (code) {
-    case 'device-lost':
-    case 'context-lost':
-      return 'GPU device lost';
-    case 'scene-instantiate-failed':
-      return 'Scene failed to load';
-    case 'webgpu-init-failed':
-      return 'WebGPU init failed';
-    case 'module-missing':
-      return 'Module missing';
-    case 'load-timeout':
-      return 'Load timed out';
-    case 'createApp-failed':
-      return 'Engine failed to start';
-    default:
-      return `${source === 'edit' ? 'Edit' : 'Play'} failed`;
-  }
+	switch (code) {
+		case "device-lost":
+		case "context-lost":
+			return "GPU device lost";
+		case "scene-instantiate-failed":
+			return "Scene failed to load";
+		case "webgpu-init-failed":
+			return "WebGPU init failed";
+		case "module-missing":
+			return "Module missing";
+		case "load-timeout":
+			return "Load timed out";
+		case "createApp-failed":
+			return "Engine failed to start";
+		default:
+			return `${source === "edit" ? "Edit" : "Play"} failed`;
+	}
 }
 
 /**
  * Banner for one region. Renders nothing when that region has no live fatal.
  * `source` is 'play' or 'edit' — the only two regions that surface a banner.
  */
-export function FatalBanner({ source }: { source: 'play' | 'edit' }) {
-  const fatal = useHealthStore((s) => s.fatal[source]);
-  const clearFatal = useHealthStore((s) => s.clearFatal);
-  if (!fatal) return null;
+export function FatalBanner({ source }: { source: "play" | "edit" }) {
+	const fatal = useHealthStore((s) => s.fatal[source]);
+	const clearFatal = useHealthStore((s) => s.clearFatal);
+	if (!fatal) return null;
 
-  return (
-    <div className="preview-fatal-banner" role="alert" aria-live="assertive">
-      <AlertOctagon className="pfb-icon" size={16} />
-      <div className="pfb-body">
-        <div className="pfb-title">{titleFor(fatal.code, source)}</div>
-        <div className="pfb-msg" title={fatal.message}>{fatal.message}</div>
-      </div>
-      <button
-        type="button"
-        className="pfb-retry"
-        title="Reload the page to recover this region"
-        onClick={() => window.location.reload()}
-      >
-        <RotateCcw size={13} /> Reload
-      </button>
-      <button
-        type="button"
-        className="pfb-retry pfb-dismiss"
-        title="Dismiss this banner"
-        aria-label="Dismiss"
-        onClick={() => clearFatal(source)}
-      >
-        <X size={13} />
-      </button>
-    </div>
-  );
+	return (
+		<div className="preview-fatal-banner" role="alert" aria-live="assertive">
+			<AlertOctagon className="pfb-icon" size={16} />
+			<div className="pfb-body">
+				<div className="pfb-title">{titleFor(fatal.code, source)}</div>
+				<div className="pfb-msg" title={fatal.message}>
+					{fatal.message}
+				</div>
+			</div>
+			<button
+				type="button"
+				className="pfb-retry"
+				title="Reload the page to recover this region"
+				onClick={() => window.location.reload()}
+			>
+				<RotateCcw size={13} /> Reload
+			</button>
+			<button
+				type="button"
+				className="pfb-retry pfb-dismiss"
+				title="Dismiss this banner"
+				aria-label="Dismiss"
+				onClick={() => clearFatal(source)}
+			>
+				<X size={13} />
+			</button>
+		</div>
+	);
 }

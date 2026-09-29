@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Tailwind `content` globs for in-process editor UI when Interface is mounted
@@ -9,7 +9,10 @@ import { resolve } from 'node:path';
  * src/ tree. New editor packages are picked up without updating this file.
  */
 export function createEditorTailwindContent(integrationRoot: string): string[] {
-  const editorPackagesRoot = resolve(integrationRoot, 'packages/editor/packages');
-  if (!existsSync(editorPackagesRoot)) return [];
-  return [`${editorPackagesRoot}/*/src/**/*.{ts,tsx}`];
+	const editorPackagesRoot = resolve(
+		integrationRoot,
+		"packages/editor/packages",
+	);
+	if (!existsSync(editorPackagesRoot)) return [];
+	return [`${editorPackagesRoot}/*/src/**/*.{ts,tsx}`];
 }
