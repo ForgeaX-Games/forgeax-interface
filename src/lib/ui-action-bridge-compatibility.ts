@@ -5,6 +5,7 @@ import {
 	snapshotActions,
 	snapshotState,
 } from "@forgeax/app-shell/application";
+import { serviceFetch } from "./platform/service-connection";
 import type {
 	UiActionBridgeContext,
 	UiActionBridgeEvent,
@@ -43,7 +44,7 @@ export function bootCompatibilityUiActionBridge(
 		const existing = leases.get(sid);
 		if (opts.renew ? !existing : !document.hasFocus()) return null;
 		try {
-			const r = await fetch(
+			const r = await serviceFetch(
 				`/api/sessions/${encodeURIComponent(sid)}/ui-lease`,
 				{
 					method: "POST",
@@ -87,11 +88,14 @@ export function bootCompatibilityUiActionBridge(
 			(await acquireLease(sid, { skipPush: true, claimOnly: true }));
 		if (!leaseId) return; // 拿不到 lease(别的 tab 持有)→ 不推,由持有者推
 		try {
-			await fetch(`/api/sessions/${encodeURIComponent(sid)}/ui-manifest`, {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ leaseId, actions: buildManifest() }),
-			});
+			await serviceFetch(
+				`/api/sessions/${encodeURIComponent(sid)}/ui-manifest`,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ leaseId, actions: buildManifest() }),
+				},
+			);
 		} catch {
 			/* fail-soft:下次 registry 变更 / lease 续期再推 */
 		}
@@ -168,11 +172,14 @@ export function bootCompatibilityUiActionBridge(
 		}
 
 		try {
-			await fetch(`/api/sessions/${encodeURIComponent(sid)}/perception-reply`, {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ reqId: p.reqId, snapshot, leaseId }),
-			});
+			await serviceFetch(
+				`/api/sessions/${encodeURIComponent(sid)}/perception-reply`,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ reqId: p.reqId, snapshot, leaseId }),
+				},
+			);
 		} catch {
 			/* fail-soft:server 侧超时兜底 */
 		}

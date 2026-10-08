@@ -1,26 +1,30 @@
 /** Read-only UI events. WebSockets do not consume the HTTP/1 request pool. */
+import {
+	openServiceWebSocket,
+	type ServiceWebSocket,
+} from "./platform/service-connection";
+
 export function subscribeUiEvents(
 	topic: string,
 	listener: (event: unknown) => void,
 	onOpen?: () => void,
 ): () => void {
 	let stopped = false;
-	let socket: WebSocket | undefined;
+	let socket: ServiceWebSocket | undefined;
 	let retry: ReturnType<typeof setTimeout> | undefined;
 	let delay = 500;
 	const connect = () => {
 		if (stopped) return;
-		const url = new URL("/ws/ui-events", window.location.href);
-		url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-		url.searchParams.set("topic", topic);
-		const current = new WebSocket(url);
+		const current = openServiceWebSocket(
+			`/ws/ui-events?topic=${encodeURIComponent(topic)}`,
+		);
 		socket = current;
-		current.onopen = () => {
+		current.addEventListener("open", () => {
 			if (stopped || current !== socket) return;
 			delay = 500;
 			onOpen?.();
-		};
-		current.onmessage = (event) => {
+		});
+		current.addEventListener("message", (event) => {
 			if (stopped || current !== socket) return;
 			let value: unknown;
 			try {
@@ -29,14 +33,14 @@ export function subscribeUiEvents(
 				return;
 			}
 			listener(value);
-		};
-		current.onerror = () => current.close();
-		current.onclose = () => {
+		});
+		current.addEventListener("error", () => current.close());
+		current.addEventListener("close", () => {
 			if (stopped || current !== socket) return;
 			socket = undefined;
 			retry = setTimeout(connect, delay);
 			delay = Math.min(delay * 2, 10_000);
-		};
+		});
 	};
 	connect();
 	return () => {

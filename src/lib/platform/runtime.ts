@@ -11,7 +11,7 @@
  * 分支,所以那个 chunk 永远不会被 fetch,纯 web bundle 无额外成本。
  */
 
-export type PlatformRuntime = "tauri" | "web";
+export type PlatformRuntime = "tauri" | "web" | "host";
 
 export function isTauri(): boolean {
 	return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;

@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 /** /api/cli/health → 旧 /api/cli-providers 格式适配层。
  *
  *  历史背景：
@@ -87,7 +88,7 @@ export async function fetchCliProviders(
 	signal?: AbortSignal,
 ): Promise<{ providers: CliProviderInfo[]; cachedAt: number }> {
 	void force; // R3: upstream `/api/cli/health` always lives-checks.
-	const r = await fetch("/api/cli/health", { signal });
+	const r = await serviceFetch("/api/cli/health", { signal });
 	if (!r.ok) throw new Error(`/api/cli/health ${r.status}`);
 	const j = (await r.json()) as RawCliHealth;
 	const providers: CliProviderInfo[] = (j.providers ?? []).map((p) => ({

@@ -1,3 +1,4 @@
+import { serviceFetch } from "../../lib/platform/service-connection";
 /**
  * MenuBar — Web renderer for the menu registry (T2).
  *
@@ -81,7 +82,7 @@ import { useHost } from "../../core/app-shell";
 import { projectApplicationMenus } from "../../lib/application-menu-projection";
 import { prettyCombo } from "../../lib/global-shortcuts";
 import type { MenuId } from "../../lib/menu-registry";
-import { isTauri } from "../../lib/platform/runtime";
+import { getShellAdapter } from "../../lib/platform/shell-adapter";
 import {
 	getRecentGamesRevision,
 	subscribeRecentGames,
@@ -425,7 +426,7 @@ export function MenuBar() {
 	// fire-and-forget,失败静默(账本是观测面,不是功能依赖)。
 	const executeFromClick = useCallback<Execute>(
 		(id, args, itemId) => {
-			void fetch("/api/bus/ui/surfaces/host.menubar/dispatched", {
+			void serviceFetch("/api/bus/ui/surfaces/host.menubar/dispatched", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({
@@ -500,7 +501,7 @@ export function MenuBar() {
 	// Under Tauri the OS native menu is the SSOT for the whole menu bar (T5
 	// bridge) — brand/app menu included — so the HTML bar renders nothing at all
 	// (no brand chip, no dropdowns). The trailing divider goes with it.
-	if (isTauri()) return null;
+	if (getShellAdapter().runtime === "tauri") return null;
 
 	return (
 		<>

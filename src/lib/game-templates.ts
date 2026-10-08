@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 /** Built-in game templates exposed by the game service. */
 export interface GameTemplate {
 	readonly slug: string;
@@ -17,7 +18,7 @@ function isGameTemplate(value: unknown): value is GameTemplate {
 
 /** Read the engine-owned template catalog used by both onboarding and New Game. */
 export async function listGameTemplates(): Promise<GameTemplate[]> {
-	const response = await fetch("/api/projects/templates");
+	const response = await serviceFetch("/api/projects/templates");
 	if (!response.ok)
 		throw new Error(`listGameTemplates → HTTP ${response.status}`);
 	const body: unknown = await response.json();

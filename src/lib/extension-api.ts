@@ -2,6 +2,7 @@
 // Mirrors the slim shape returned by packages/server/src/api/bus.ts so the UI
 // never depends on full ExtensionManifest fields server-side never exposes.
 import type { ExtensionManifestV2 } from "@forgeax/types";
+import { serviceFetch } from "./platform/service-connection";
 
 // P3.13 — model-binding capability summary exposed via /api/extensions/list.
 // Composer reads vendor/channel/roles to render a routing chip strip so the
@@ -186,7 +187,7 @@ export async function listExtensions(
 		count: 0,
 		items: [],
 	};
-	const res = await fetch(url);
+	const res = await serviceFetch(url);
 	// The extension bus is a Studio-only product surface. The
 	// standalone editor has NO bus router, so its absence is EXPECTED, not an
 	// error — degrade to an empty list either way the "no backend" shows up:

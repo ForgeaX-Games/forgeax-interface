@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/i18n";
 import type { StatusItemContribution } from "../../core/panels";
+import { serviceFetch } from "../../lib/platform/service-connection";
 import {
 	listSurfaces,
 	type SurfaceAction,
@@ -35,7 +36,7 @@ interface ToolDescriptorLite {
 
 async function fetchTools(): Promise<ToolDescriptorLite[]> {
 	try {
-		const r = await fetch("/api/tools");
+		const r = await serviceFetch("/api/tools");
 		if (!r.ok) return [];
 		const j = (await r.json()) as { tools?: ToolDescriptorLite[] };
 		return j.tools ?? [];
@@ -210,7 +211,7 @@ function SurfaceActionRow({
 		setBusy(true);
 		setResult(null);
 		try {
-			const r = await fetch("/api/tools/call", {
+			const r = await serviceFetch("/api/tools/call", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({

@@ -22,6 +22,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "@/i18n";
 import { FAMILY_ORDER, type FileFamily, familyOf } from "../../lib/file-family";
+import { serviceFetch } from "../../lib/platform/service-connection";
 import { useBusSnapshot } from "../../lib/use-bus-snapshot";
 import { useShellStore } from "../../store";
 
@@ -193,7 +194,7 @@ export function FilesPanel() {
 					setLoading(false);
 					return;
 				}
-				const tr = (await fetch(
+				const tr = (await serviceFetch(
 					`/api/files/tree?root=.forgeax/games/${encodeURIComponent(slug)}`,
 				).then((r) => r.json())) as { tree?: Node; error?: string };
 				if (cancelled) return;

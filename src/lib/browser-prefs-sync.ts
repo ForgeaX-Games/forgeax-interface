@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 /** Persist + restore browser localStorage UI prefs via `/api/prefs/browser-localStorage`.
  *  Snapshot lands in `.forgeax/prefs/browser-localStorage.json` for export-instance. */
 
@@ -71,7 +72,7 @@ async function pushBrowserPrefs(): Promise<void> {
 	const entries = captureBrowserLocalStorage();
 	if (Object.keys(entries).length === 0) return;
 	try {
-		await fetch("/api/prefs/browser-localStorage", {
+		await serviceFetch("/api/prefs/browser-localStorage", {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -100,7 +101,7 @@ export function flushBrowserPrefs(): void {
  *  same-tab change (e.g. layout reset) is never clobbered by a stale snapshot. */
 export async function syncBrowserPrefsFromServer(): Promise<number> {
 	try {
-		const res = await fetch("/api/prefs/browser-localStorage");
+		const res = await serviceFetch("/api/prefs/browser-localStorage");
 		if (!res.ok) return 0;
 		// Standalone (no backend) serves the SPA index.html for unknown /api
 		// routes — a 200 with text/html. Guard against parsing that as JSON.

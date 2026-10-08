@@ -11,6 +11,7 @@ import {
 } from "../../lib/cli-providers";
 import { listModelsWithLive } from "../../lib/model-config";
 import { applyModelRoute } from "../../lib/model-route";
+import { serviceFetch } from "../../lib/platform/service-connection";
 import { getStudioProjectClient, useShellStore } from "../../store";
 import { FsBrowser } from "../TopBar/FsBrowser";
 import "../TopBar/FsBrowser.css";
@@ -211,7 +212,7 @@ function CliOptionLabel({
 }
 
 async function patchEnv(patch: Record<string, string>): Promise<void> {
-	const r = await fetch("/api/settings/env", {
+	const r = await serviceFetch("/api/settings/env", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(patch),

@@ -19,6 +19,7 @@ import {
 export interface ShellAdapter {
 	readonly runtime: PlatformRuntime;
 	isTauri(): boolean;
+	supports(capability: ShellCapability): boolean;
 	/** 'macos' | 'windows' | 'linux' | 'browser'. */
 	getPlatform(): Promise<string>;
 	/** Begin an OS window drag (for custom/decoration-less title bars). */
@@ -27,20 +28,84 @@ export interface ShellAdapter {
 	toggleMaximizeWindow(): Promise<void>;
 	closeWindow(): Promise<void>;
 	setAlwaysOnTop(onTop: boolean): Promise<void>;
+	openExternal(url: string): Promise<void>;
 }
 
+export type ShellCapability =
+	| "startDragging"
+	| "minimizeWindow"
+	| "toggleMaximizeWindow"
+	| "closeWindow"
+	| "setAlwaysOnTop"
+	| "openExternal";
+
+export class UnsupportedShellCapabilityError extends Error {
+	constructor(readonly capability: ShellCapability) {
+		super(`Host does not provide shell capability: ${capability}`);
+		this.name = "UnsupportedShellCapabilityError";
+	}
+}
+
+/** The host supplies only capabilities it actually owns. */
+export type HostShellCapabilities = Partial<
+	Pick<
+		ShellAdapter,
+		| "getPlatform"
+		| "startDragging"
+		| "minimizeWindow"
+		| "toggleMaximizeWindow"
+		| "closeWindow"
+		| "setAlwaysOnTop"
+		| "openExternal"
+	>
+>;
+
 let _adapter: ShellAdapter | null = null;
+let hostCapabilities: HostShellCapabilities | null = null;
+
+export function configureShellAdapter(
+	capabilities: HostShellCapabilities | null,
+): void {
+	hostCapabilities = capabilities;
+	_adapter = null;
+}
 
 export function getShellAdapter(): ShellAdapter {
 	if (!_adapter)
-		_adapter = isTauri() ? createTauriAdapter() : createBrowserAdapter();
+		_adapter = hostCapabilities
+			? createHostAdapter(hostCapabilities)
+			: isTauri()
+				? createTauriAdapter()
+				: createBrowserAdapter();
 	return _adapter;
+}
+
+function createHostAdapter(capabilities: HostShellCapabilities): ShellAdapter {
+	const invoke = async (name: ShellCapability, ...args: unknown[]) => {
+		const implementation = capabilities[name];
+		if (!implementation) throw new UnsupportedShellCapabilityError(name);
+		await Reflect.apply(implementation, capabilities, args);
+	};
+	return {
+		runtime: "host",
+		isTauri: () => false,
+		supports: (capability) => typeof capabilities[capability] === "function",
+		getPlatform: () =>
+			capabilities.getPlatform?.() ?? Promise.resolve("unknown"),
+		startDragging: () => invoke("startDragging"),
+		minimizeWindow: () => invoke("minimizeWindow"),
+		toggleMaximizeWindow: () => invoke("toggleMaximizeWindow"),
+		closeWindow: () => invoke("closeWindow"),
+		setAlwaysOnTop: (onTop) => invoke("setAlwaysOnTop", onTop),
+		openExternal: (url) => invoke("openExternal", url),
+	};
 }
 
 function createTauriAdapter(): ShellAdapter {
 	return {
 		runtime: "tauri",
 		isTauri: () => true,
+		supports: () => true,
 		async getPlatform() {
 			try {
 				const os = await import("@tauri-apps/plugin-os");
@@ -72,6 +137,10 @@ function createTauriAdapter(): ShellAdapter {
 			if (wvMod) await wvMod.getCurrentWebviewWindow().setAlwaysOnTop(onTop);
 			else void mod;
 		},
+		async openExternal(url: string) {
+			const shell = await import("@tauri-apps/plugin-shell");
+			await shell.open(url);
+		},
 	};
 }
 
@@ -82,6 +151,7 @@ function createBrowserAdapter(): ShellAdapter {
 	return {
 		runtime: platformRuntime(),
 		isTauri: () => false,
+		supports: (capability) => capability === "openExternal",
 		async getPlatform() {
 			return "browser";
 		},
@@ -90,5 +160,8 @@ function createBrowserAdapter(): ShellAdapter {
 		toggleMaximizeWindow: noop,
 		closeWindow: noop,
 		setAlwaysOnTop: noop,
+		async openExternal(url: string) {
+			window.open(url, "_blank", "noopener");
+		},
 	};
 }

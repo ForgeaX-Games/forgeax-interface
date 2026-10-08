@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 // Dashboard API client — thin typed wrappers over the forgeax-server endpoints.
 //
 // R3 migration (2026-05-20):
@@ -57,7 +58,7 @@ export interface SessionLedgerEvent {
 }
 
 async function getJSON<T>(path: string): Promise<T> {
-	const r = await fetch(path);
+	const r = await serviceFetch(path);
 	if (!r.ok) throw new Error(`${path} ${r.status}`);
 	return (await r.json()) as T;
 }
@@ -85,11 +86,14 @@ export interface HealthResponse {
 }
 
 async function runCommand<T>(name: string, args: unknown[]): Promise<T> {
-	const r = await fetch(`/api/commands/${encodeURIComponent(name)}/query`, {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ args }),
-	});
+	const r = await serviceFetch(
+		`/api/commands/${encodeURIComponent(name)}/query`,
+		{
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ args }),
+		},
+	);
 	if (!r.ok) throw new Error(`commands/${name} ${r.status}`);
 	const j = (await r.json()) as CommandResult<T>;
 	if (!j.result?.ok)
@@ -152,7 +156,7 @@ export const dashApi = {
 	deleteSession: async (
 		sid: string,
 	): Promise<{ ok: boolean; error?: string }> => {
-		const r = await fetch(`/api/sessions/${encodeURIComponent(sid)}`, {
+		const r = await serviceFetch(`/api/sessions/${encodeURIComponent(sid)}`, {
 			method: "DELETE",
 		});
 		if (r.ok) return { ok: true };
@@ -167,7 +171,7 @@ export const dashApi = {
 		agent?: string,
 	): Promise<{ ok: boolean; error?: string }> => {
 		const qs = agent ? `?agent=${encodeURIComponent(agent)}` : "";
-		const r = await fetch(
+		const r = await serviceFetch(
 			`/api/sessions/${encodeURIComponent(sid)}/abort${qs}`,
 			{ method: "POST" },
 		);

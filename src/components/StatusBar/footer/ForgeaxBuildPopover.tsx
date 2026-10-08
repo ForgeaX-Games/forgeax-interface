@@ -1,3 +1,4 @@
+import { serviceFetch } from "../../../lib/platform/service-connection";
 /**
  * ForgeaX build projection for the footer.
  *
@@ -41,13 +42,13 @@ export function ForgeaxBuildChip() {
 	useEffect(() => {
 		let cancelled = false;
 		const refresh = () => {
-			fetch("/api/version")
+			serviceFetch("/api/version")
 				.then((response) => (response.ok ? response.json() : null))
 				.then((data) => {
 					if (!cancelled && data) setInfo(data as BuildInfo);
 				})
 				.catch(() => {});
-			fetch("/api/version/tags")
+			serviceFetch("/api/version/tags")
 				.then((response) => (response.ok ? response.json() : null))
 				.then((data) => {
 					if (!cancelled && data)

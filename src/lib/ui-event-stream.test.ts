@@ -18,6 +18,9 @@ test("UI notifications use WS, parse envelopes and ignore frames after disposal"
 		constructor(readonly url: URL) {
 			sockets.push(this);
 		}
+		addEventListener(type: string, listener: (...args: any[]) => void) {
+			(this as any)[`on${type}`] = listener;
+		}
 		close() {
 			this.closed = true;
 			this.onclose?.();
@@ -69,6 +72,9 @@ test("reconnects with backoff and cancels queued reconnects on disposal", () => 
 		onclose?: () => void;
 		constructor(readonly url: URL) {
 			sockets.push(this);
+		}
+		addEventListener(type: string, listener: (...args: any[]) => void) {
+			(this as any)[`on${type}`] = listener;
 		}
 		close() {
 			this.onclose?.();

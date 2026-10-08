@@ -23,7 +23,28 @@ export {
 	type PlatformRuntime,
 	platformRuntime,
 } from "./runtime";
-export { getShellAdapter, type ShellAdapter } from "./shell-adapter";
+export {
+	configureServiceConnection,
+	openServiceEventSource,
+	openServiceWebSocket,
+	type ServiceConnection,
+	type ServiceEventSource,
+	type ServiceWebSocket,
+	serviceAssetUrl,
+	serviceEventSourceUrl,
+	serviceFetch,
+	serviceHttpUrl,
+	serviceSendBeacon,
+	serviceWebSocketUrl,
+} from "./service-connection";
+export {
+	configureShellAdapter,
+	getShellAdapter,
+	type HostShellCapabilities,
+	type ShellAdapter,
+	type ShellCapability,
+	UnsupportedShellCapabilityError,
+} from "./shell-adapter";
 export {
 	type DetachedViewportCarrierKind,
 	encodeSurfaceWindowQuery,

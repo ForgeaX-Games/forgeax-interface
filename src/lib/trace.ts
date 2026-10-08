@@ -10,6 +10,7 @@
  * 活动 trace,续建 ui.first-token/ui.stream/ui.turn-end/ui.render(rAF 取真实上屏帧)。
  * 浏览器自己是 root、自己持 traceId(按 agentId 索引活动 trace),**无需服务端 echo**。
  */
+
 import {
 	type TelemetryRecord,
 	type TelemetrySpan,
@@ -20,6 +21,7 @@ import {
 	reportPassiveFeedbackRecovery,
 	reportPassiveFeedbackSignal,
 } from "./passive-feedback";
+import { serviceFetch } from "./platform/service-connection";
 
 // ─── id + 序列化 ──────────────────────────────────────────────────────────
 function randHex(bytes: number): string {
@@ -68,15 +70,13 @@ function emit(span: TelemetrySpan): void {
 export function flushTelemetryUpload(): void {
 	if (uploadBuf.length === 0) return;
 	const records = uploadBuf.splice(0);
-	const f = (globalThis as { fetch?: typeof fetch }).fetch;
-	if (!f) return;
 	// 5s 超时:server 若被冻结/无响应(正是 hang 场景),上传不能无限挂起堆积 —— 否则浏览器侧
 	//   也被拖累。超时即放弃这批(它们仍在内存 viewer 里,定位不丢)。
 	const AC = (globalThis as { AbortController?: typeof AbortController })
 		.AbortController;
 	const ac = AC ? new AC() : undefined;
 	const to = ac ? setTimeout(() => ac.abort(), 5000) : undefined;
-	void f("/api/telemetry", {
+	void serviceFetch("/api/telemetry", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({ records }),

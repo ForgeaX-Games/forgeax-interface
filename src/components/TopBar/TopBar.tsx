@@ -34,6 +34,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "@/i18n";
 import { useCommand } from "../../core/app-shell";
 import { alertDialog, confirmDialog } from "../../lib/dialog";
+import {
+	serviceFetch,
+	serviceHttpUrl,
+} from "../../lib/platform/service-connection";
 import { STORAGE_KEYS } from "../../lib/storageKeys";
 import { type UISurfaceActionDef, useSurface } from "../../lib/surface";
 import {
@@ -1075,7 +1079,7 @@ function PackageSuccessBody({
 	};
 	const reveal = async () => {
 		try {
-			await fetch("/api/builds/reveal", {
+			await serviceFetch("/api/builds/reveal", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ path: outDir }),
@@ -1088,7 +1092,10 @@ function PackageSuccessBody({
 	// localhost context, correct .wasm MIME) — no npx/serve.sh spawn, so the tab
 	// opens instantly onto a ready server instead of a maybe-not-bound one.
 	const play = () => {
-		window.open(`/api/builds/play/${encodeURIComponent(slug)}/`, "_blank");
+		window.open(
+			serviceHttpUrl(`/api/builds/play/${encodeURIComponent(slug)}/`),
+			"_blank",
+		);
 	};
 
 	const isWeb = platform === "web";

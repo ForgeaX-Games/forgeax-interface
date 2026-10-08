@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { t } from "@/i18n";
 import { resolveKernelForAgent } from "./lib/agent-cli-provider";
 import { alertDialog } from "./lib/dialog";
+import { serviceFetch } from "./lib/platform/service-connection";
 import { setCurrentProject } from "./lib/project-context";
 import { STORAGE_KEYS } from "./lib/storageKeys";
 import type {
@@ -1020,11 +1021,14 @@ export function createCompatibilityShellStore() {
 				return;
 			}
 			try {
-				const r = await fetch(`/api/threads/${encodeURIComponent(activeSid)}`, {
-					method: "PATCH",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ activeEmitterId: emitterId }),
-				});
+				const r = await serviceFetch(
+					`/api/threads/${encodeURIComponent(activeSid)}`,
+					{
+						method: "PATCH",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ activeEmitterId: emitterId }),
+					},
+				);
 				if (!r.ok) {
 					console.warn(`[setActiveEmitter] PATCH failed: HTTP ${r.status}`);
 					return;

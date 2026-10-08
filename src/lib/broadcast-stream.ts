@@ -2,6 +2,7 @@ import {
 	connectBroadcast,
 	getBroadcastStatus as readStatus,
 } from "@forgeax/app-shell/application";
+import { serviceWebSocketUrl } from "./platform/service-connection";
 
 export {
 	disconnectBroadcast as disconnect,
@@ -10,8 +11,7 @@ export {
 
 // Product endpoint policy stays here; App Shell owns the single realm transport.
 function defaultUrl(): string {
-	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	return `${protocol}//${window.location.host}/ws`;
+	return serviceWebSocketUrl("/ws");
 }
 
 /** Preserve optional URL and sticky explicit URL behavior for existing boot callers. */

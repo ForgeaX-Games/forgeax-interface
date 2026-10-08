@@ -25,6 +25,7 @@ import { tabLabel, useShellStore } from "../store";
 import { getStudioProjectClient } from "../store-parts/domain-clients";
 import { getSessionClient } from "../store-parts/session-client";
 import { listExtensions, pickLang } from "./extension-api";
+import { serviceFetch } from "./platform/service-connection";
 
 let registered = false;
 
@@ -40,7 +41,7 @@ type RoleRosterResult =
 	| { ok: false; reason: string };
 
 async function readRoleRoster(): Promise<RoleRosterResult> {
-	const response = await fetch("/api/tools/call", {
+	const response = await serviceFetch("/api/tools/call", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({
@@ -231,7 +232,7 @@ export function registerBuiltinActions(): void {
 		surface: "both",
 		timeoutMs: 15000,
 		run: async (args) => {
-			const r = await fetch("/api/tools/call", {
+			const r = await serviceFetch("/api/tools/call", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({

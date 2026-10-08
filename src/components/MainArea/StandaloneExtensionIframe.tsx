@@ -1,3 +1,4 @@
+import { serviceFetch } from "../../lib/platform/service-connection";
 /**
  * Phase A3 — iframe-mounted page plugin.
  *
@@ -195,7 +196,7 @@ export function StandaloneExtensionIframe({
 	const handleToolCall = useCallback(
 		async (call: { toolId: string; args?: unknown }) => {
 			try {
-				const r = await fetch("/api/tools/call", {
+				const r = await serviceFetch("/api/tools/call", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({

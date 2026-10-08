@@ -5,6 +5,7 @@ import type {
 	FeedbackType,
 } from "@forgeax/types/feedback";
 import { create } from "zustand";
+import { serviceFetch } from "../../lib/platform/service-connection";
 import { STORAGE_KEYS } from "../../lib/storageKeys";
 import { captureUiScreenshot } from "../../lib/ui-screenshot";
 import { captureFeedbackContext } from "./collect";
@@ -161,7 +162,7 @@ async function fetchWithTimeout(
 	const controller = new AbortController();
 	const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 	try {
-		return await fetch(input, { ...init, signal: controller.signal });
+		return await serviceFetch(input, { ...init, signal: controller.signal });
 	} catch (error) {
 		if (controller.signal.aborted) {
 			throw new FeedbackRequestError(
@@ -661,11 +662,14 @@ export const useFeedbackStore = create<FeedbackStore>((set, get) => ({
 
 	setStatus: async (id, status) => {
 		try {
-			const r = await fetch(`/api/feedback/${encodeURIComponent(id)}/status`, {
-				method: "PATCH",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ status }),
-			});
+			const r = await serviceFetch(
+				`/api/feedback/${encodeURIComponent(id)}/status`,
+				{
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ status }),
+				},
+			);
 			const data = (await r.json()) as {
 				ok?: boolean;
 				report?: FeedbackReport;

@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 // P9.3 — useSurface() hook + thin client around /api/bus/ui/* (server router
 // lives at packages/server/src/api/ui-surfaces.ts).
 //
@@ -143,11 +144,14 @@ export function useSurface<S, AMap extends Record<string, UISurfaceActionDef>>(
 					typeof next === "function" ? (next as (p: S) => S)(prev) : next;
 				snapshotRef.current = v;
 				// Fire-and-forget; PUT 失败仅写 lastError, 不回滚 React state.
-				void fetch(`/api/bus/ui/surfaces/${encodeURIComponent(id)}/snapshot`, {
-					method: "PUT",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ snapshot: v }),
-				})
+				void serviceFetch(
+					`/api/bus/ui/surfaces/${encodeURIComponent(id)}/snapshot`,
+					{
+						method: "PUT",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ snapshot: v }),
+					},
+				)
 					.then((r) => {
 						if (!r.ok) setLastError(`PUT snapshot HTTP ${r.status}`);
 						else setLastError(null);
@@ -172,11 +176,14 @@ export function useSurface<S, AMap extends Record<string, UISurfaceActionDef>>(
 			// 单门账本对称:AI 路径每步落 ui.surface.action,人路径此前零记录。
 			// handler 已在本地跑,这里只补账 —— fire-and-forget,不挡交互,失败静默
 			// (账本是观测面,不是功能依赖)。
-			void fetch(`/api/bus/ui/surfaces/${encodeURIComponent(id)}/dispatched`, {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ action: def.id, args }),
-			}).catch(() => {});
+			void serviceFetch(
+				`/api/bus/ui/surfaces/${encodeURIComponent(id)}/dispatched`,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ action: def.id, args }),
+				},
+			).catch(() => {});
 			return await def.run(args, { source: "user", token: null });
 		},
 		[id],
@@ -203,7 +210,7 @@ export function useSurface<S, AMap extends Record<string, UISurfaceActionDef>>(
 				requireConfirm: a.requireConfirm,
 			})),
 		};
-		fetch("/api/bus/ui/surfaces", {
+		serviceFetch("/api/bus/ui/surfaces", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(body),
@@ -229,7 +236,7 @@ export function useSurface<S, AMap extends Record<string, UISurfaceActionDef>>(
 			// best-effort DELETE -- 失败不影响 React 卸载.
 			// 按页注销:多个标签页共用同一个 surface id,整删会把别的页面一起弄哑
 			// (2026-08-06 外审 MAJOR)。服务端只在没有其他存活页面时才真正移除记录。
-			void fetch(
+			void serviceFetch(
 				`/api/bus/ui/surfaces/${encodeURIComponent(id)}?page=${encodeURIComponent(PAGE_ID)}`,
 				{ method: "DELETE" },
 			).catch(() => {});
@@ -262,7 +269,7 @@ export function useSurface<S, AMap extends Record<string, UISurfaceActionDef>>(
 			if (stopped) return;
 			let nextDelay = interval;
 			try {
-				const r = await fetch(
+				const r = await serviceFetch(
 					`/api/bus/ui/surfaces/${encodeURIComponent(id)}/pending?page=${PAGE_ID}`,
 				);
 				if (!stopped && r.ok) {
@@ -334,7 +341,7 @@ async function ack(
 	started?: boolean,
 ): Promise<void> {
 	try {
-		await fetch(`/api/bus/ui/surfaces/${encodeURIComponent(id)}/ack`, {
+		await serviceFetch(`/api/bus/ui/surfaces/${encodeURIComponent(id)}/ack`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			// started 缺省 = **未知**,不能用 false 冒充"确定没开始" —— 消费方据键的有无判断。

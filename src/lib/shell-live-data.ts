@@ -2,6 +2,7 @@ import { createSettledPollingLifecycle } from "@forgeax/app-shell/react";
 import { useSyncExternalStore } from "react";
 import type { HealthResponse } from "./dashboard-api";
 import type { ExtensionListResponse } from "./extension-api";
+import { serviceFetch } from "./platform/service-connection";
 import {
 	deriveExtensionKindCounts,
 	type ExtensionKindCounts,
@@ -61,14 +62,17 @@ function createLiveStore<T>(
 }
 
 const healthStore = createLiveStore<HealthResponse>(async (signal) => {
-	const response = await fetch("/api/health", { cache: "no-store", signal });
+	const response = await serviceFetch("/api/health", {
+		cache: "no-store",
+		signal,
+	});
 	if (!response.ok) throw new Error(`/api/health ${response.status}`);
 	return response.json() as Promise<HealthResponse>;
 }, 5_000);
 
 const extensionCountsStore = createLiveStore<ExtensionKindCounts>(
 	async (signal) => {
-		const response = await fetch("/api/extensions/list", {
+		const response = await serviceFetch("/api/extensions/list", {
 			cache: "no-store",
 			signal,
 		});

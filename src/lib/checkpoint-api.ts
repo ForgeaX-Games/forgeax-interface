@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 /** checkpoint-api —— checkpoint 回退点的 REST 包装(server api/sessions.ts 路由)。
  *  与 forgeax-bridge 同款风格:不持状态,调用方显式传 sid。 */
 
@@ -42,7 +43,7 @@ export async function fetchCheckpoints(
 	checkpoints: CheckpointEntry[];
 	pending: PendingRewindInfo | null;
 }> {
-	const r = await fetch(
+	const r = await serviceFetch(
 		`/api/sessions/${encodeURIComponent(sid)}/checkpoints`,
 		{ signal },
 	);

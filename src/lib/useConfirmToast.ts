@@ -10,6 +10,7 @@
  *   - deny(token): POST /api/tools/confirm { token, decision: 'deny' }
  */
 import { useCallback, useEffect, useState } from "react";
+import { serviceFetch } from "./platform/service-connection";
 import { parseSse } from "./sse";
 
 export interface ConfirmCaller {
@@ -88,7 +89,7 @@ export function useConfirmToast(): UseConfirmToastResult {
 		const run = async () => {
 			let res: Response;
 			try {
-				res = await fetch(STREAM_URL, { signal: controller.signal });
+				res = await serviceFetch(STREAM_URL, { signal: controller.signal });
 			} catch {
 				return;
 			}
@@ -124,7 +125,7 @@ export function useConfirmToast(): UseConfirmToastResult {
 	const ack = useCallback(
 		async (token: string) => {
 			try {
-				await fetch(ACK_URL, {
+				await serviceFetch(ACK_URL, {
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({ token, decision: "allow" }),
@@ -139,7 +140,7 @@ export function useConfirmToast(): UseConfirmToastResult {
 	const deny = useCallback(
 		async (token: string) => {
 			try {
-				await fetch(ACK_URL, {
+				await serviceFetch(ACK_URL, {
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({ token, decision: "deny" }),

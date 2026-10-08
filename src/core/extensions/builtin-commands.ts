@@ -17,7 +17,7 @@ import {
 	chatWidthStore,
 } from "../../components/ChatColumn/useChatWidth";
 import { useFeedbackStore } from "../../components/Feedback/store";
-import { isTauri } from "../../lib/platform/runtime";
+import { getShellAdapter } from "../../lib/platform/shell-adapter";
 import {
 	executeFocusedTextEditAction,
 	type TextEditAction,
@@ -150,22 +150,19 @@ export const builtinCommandsExtension: AppExtension = {
 							`app.open_url: only http(s) URLs are allowed, got: ${trimmed}`,
 						);
 					}
-					if (isTauri()) {
-						// Prefer the plugin-shell opener so the URL goes to the OS default
-						// browser, not the tauri webview. If the capability isn't granted the
-						// call rejects — fall through to window.open in that case.
-						try {
-							const shell = await import("@tauri-apps/plugin-shell");
-							await shell.open(trimmed);
-							return { status: "completed" as const };
-						} catch {
-							/* fall through */
-						}
-					}
+					const shell = getShellAdapter();
 					try {
-						window.open(trimmed, "_blank", "noopener");
-					} catch {
-						/* noop */
+						await shell.openExternal(trimmed);
+					} catch (error) {
+						// Preserve the existing Tauri fallback when plugin-shell is denied.
+						if (shell.runtime === "host") throw error;
+						if (shell.runtime === "tauri") {
+							try {
+								window.open(trimmed, "_blank", "noopener");
+							} catch {
+								/* browser may block the fallback */
+							}
+						}
 					}
 					return { status: "completed" as const };
 				},

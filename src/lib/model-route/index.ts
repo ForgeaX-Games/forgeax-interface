@@ -6,6 +6,7 @@ import {
 	setAgentModels,
 } from "../model-config";
 import { getLastModel } from "../model-prefs";
+import { serviceFetch } from "../platform/service-connection";
 // ActiveModelRoute — the single source of truth for "which model source is the
 // chat actually using right now", and the one place that mutation flows through.
 //
@@ -62,7 +63,7 @@ export function deriveActiveSource(
 }
 
 async function patchEnv(patch: Record<string, string>): Promise<void> {
-	const r = await fetch("/api/settings/env", {
+	const r = await serviceFetch("/api/settings/env", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(patch),

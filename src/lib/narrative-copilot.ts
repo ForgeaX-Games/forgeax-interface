@@ -1,3 +1,4 @@
+import { serviceFetch } from "./platform/service-connection";
 /** 叙事工坊「完成即重唤醒」闭环（END 侧）。
  *
  *  背景：剧情师 Kotone 是一问一答的 agent —— 用它跑叙事管线时，它在**启动那一轮**里
@@ -35,7 +36,7 @@ const activeWatchers = new Set<string>();
 
 async function fetchNarrativeHistory(): Promise<NarrativeHistoryEntry[]> {
 	try {
-		const r = await fetch("/api/narrative/history");
+		const r = await serviceFetch("/api/narrative/history");
 		if (!r.ok) return [];
 		const j = (await r.json()) as NarrativeHistoryEntry[];
 		return Array.isArray(j) ? j : [];

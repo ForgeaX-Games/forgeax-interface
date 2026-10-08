@@ -1,4 +1,5 @@
 import { loadModelCatalogWithBackup } from "./model-catalog-backup";
+import { serviceFetch } from "./platform/service-connection";
 // @desc Frontend client for `builtin/commands/models.ts` —— list / get / set
 //
 // 三个 helper 一律走 `/api/commands/*` 走 transport.ts 的 `{ args }` 协议。统一在
@@ -51,7 +52,7 @@ interface CommandResp<T> {
 }
 
 async function callQuery<T>(name: string, args: string[]): Promise<T> {
-	const r = await fetch(`/api/commands/${name}/query`, {
+	const r = await serviceFetch(`/api/commands/${name}/query`, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({ args }),
@@ -64,7 +65,7 @@ async function callQuery<T>(name: string, args: string[]): Promise<T> {
 }
 
 async function callExecute<T>(name: string, args: string[]): Promise<T> {
-	const r = await fetch(`/api/commands/${name}/execute`, {
+	const r = await serviceFetch(`/api/commands/${name}/execute`, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({ args }),

@@ -13,6 +13,10 @@ import {
 	type ExtensionListResponse,
 	listExtensions,
 } from "../../lib/extension-api";
+import {
+	openServiceEventSource,
+	type ServiceEventSource,
+} from "../../lib/platform/service-connection";
 import type { Cleanup } from "../extension-foundation/types";
 import type {
 	ActivityRegistration,
@@ -254,7 +258,7 @@ export function createCatalogPageExtensionRuntime(options: {
 		});
 	const active = new Map<string, CatalogRuntimeRecord>();
 	let generation: number | undefined;
-	let events: EventSource | undefined;
+	let events: ServiceEventSource | undefined;
 	let chain = Promise.resolve();
 	let disposed = false;
 
@@ -343,7 +347,9 @@ export function createCatalogPageExtensionRuntime(options: {
 			await refresh().catch(() => undefined);
 			if (!disposed) {
 				try {
-					events = new EventSource("/api/events/stream?topic=plugin.reloaded");
+					events = openServiceEventSource(
+						"/api/events/stream?topic=plugin.reloaded",
+					);
 					events.addEventListener("event", () => {
 						void refresh().catch(() => undefined);
 					});

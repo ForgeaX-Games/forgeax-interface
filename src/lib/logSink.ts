@@ -1,3 +1,4 @@
+import { serviceFetch, serviceSendBeacon } from "./platform/service-connection";
 /**
  * logSink — best-effort persistence of the in-memory observe/debug streams
  * (Console / Network / Info) to disk via `POST /api/logs`.
@@ -84,7 +85,7 @@ async function flushStream(stream: LogStream): Promise<void> {
 	QUEUES[stream] = [];
 	lastSig[stream] = null; // post-flush dups start a fresh record (don't bump a sent one)
 	try {
-		await fetch("/api/logs", {
+		await serviceFetch("/api/logs", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ stream, entries, sessionId: SESSION_ID }),
@@ -127,7 +128,7 @@ export function recordLog(stream: LogStream, entry: unknown): void {
 	}
 }
 
-// Flush via sendBeacon on tab hide / unload — fetch() may be cancelled mid-flight
+// Flush via sendBeacon on tab hide / unload — serviceFetch() may be cancelled mid-flight
 // when the document is tearing down, but a beacon is guaranteed-delivered.
 if (typeof window !== "undefined") {
 	const beaconFlush = (): void => {
@@ -140,7 +141,7 @@ if (typeof window !== "undefined") {
 					[JSON.stringify({ stream, entries, sessionId: SESSION_ID })],
 					{ type: "application/json" },
 				);
-				navigator.sendBeacon("/api/logs", blob);
+				serviceSendBeacon("/api/logs", blob);
 			} catch {
 				/* ignore */
 			}

@@ -1,3 +1,4 @@
+import { serviceFetch } from "../../lib/platform/service-connection";
 // FsBrowser — server-side directory picker for an existing game directory.
 //
 // Folder-only navigation (the server endpoint only returns dirs). The caller
@@ -52,7 +53,9 @@ export function FsBrowser({
 		setLoading(true);
 		setLoadErr(null);
 		try {
-			const r = await fetch(`/api/fs/browse?dir=${encodeURIComponent(target)}`);
+			const r = await serviceFetch(
+				`/api/fs/browse?dir=${encodeURIComponent(target)}`,
+			);
 			const j = (await r.json()) as BrowseResp;
 			if (!r.ok || j.error) {
 				setLoadErr(j.error ?? `HTTP ${r.status}`);
@@ -92,7 +95,7 @@ export function FsBrowser({
 	const pickNative = async () => {
 		setPicking(true);
 		try {
-			const r = await fetch("/api/fs/pick-directory", {
+			const r = await serviceFetch("/api/fs/pick-directory", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ initialDir: data?.dir ?? dir }),
